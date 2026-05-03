@@ -1,0 +1,407 @@
+.content {
+  --background: #f6f8f7;
+}
+
+.content::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 14px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 28px);
+}
+
+.page {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 16px;
+  color: #123131;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 18px;
+  min-height: 186px;
+  padding: 22px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #174b4b, #2a9d8f);
+  color: #fff;
+}
+
+.kicker,
+.heroBadge,
+.protocolTop small,
+.cardActions button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.kicker {
+  gap: 8px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: 2.35rem;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.hero p {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.45;
+}
+
+.heroBadge {
+  gap: 8px;
+  min-width: 136px;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.13);
+  font-weight: 900;
+}
+
+.formPanel,
+.listPanel,
+.timelinePanel {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba(18, 49, 49, 0.1);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: #112f2f;
+  font-size: 1.16rem;
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  color: #607470;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 6px;
+}
+
+.formGrid span {
+  color: #5c6f6b;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.formGrid input,
+.formGrid select,
+.formGrid textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(18, 49, 49, 0.18);
+  border-radius: 8px;
+  background: #f8fbfa;
+  color: #112f2f;
+  font: inherit;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.formGrid textarea {
+  resize: vertical;
+}
+
+.fullField {
+  grid-column: 1 / -1;
+}
+
+.primaryButton {
+  margin-top: 14px;
+  --background: #174b4b;
+  --color: #fff;
+  --border-radius: 8px;
+  font-weight: 900;
+}
+
+.primaryButton::part(native) {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.protocolGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.protocolCard {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(18, 49, 49, 0.1);
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.protocolTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.protocolTop > span {
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.protocolTop small {
+  gap: 5px;
+  color: #27835f;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.protocolCard h3 {
+  margin: 0;
+  color: #112f2f;
+  font-size: 1.18rem;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metaGrid div {
+  min-height: 58px;
+  padding: 9px;
+  border-radius: 8px;
+  background: #eef5f3;
+}
+
+.metaGrid span,
+.metaGrid strong {
+  display: block;
+}
+
+.metaGrid span {
+  color: #607470;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metaGrid strong {
+  margin-top: 4px;
+  color: #112f2f;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.focusList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.focusList span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: #4f625f;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cardActions button {
+  min-height: 40px;
+  gap: 7px;
+  border: 1px solid rgba(23, 75, 75, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  color: #174b4b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  padding: 8px 11px;
+}
+
+.cardActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.emptyState,
+.notice {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f3f7f5;
+  color: #4f625f;
+}
+
+.emptyState strong {
+  color: #112f2f;
+}
+
+.eventList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eventList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(18, 49, 49, 0.08);
+}
+
+.eventList strong {
+  color: #112f2f;
+}
+
+.eventList span,
+.message {
+  color: #607470;
+}
+
+.message {
+  margin: 12px 0 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.spin {
+  color: #174b4b;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:global([data-theme='dark']) .content,
+:global(body[data-theme='dark']) .content,
+:global(html[data-theme='dark']) .content {
+  --background: #111716;
+}
+
+:global([data-theme='dark']) .page,
+:global(body[data-theme='dark']) .page,
+:global(html[data-theme='dark']) .page {
+  color: #dce8e5;
+}
+
+:global([data-theme='dark']) .formPanel,
+:global([data-theme='dark']) .listPanel,
+:global([data-theme='dark']) .timelinePanel,
+:global([data-theme='dark']) .protocolCard,
+:global(body[data-theme='dark']) .formPanel,
+:global(body[data-theme='dark']) .listPanel,
+:global(body[data-theme='dark']) .timelinePanel,
+:global(body[data-theme='dark']) .protocolCard {
+  background: #1b2422;
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: none;
+}
+
+:global([data-theme='dark']) .formGrid input,
+:global([data-theme='dark']) .formGrid select,
+:global([data-theme='dark']) .formGrid textarea,
+:global(body[data-theme='dark']) .formGrid input,
+:global(body[data-theme='dark']) .formGrid select,
+:global(body[data-theme='dark']) .formGrid textarea {
+  background: #14201e;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f2fbf8;
+}
+
+:global([data-theme='dark']) .metaGrid div,
+:global([data-theme='dark']) .emptyState,
+:global([data-theme='dark']) .notice,
+:global(body[data-theme='dark']) .metaGrid div,
+:global(body[data-theme='dark']) .emptyState,
+:global(body[data-theme='dark']) .notice {
+  background: #14201e;
+}
+
+:global([data-theme='dark']) .sectionHeader h2,
+:global([data-theme='dark']) .protocolCard h3,
+:global([data-theme='dark']) .metaGrid strong,
+:global([data-theme='dark']) .emptyState strong,
+:global([data-theme='dark']) .eventList strong,
+:global(body[data-theme='dark']) .sectionHeader h2,
+:global(body[data-theme='dark']) .protocolCard h3,
+:global(body[data-theme='dark']) .metaGrid strong,
+:global(body[data-theme='dark']) .emptyState strong,
+:global(body[data-theme='dark']) .eventList strong {
+  color: #f2fbf8;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 12px;
+  }
+
+  .hero,
+  .formGrid,
+  .protocolGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero h1 {
+    font-size: 1.9rem;
+  }
+
+  .heroBadge {
+    justify-content: flex-start;
+  }
+
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
+}

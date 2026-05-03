@@ -1,0 +1,1 @@
+export const IS_LOCAL_AUTH = true; // set false when you want remote auth again

@@ -1,0 +1,139 @@
+/* Push under TopNav and above BottomNav via IonContent padding vars */
+.contentPad {
+  --padding-top: calc(var(--top-nav-height) + env(safe-area-inset-top));
+  --padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+  background: var(--background-primary);
+}
+
+/* Just a normal flow container. No flex, no 100% heights. */
+.swiperViewport {
+  padding: 0 12px;
+}
+
+/* Optional: Swiper fill helper (safe even if you don't force heights) */
+.swiperFill {
+  width: 100%;
+}
+
+/* Slides hold content */
+.container {
+  padding: 1rem;
+  background: var(--background-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Keep bullets a touch above BottomNav */
+:global(.swiper-pagination) {
+  bottom: 12px !important;
+}
+
+.title {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.sectionHeading {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Shared card styles (replaces cardStyle + inline styles) */
+.card {
+  border: 2px solid var(--button-primary-bg);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+}
+
+/* Logo + Lottie wrappers (replaces inline styles) */
+.logoWrap {
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.logo {
+  max-width: 180px;
+  height: auto;
+}
+
+.lottieWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.3rem;
+}
+
+.lottie {
+  width: 160px;
+  height: 160px;
+}
+
+/* Feature list (replaces inline styles on ul/li/span) */
+.featureList {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.featureIcon {
+  font-size: 28px;
+  margin-right: 10px;
+  line-height: 1;
+}
+
+/* Link list (replaces tailwind-ish classes) */
+.linkList {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-primary);
+}
+
+.linkList li {
+  margin-bottom: 0.5rem;
+}
+
+/* Card paragraph spacing for the delete section */
+.cardP {
+  margin-top: 6px;
+  margin-bottom: 0;
+  color: var(--text-primary);
+}
+
+/* Small spacing helpers */
+.mt12 {
+  margin-top: 12px;
+}
+
+.pt8 {
+  padding-top: 0.5rem;
+}
+
+/* Button spacing used on slide 3/4 */
+.blockBtn {
+  margin-bottom: 0.75rem;
+}
+
+/* A small spacer so the last slide's buttons don't kiss BottomNav */
+.endSpacer {
+  height: 12px;
+}

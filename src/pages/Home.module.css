@@ -1,0 +1,272 @@
+/* src/pages/Home.module.css */
+
+/* ========== TOKENS ========== */
+:root {
+  /* Background */
+  --home-bg-position: center;
+  --home-bg-size: cover;
+  --home-bg-image: none;
+
+  /* Layout */
+  --home-container-max: 700px;
+  --home-container-pad: 1.8rem;
+
+  /* Flow layout knobs (apply everywhere) */
+  --home-page-top-pad: 66px; /* pushes content down on first load */
+  --home-hero-nudge: -48px;  /* more negative = hero higher */
+  --home-actions-mt: 10px;
+  --home-actions-pb: 0.5rem;
+
+  /* Vertical rhythm */
+  --home-stack-gap: 1rem;
+  --home-actions-gap: 14px;
+
+  /* Logo */
+  --home-logo-max: 210px;
+  --home-logo-mt: 1rem;
+  --home-logo-mb: 1.25rem;
+
+  /* Title/subtitle */
+  --home-title-size: 1.7rem;
+  --home-title-mt: 1rem;
+  --home-title-mb: 0.65rem;
+
+  --home-subtitle-size: 1.1rem;
+  --home-subtitle-mb: 1.1rem;
+
+  /* Buttons */
+  --home-button-max: 420px;
+  --home-button-radius: 20px;
+  --home-button-pad-block: 12px;
+  --home-button-pad-inline: 18px;
+  --home-button-font-size: 1rem; /* ✅ phones/default */
+
+  /* Theme mapping */
+  --home-title-color: var(--text-heading);
+  --home-subtitle-color: var(--text-heading);
+  --home-button-bg: var(--accent-primary);
+  --home-button-color: #ffffff;
+  --home-button-border: 2px solid var(--border-primary);
+}
+
+/* Light mode background image */
+:root[data-theme='light'] {
+  --home-bg-image: url('/assets/bg-pattern.jpg');
+}
+
+/* ========== PAGE BACKGROUND ========== */
+.pageBg {
+  min-height: 100%;
+  position: relative;
+  background-image: var(--home-bg-image);
+  background-position: var(--home-bg-position);
+  background-size: var(--home-bg-size);
+  background-color: var(--bg-primary);
+
+  padding-top: var(--home-page-top-pad);
+  box-sizing: border-box;
+}
+
+/* ========== LAYOUT ROOT ========== */
+.container {
+  width: 100%;
+  max-width: var(--home-container-max);
+  margin: 0 auto;
+  padding: var(--home-container-pad);
+  box-sizing: border-box;
+
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ========== HERO (FLOW) ========== */
+.hero {
+  width: 100%;
+  display: grid;
+  gap: var(--home-stack-gap);
+  justify-items: center;
+  text-align: center;
+
+  margin-top: var(--home-hero-nudge);
+}
+
+.logoWrap {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.logo {
+  max-width: var(--home-logo-max);
+  margin-top: var(--home-logo-mt);
+  margin-bottom: var(--home-logo-mb);
+}
+
+.title {
+  font-size: var(--home-title-size);
+  color: var(--home-title-color);
+  margin-top: var(--home-title-mt);
+  margin-bottom: var(--home-title-mb);
+  width: 100%;
+  text-align: center;
+}
+
+.subtitle {
+  margin-top: -6px;
+  font-size: var(--home-subtitle-size);
+  color: var(--home-subtitle-color);
+  margin-bottom: var(--home-subtitle-mb);
+  width: 100%;
+  text-align: center;
+}
+
+.titleAndroidNudge {
+  margin-top: clamp(-16px, -4vh, -40px);
+}
+
+/* ========== ACTIONS (FLOW) ========== */
+.actions {
+  width: 100%;
+  max-width: var(--home-button-max);
+
+  display: grid;
+  justify-items: center;
+  gap: var(--home-actions-gap);
+
+  margin-top: var(--home-actions-mt);
+  padding-bottom: var(--home-actions-pb);
+  box-sizing: border-box;
+}
+
+/* Dark-mode readable panel behind buttons */
+:root[data-theme='dark'] .actions {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root[data-theme='dark'] .actions {
+    background: rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* ========== IONBUTTON STYLES (className={styles.primaryBtn}) ========== */
+.primaryBtn {
+  width: 100%;
+  max-width: var(--home-button-max);
+
+  --background: var(--home-button-bg);
+  --color: var(--home-button-color);
+  --border-radius: var(--home-button-radius);
+
+  --padding-top: var(--home-button-pad-block);
+  --padding-bottom: var(--home-button-pad-block);
+  --padding-start: var(--home-button-pad-inline);
+  --padding-end: var(--home-button-pad-inline);
+
+  font-weight: 700;
+  font-size: var(--home-button-font-size);
+}
+
+.primaryBtn::part(native) {
+  text-transform: none;
+}
+
+.primaryBtn:hover::part(native) {
+  opacity: 0.9;
+}
+
+/* ================== TUNING OVERRIDES ================== */
+
+/* Phone: lift only the logo slightly (keeps title/subtitle stable) */
+@media (max-width: 599px) {
+  .logoWrap {
+    margin-top: 0.25rem;
+  }
+
+  .logo {
+    margin-top: -8px;
+  }
+}
+
+/* Tablets / medium screens (600–1023px) */
+@media (min-width: 600px) and (max-width: 1023px) {
+  :root {
+    --home-page-top-pad: 90px;
+
+    /* keep logo stable */
+    --home-hero-nudge: -48px;
+
+    /* smaller “push down” than iPad 13 */
+    --home-title-mt: 5.0rem;
+    --home-title-mb: 1.25rem;
+    --home-subtitle-mb: 2.4rem;
+
+    --home-actions-mt: 3.5rem;
+
+    --home-container-max: 760px;
+    --home-button-max: 520px;
+    --home-button-pad-block: 18px;
+    --home-button-pad-inline: 26px;
+    --home-button-font-size: 1.15rem;
+
+    --home-title-size: 2.2rem;
+    --home-subtitle-size: 1.35rem;
+  }
+}
+
+/* Bigger tablets / iPad Pro (13") */
+@media (min-width: 1024px) {
+:root {
+--home-page-top-pad: 110px; /* overall page starts lower */
+--home-hero-nudge: -48px; /* keep logo position stable */
+
+
+--home-title-mt: 8.5rem; /* title DOWN */
+--home-title-mb: 1.75rem;
+
+
+--home-subtitle-mb: 4.4rem; /* creates space before buttons */
+
+
+--home-actions-mt: 9rem; /* buttons DOWN */
+--home-container-max: 820px;
+--home-button-max: 560px;
+--home-button-pad-block: 26px;
+--home-button-pad-inline: 34px;
+--home-button-font-size: 1.3rem;
+
+--home-title-size: 2.7rem; /* GLP-1 Health Tracker size */
+--home-subtitle-size: 1.7rem; /* Login Options size (optional) */
+
+}
+}
+@media (max-width: 390px) {
+:root {
+--home-button-font-size: 0.95rem;
+}
+}
+
+/* If you want ONLY title/subtitle/buttons (not logo) to move down: */
+/* android only root or normal phone */
+:global(.plt-android) .title {
+margin-top: calc(var(--home-title-mt) + 80px);
+font-size: calc(var(--home-title-size) + 0.25rem);
+}
+:global(.plt-android) .actions {
+margin-top: calc(var(--home-actions-mt) + 90px);
+}
+/* Optional: make Android buttons slightly taller too */
+:global(.plt-android) .primaryBtn {
+--padding-top: calc(var(--home-button-pad-block) + 2px);
+--padding-bottom: calc(var(--home-button-pad-block) + 2px);
+}

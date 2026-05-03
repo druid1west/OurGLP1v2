@@ -1,0 +1,943 @@
+/* ────────────────────────────────────────────────────────────────
+   Vars
+   ──────────────────────────────────────────────────────────────── */
+:root {
+  --top-nav-height: 84px;
+  --bottom-nav-height: 96px;
+  --switch-track-off:  #174b4b;
+  --switch-track-on:   #174b4b;
+  --switch-thumb-off:  #f50606;
+  --switch-thumb-on:   #24f409;
+  --switch-border-off: #049e18;
+  --switch-border-on:  #2fa906;
+  --switch-focus:      #11e485;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Scrollbar (charts)
+   ──────────────────────────────────────────────────────────────── */
+.chartViewport::-webkit-scrollbar { height: 8px; width: 8px; }
+.chartViewport::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 8px; }
+.chartViewport::-webkit-scrollbar-track { background: transparent; }
+
+/* ────────────────────────────────────────────────────────────────
+   Container (owns the page scroll)
+   ──────────────────────────────────────────────────────────────── */
+.container {
+  position: relative;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: var(--background-primary);
+  padding-top: calc(var(--top-nav-height) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  touch-action: pan-y;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Page card (fits exactly between fixed navs)
+   ──────────────────────────────────────────────────────────────── */
+.page {
+  min-height: calc(
+    100vh
+    - var(--top-nav-height)
+    - var(--bottom-nav-height)
+    - env(safe-area-inset-top)
+    - env(safe-area-inset-bottom)
+  );
+  max-width: 1100px;
+  margin: 1rem auto;
+  background: var(--background-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  overflow: visible;
+  padding: 16px;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.page * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Grid
+   ──────────────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  align-content: start;
+}
+
+.leftCol,
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (max-width: 920px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Cards / rows
+   ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 2px solid var(--button-primary-bg);
+  border-radius: 10px;
+  color: var(--text-primary);
+  max-width: 100%;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.card:not(:last-child) {
+  border-bottom: 2px solid var(--border-light);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.cardContent {
+  padding: 1rem 1.25rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.rowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .95rem;
+  color: var(--text-primary);
+}
+
+.sensitiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .75rem;
+  color: var(--warning-color, #b45309);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Charts
+   ──────────────────────────────────────────────────────────────── */
+.chartViewport {
+  max-height: 22rem;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: var(--background-primary);
+  padding: 6px;
+  max-width: 100%;
+}
+
+.chartViewportHorizontal {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+.chartViewport img,
+.chartViewport canvas,
+.chartViewport svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.chartImg {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+}
+
+.chartPlaceholder {
+  height: 11rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border-light);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Typographic helpers
+   ──────────────────────────────────────────────────────────────── */
+.stackSm > * + * { margin-top: .5rem; }
+.stackMd > * + * { margin-top: .75rem; }
+.stackLg > * + * { margin-top: 1rem; }
+.muted { color: var(--text-muted); }
+.small { font-size: .9rem; }
+.tiny  { font-size: .8rem; }
+
+.divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: .75rem 0;
+  border: 0;
+}
+
+/* Inputs */
+.inputGroup { display: grid; gap: .25rem; }
+.label { font-weight: 600; color: var(--text-heading); }
+.input {
+  padding: .5rem;
+  font-size: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  transition: border-color .2s ease;
+}
+.input:focus { border-color: var(--accent-secondary); outline: none; }
+
+/* Buttons */
+.buttonPrimary {
+  background-color: var(--button-primary-bg);
+  color: #ffffff;
+  border: 2px solid var(--button-primary-bg);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 80ms ease, box-shadow 120ms ease, opacity 120ms ease;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+}
+
+.buttonPrimary:disabled { opacity: .6; cursor: not-allowed; }
+
+.buttonSecondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--button-primary-bg);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.buttonSecondary:hover { background: var(--hover-bg); }
+
+.buttonPrimary:active:not(:disabled),
+.buttonPrimary[data-busy="true"] {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.buttonInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.buttonRow {
+  display: flex;
+  gap: 8px;
+}
+
+/* Switch */
+.switchRoot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 42px;
+  height: 22px;
+  border-radius: 9999px;
+  background: var(--switch-track-off) !important;
+  border: 1px solid var(--switch-border-off) !important;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  vertical-align: middle;
+}
+
+.switchRoot[data-state="checked"] {
+  background: var(--switch-track-on) !important;
+  border-color: var(--switch-border-on) !important;
+}
+
+.switchRoot > span {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--switch-thumb-off) !important;
+  transform: translateX(2px);
+  transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2);
+}
+
+.switchRoot[data-state="checked"] > span {
+  background: var(--switch-thumb-on) !important;
+  transform: translateX(15px);
+}
+
+.switchRoot:focus-visible {
+  outline: 2px solid var(--switch-focus);
+  outline-offset: 2px;
+}
+
+.switchRoot[aria-disabled="true"] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   RESPONSIVE FIXES
+   ──────────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) and (max-width: 1368px) {
+  .page {
+    max-width: 980px;
+    margin: 0.75rem auto;
+    padding: 14px;
+  }
+  .small { font-size: 0.9rem; }
+  .tiny  { font-size: 0.8rem; }
+}
+
+@media (min-width: 1180px) and (max-width: 1368px) and (orientation: landscape) {
+  .page { max-width: 1100px; margin: 0.75rem auto; }
+}
+
+@media (min-width: 834px) and (max-width: 1023.98px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .grid {
+    grid-template-columns: 1fr !important;
+    column-gap: 12px;
+    row-gap: 12px;
+  }
+  .card, .row, .chartViewport { max-width: 100%; overflow: hidden; }
+}
+
+@media (min-width: 768px) and (max-width: 833.98px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .grid { grid-template-columns: 1fr !important; }
+  .card, .row, .chartViewport { max-width: 100%; overflow: hidden; }
+}
+
+@media (max-width: 767px) {
+  .page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .grid { grid-template-columns: 1fr !important; }
+  .card, .row, .chartViewport { max-width: 100%; overflow: hidden; }
+}
+
+/* Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ────────────────────────────────────────────────────────────────
+   Lightweight overlay dialog for archive result
+   ──────────────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.dialog {
+  width: min(520px, 92vw);
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.dialogHeader {
+  padding: 12px 16px;
+  font-weight: 700;
+  color: var(--text-heading);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dialogBody {
+  padding: 16px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px 16px;
+}
+
+.dialogOk {
+  background: var(--button-primary-bg);
+  color: #fff;
+  border: 2px solid var(--button-primary-bg);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dialogOk:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* IonContent safe padding */
+.contentPad {
+  background: var(--background-primary);
+}
+
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 24px);
+}
+
+.bottomSpacer {
+  height: calc(var(--bottom-nav-height, 96px) + env(safe-area-inset-bottom));
+  width: 100%;
+  pointer-events: none;
+}
+
+.rowCenter {
+  align-items: center;
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Sleep Chart Styling
+   ──────────────────────────────────────────────────────────────── */
+
+/* Sleep card specific styling */
+.sleepCard {
+  border: 2px solid var(--border-primary);
+}
+
+.sleepHeader {
+  background: var(--card-bg);
+  border-bottom: 2px solid var(--border-primary);
+  padding: 0.75rem 1rem;
+}
+
+.sleepTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+/* Sleep chart layout */
+.sleepBarsRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  height: 200px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--background-primary);
+}
+
+.sleepYAxis {
+  width: 32px;
+  position: relative;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-right: 1px solid var(--border-light);
+  padding-right: 4px;
+}
+
+.sleepYTick {
+  position: absolute;
+  right: 4px;
+  transform: translateY(50%);
+}
+
+/* Y-axis tick positions */
+.sleepYTick0   { bottom: 0%; }
+.sleepYTick25  { bottom: 25%; }
+.sleepYTick50  { bottom: 50%; }
+.sleepYTick75  { bottom: 75%; }
+.sleepYTick100 { bottom: 100%; }
+
+.sleepCols {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  flex: 1;
+}
+
+.sleepCol {
+  position: relative;
+  height: 100%;
+}
+
+.sleepColInner {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.sleepBar {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  transition: height 200ms ease;
+  position: relative;
+}
+
+/* Color variants - Light Mode */
+.sleepBar_green { 
+  background: #d1fae5; 
+  border: 2px solid #10b981; 
+  border-bottom: none; 
+}
+
+.sleepBar_yellow { 
+  background: #fef3c7; 
+  border: 2px solid #f59e0b; 
+  border-bottom: none; 
+}
+
+.sleepBar_red { 
+  background: #fee2e2; 
+  border: 2px solid #ef4444; 
+  border-bottom: none; 
+}
+
+/* Color variants - Dark Mode */
+[data-theme='dark'] .sleepBar_green,
+body[data-theme='dark'] .sleepBar_green,
+html[data-theme='dark'] .sleepBar_green {
+  background: #064e3b !important;
+  border-color: #10b981 !important;
+}
+
+[data-theme='dark'] .sleepBar_yellow,
+body[data-theme='dark'] .sleepBar_yellow,
+html[data-theme='dark'] .sleepBar_yellow {
+  background: #78350f !important;
+  border-color: #f59e0b !important;
+}
+
+[data-theme='dark'] .sleepBar_red,
+body[data-theme='dark'] .sleepBar_red,
+html[data-theme='dark'] .sleepBar_red {
+  background: #7f1d1d !important;
+  border-color: #ef4444 !important;
+}
+
+/* Overlay text */
+.sleepOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.sleepOverlayText {
+  font-size: 10px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  background: var(--background-secondary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+}
+
+.sleepText_green {
+  color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.sleepText_yellow {
+  color: #7c2d12;
+  border-color: #fed7aa;
+}
+
+.sleepText_red {
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.sleepFooter {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* 101 Height Classes (0% to 100%) */
+.height0 { height: 0%; } 
+.height1 { height: 1%; } 
+.height2 { height: 2%; } 
+.height3 { height: 3%; } 
+.height4 { height: 4%; } 
+.height5 { height: 5%; } 
+.height6 { height: 6%; } 
+.height7 { height: 7%; } 
+.height8 { height: 8%; } 
+.height9 { height: 9%; } 
+.height10 { height: 10%; } 
+.height11 { height: 11%; } 
+.height12 { height: 12%; } 
+.height13 { height: 13%; } 
+.height14 { height: 14%; } 
+.height15 { height: 15%; } 
+.height16 { height: 16%; } 
+.height17 { height: 17%; } 
+.height18 { height: 18%; } 
+.height19 { height: 19%; } 
+.height20 { height: 20%; } 
+.height21 { height: 21%; } 
+.height22 { height: 22%; } 
+.height23 { height: 23%; } 
+.height24 { height: 24%; } 
+.height25 { height: 25%; } 
+.height26 { height: 26%; } 
+.height27 { height: 27%; } 
+.height28 { height: 28%; } 
+.height29 { height: 29%; } 
+.height30 { height: 30%; } 
+.height31 { height: 31%; } 
+.height32 { height: 32%; } 
+.height33 { height: 33%; } 
+.height34 { height: 34%; } 
+.height35 { height: 35%; } 
+.height36 { height: 36%; } 
+.height37 { height: 37%; } 
+.height38 { height: 38%; } 
+.height39 { height: 39%; } 
+.height40 { height: 40%; } 
+.height41 { height: 41%; } 
+.height42 { height: 42%; } 
+.height43 { height: 43%; } 
+.height44 { height: 44%; } 
+.height45 { height: 45%; } 
+.height46 { height: 46%; } 
+.height47 { height: 47%; } 
+.height48 { height: 48%; } 
+.height49 { height: 49%; } 
+.height50 { height: 50%; } 
+.height51 { height: 51%; } 
+.height52 { height: 52%; } 
+.height53 { height: 53%; } 
+.height54 { height: 54%; } 
+.height55 { height: 55%; } 
+.height56 { height: 56%; } 
+.height57 { height: 57%; } 
+.height58 { height: 58%; } 
+.height59 { height: 59%; } 
+.height60 { height: 60%; } 
+.height61 { height: 61%; } 
+.height62 { height: 62%; } 
+.height63 { height: 63%; } 
+.height64 { height: 64%; } 
+.height65 { height: 65%; } 
+.height66 { height: 66%; } 
+.height67 { height: 67%; } 
+.height68 { height: 68%; } 
+.height69 { height: 69%; } 
+.height70 { height: 70%; } 
+.height71 { height: 71%; } 
+.height72 { height: 72%; } 
+.height73 { height: 73%; } 
+.height74 { height: 74%; } 
+.height75 { height: 75%; } 
+.height76 { height: 76%; } 
+.height77 { height: 77%; } 
+.height78 { height: 78%; } 
+.height79 { height: 79%; } 
+.height80 { height: 80%; } 
+.height81 { height: 81%; } 
+.height82 { height: 82%; } 
+.height83 { height: 83%; } 
+.height84 { height: 84%; } 
+.height85 { height: 85%; } 
+.height86 { height: 86%; } 
+.height87 { height: 87%; } 
+.height88 { height: 88%; } 
+.height89 { height: 89%; } 
+.height90 { height: 90%; } 
+.height91 { height: 91%; } 
+.height92 { height: 92%; } 
+.height93 { height: 93%; } 
+.height94 { height: 94%; } 
+.height95 { height: 95%; } 
+.height96 { height: 96%; } 
+.height97 { height: 97%; } 
+.height98 { height: 98%; } 
+.height99 { height: 99%; } 
+.height100 { height: 100%; }
+
+/* Wrapper to align WeekAxis with the bars (accounts for Y-axis width) */
+.weekAxisWrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.weekAxisSpacer {
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.weekAxisContainer {
+  flex: 1;
+}
+
+/* The actual weekday labels grid */
+.weekAxis {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border-light);
+}
+
+.weekAxisLabel {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.1;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Bullet list styling */
+.bulletList {
+  padding-left: 1.25rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.bulletItem {
+  margin-bottom: 0.25rem;
+}
+
+.bulletItem:last-child {
+  margin-bottom: 0;
+}
+
+/* Two-column chart grid */
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Preview note under charts */
+.previewNote {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.previewNoteIcon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+
+.miniBarGrid {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  min-height: 120px;
+}
+
+.miniBarCol {
+  flex: 1;
+  text-align: center;
+}
+
+.miniBar {
+  min-height: 2px;
+  border-radius: 6px;
+  transition: height 200ms ease;
+  border: 1px solid transparent;
+}
+
+.miniBar_low {
+  background: var(--error-bg);
+  border-color: var(--error-color);
+}
+
+.miniBar_ok {
+  background: var(--badge-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.miniBar_high {
+  background: var(--warning-bg, #fff7ed);
+  border-color: var(--warning-color, #fed7aa);
+}
+
+.miniBarLabel {
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.miniBarLabel_low { color: var(--error-color); }
+.miniBarLabel_ok { color: var(--button-primary-bg); }
+.miniBarLabel_high { color: var(--warning-color, #7c2d12); }
+
+.miniBarValue {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.bloodSugarNote {
+  margin-top: 8px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.dayPills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.dayPill {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border-width: 1px;
+  border-style: solid;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.dayPillMet {
+  background: var(--badge-bg);
+  color: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+}
+
+.dayPillMissed {
+  background: var(--error-bg);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.switchMini {
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
+.noMargin {
+  margin: 0;
+}
+
+.errorBox {
+  color: var(--error-color);
+  background: var(--error-bg);
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--error-color);
+}
+/* Make metric headers theme-aware */
+.metricHeader {
+  border-bottom: 1px solid var(--border-light);
+  background: var(--background-secondary);
+  color: var(--text-heading);
+}
+
+/* Ensure title inherits header color */
+.metricHeader .cardTitle {
+  color: inherit !important;
+}
+
+/* -----------------------
+   LIGHT MODE accents
+----------------------- */
+.card[data-metric="protein"] .metricHeader { background: #f4f0ff; color: #5b21b6; }
+.card[data-metric="hydration"] .metricHeader { background: #eff6ff; color: #075985; }
+.card[data-metric="bloodPressure"] .metricHeader { background: #fef2f2; color: #7f1d1d; }
+.card[data-metric="bloodSugar"] .metricHeader { background: #f5f3ff; color: #4c1d95; }
+.card[data-metric="bowel"] .metricHeader { background: #fffbeb; color: #7c2d12; }
+.card[data-metric="exercise"] .metricHeader { background: #ecfdf5; color: #065f46; }
+.card[data-metric="mood"] .metricHeader { background: #fff7ed; color: #7c2d12; }
+.card[data-metric="fasting"] .metricHeader { background: #f0fdfa; color: #115e59; }
+
+/* -----------------------
+   DARK MODE accents
+   (assumes you use [data-theme='dark'])
+----------------------- */
+[data-theme="dark"] .card[data-metric="protein"] .metricHeader { background: rgba(91, 33, 182, 0.25); color: #e9d5ff; }
+[data-theme="dark"] .card[data-metric="hydration"] .metricHeader { background: rgba(7, 89, 133, 0.25); color: #bae6fd; }
+[data-theme="dark"] .card[data-metric="bloodPressure"] .metricHeader { background: rgba(127, 29, 29, 0.25); color: #fecaca; }
+[data-theme="dark"] .card[data-metric="bloodSugar"] .metricHeader { background: rgba(76, 29, 149, 0.25); color: #ddd6fe; }
+[data-theme="dark"] .card[data-metric="bowel"] .metricHeader { background: rgba(124, 45, 18, 0.25); color: #fed7aa; }
+[data-theme="dark"] .card[data-metric="exercise"] .metricHeader { background: rgba(6, 95, 70, 0.25); color: #a7f3d0; }
+[data-theme="dark"] .card[data-metric="mood"] .metricHeader { background: rgba(124, 45, 18, 0.25); color: #fed7aa; }
+[data-theme="dark"] .card[data-metric="fasting"] .metricHeader { background: rgba(17, 94, 89, 0.25); color: #99f6e4; }
+
+
+
+
+
+

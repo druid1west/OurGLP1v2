@@ -1,0 +1,124 @@
+# /etc/nginx/conf.d/app.ourglp1.com.conf
+
+# --- HTTPS app server ---
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name app.ourglp1.com;
+
+    # ✅ SSL setup
+    ssl_certificate /etc/letsencrypt/live/app.ourglp1.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.ourglp1.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # ✅ mTLS trust (server-level; locations will check result)
+    ssl_client_certificate /etc/nginx/client_ca.crt;
+    ssl_verify_depth 1;
+    ssl_verify_client optional;   # location rules below check $ssl_client_verify
+
+    # ✅ Gzip performance
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain application/javascript text/css application/json image/svg+xml;
+    gzip_min_length 256;
+
+    # ✅ MIME types and static root
+    include /etc/nginx/mime.types;
+    root /var/www/Paris-Clinic/GLP1/frontend/build;
+
+    # ✅ React SPA support
+    location / { try_files $uri $uri/ /index.html; }
+
+    # ✅ Asset fallback
+    location /assets/ { try_files $uri $uri/ /index.html; }
+
+    # ✅ Keep source maps private
+    location ~* \.map$ { return 404; }
+
+    # ✅ Runtime config
+    location = /config.js {
+        add_header Cache-Control "no-store";
+        try_files $uri =404;
+    }
+
+    # ✅ Admin-only analytics (mTLS + loopback-only, admin path)
+    location ^~ /api/admin/analytics/ {
+        # Only reachable from the box itself
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
+        # Require a verified client certificate
+        if ($ssl_client_verify != SUCCESS) { return 403; }
+
+        # Tell the app this passed mTLS so it can bypass requireLogin
+        proxy_set_header X-Internal-OK 1;
+        proxy_set_header X-Client-DN $ssl_client_s_dn;
+
+        # Rewrite prefix to hit existing backend router at /api/analytics/*
+        proxy_pass http://127.0.0.1:3000/api/analytics/;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # ✅ .env protection
+    location ~* /\.env { deny all; return 403; }
+
+    # ✅ Secure photos pass-through
+    location ~ ^/api/user/secure-photo/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    # ✅ API reverse proxy
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade "";
+        proxy_set_header Connection "";
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+
+    # ✅ Cache control for static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        access_log off;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 🔒 Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # ✅ Content Security Policy (single line)
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.ourglp1.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.ourglp1.com https://www.google-analytics.com data: blob:; font-src 'self' data:; connect-src 'self' https://api.ourglp1.com https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://o4509911746740224.ingest.de.sentry.io blob:; worker-src 'self' blob:; frame-src 'self';" always;
+}
+
+# --- HTTP → HTTPS redirect ---
+server {
+    listen 80;
+    listen [::]:80;
+    server_name app.ourglp1.com;
+    return 301 https://$host$request_uri;
+}

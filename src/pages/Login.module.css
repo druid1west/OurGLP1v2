@@ -1,0 +1,175 @@
+/* src/pages/Login.module.css */
+
+/* Push IonContent’s *internal* scroll area below TopNav and above BottomNav */
+.contentPad { 
+  background: var(--background-primary);
+}
+
+.contentPad::part(scroll) {
+  /* a touch below the TopNav */
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 8px);
+  /* a cushion above the BottomNav */
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 24px);
+}
+
+/* Loading-state wrapper: center the card vertically */
+.centerWrap {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 16px;
+}
+
+/* Remove vertical margin inside the centered state so it truly centers */
+.centerWrap .container {
+  margin: 0 auto;
+}
+
+/* Normal screen wrapper so content can stretch full height if needed */
+.pageBg {
+  min-height: 100%;
+}
+
+/* Card */
+.container {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Typography */
+.title {
+  font-size: 1.75rem;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Small spacing helpers */
+.mb12 { margin-bottom: 12px; }
+.mt8 { margin-top: 8px; }
+
+/* “or” divider */
+.orDivider {
+  text-align: center;
+  margin: 12px 0;
+  opacity: 0.7;
+  color: var(--text-muted);
+}
+
+/* Keep IonItem spacing consistent without inline */
+.itemNoLines {
+  margin-bottom: 1rem;
+}
+.itemNoLines:last-of-type {
+  margin-bottom: 1.5rem;
+}
+
+/* Input styling (replaces inline style blocks) */
+.input {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: 8px;
+  width: 100%;
+  border: 2px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+/* Password wrapper + eye button */
+.inputBox {
+  position: relative;
+  width: 100%;
+}
+
+.inputWithEye {
+  padding-right: 42px; /* space for eye icon */
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+
+/* “No account” text */
+.noAcct {
+  margin-top: 16px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+/* Legal footer text */
+.legal {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.7;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.link {
+  text-decoration: underline;
+  color: var(--accent-secondary);
+}
+
+/* Buttons – primary */
+ion-button.custom-button {
+  --background: var(--button-primary-bg);
+  --background-hover: var(--button-hover-bg);
+  --background-activated: var(--button-active-bg, #0a2323);
+  --color: #ffffff;
+  --border-radius: 10px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-width: 0;
+  --box-shadow: none;
+  font-weight: 700;
+}
+
+ion-button.custom-button::part(native) {
+  background: var(--button-primary-bg) !important;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 8px;
+  font-size: .9rem;
+  font-weight: bold;
+}
+
+/* Outline button */
+ion-button.custom-outline::part(native) {
+  border: 2px solid var(--button-primary-bg) !important;
+  color: var(--button-primary-bg) !important;
+  background: transparent;
+  border-radius: 10px;
+  padding: 8px;
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+/* Danger button */
+ion-button.custom-danger::part(native) {
+  color: #ffffff;
+  background: var(--error-color);
+  border-radius: 10px;
+  padding: 8px;
+  font-size: .9rem;
+  font-weight: bold;
+}

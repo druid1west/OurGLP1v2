@@ -1,0 +1,202 @@
+/* src/pages/Settings.module.css */
+
+/* Let IonContent handle padding on its internal scroller */
+.contentPad { 
+  background: var(--bg-primary);
+}
+
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 24px);
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Single-column centered layout (IonContent is the only scroller) */
+.pageInner {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Top title */
+.title {
+  color: var(--text-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 6px 0 12px;
+  text-align: center;
+}
+
+/* App version line */
+.appVersion {
+  margin-top: 12px;
+  text-align: center;
+  opacity: 0.75;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* Reusable muted text */
+.muted {
+  color: var(--text-muted);
+  opacity: 0.85;
+  font-size: 0.92rem;
+  margin: 8px 0 0;
+}
+
+/* Card styling matching the rest of your app */
+.infoBox {
+  width: 100%;
+  border: 2px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 14px;
+  margin: 14px 0;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  color: var(--text-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* Key/value rows */
+.kvRow {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.kvRow:last-child { 
+  border-bottom: none; 
+}
+
+.kvKey {
+  color: var(--text-muted);
+  opacity: 0.85;
+  font-size: 0.95rem;
+  min-width: 110px;
+}
+
+.kvVal {
+  text-align: right;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+/* Status badges */
+.badgeActive,
+.badgeInactive {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.badgeActive {
+  color: var(--text-secondary);
+  background: var(--badge-active-bg);
+  border: 2px solid var(--badge-active-border);
+}
+
+.badgeInactive {
+  color: var(--text-secondary);
+  background: var(--badge-inactive-bg);
+  border: 2px solid var(--badge-inactive-border);
+}
+
+/* Subscription button stack */
+.subActions {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Error box */
+.errorBox {
+  margin-top: 10px;
+  color: var(--danger-color);
+  background: var(--danger-bg);
+  border: 2px solid var(--danger-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+  white-space: pre-line;
+}
+
+/* Notifications list wrapper card */
+.listCard {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  box-sizing: border-box;
+  margin: 14px 0;
+}
+
+.rightVal {
+  margin-left: auto;
+}
+
+/* Dark Mode Toggle Button */
+.themeToggleButton {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 2px solid var(--accent-primary);
+  background-color: var(--accent-button-bg);
+  color: var(--accent-button-text);
+  transition: all 0.2s ease;
+}
+
+.themeToggleButton:hover {
+  opacity: 0.9;
+}
+
+.themeToggleButton:active {
+  transform: scale(0.98);
+}
+
+/* Theme section label */
+.themeLabel {
+  color: var(--text-heading);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Danger section */
+.dangerBox {
+  width: 100%;
+  border: 2px solid var(--danger-color);
+  border-radius: 12px;
+  padding: 14px;
+  margin: 14px 0;
+  background: var(--danger-bg);
+  box-sizing: border-box;
+}
+
+.dangerTitle {
+  margin: 0 0 8px;
+  color: var(--danger-color);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+/* Extra bottom spacing (optional) */
+.endSpacer {
+  height: 18px;
+}

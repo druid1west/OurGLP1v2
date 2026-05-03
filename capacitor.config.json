@@ -1,0 +1,21 @@
+{
+  "appId": "com.ourglp1.app",
+  "appName": "OurGLP1v2",
+  "webDir": "dist",
+
+  "ios": {
+    "projectDir": "ios/App",
+    "projectName": "App",
+    "saveCookies": true,
+    "webview": {
+      "allowFileAccess": true,
+      "allowUniversalAccessFromFileURLs": true
+    }
+  },
+
+  "server": {
+    "hostname": "localhost",
+    "iosScheme": "capacitor",
+    "androidScheme": "https"
+  }
+}

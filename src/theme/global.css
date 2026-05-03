@@ -1,0 +1,176 @@
+/* src/pages/global.css
+/* =========================
+   Global tokens (nav heights)
+   ========================= */
+:root {
+  /* keep these in sync with TopNav/BottomNav inline styles */
+  --top-nav-height: 96px;
+  --bottom-nav-height: 88px;
+}
+
+/* =========================
+   Base app background/text
+   ========================= */
+html, body, ion-app {
+  background: #ffffff;
+  color: #0a0a0a;
+  margin: 0;
+  padding: 0;
+}
+
+/* Default IonContent look for most pages */
+ion-content {
+  --background: #ffffff;
+  --color: #0a0a0a;
+}
+
+/* =========================
+   Viewport utilities
+   (used by Home and available to others)
+   ========================= */
+.viewportBetweenNavs {
+  /* tell IonContent the safe areas & add real padding for fixed bars */
+  --offset-top: var(--top-nav-height);
+  --offset-bottom: var(--bottom-nav-height);
+
+  padding-top: var(--top-nav-height);
+  padding-bottom: var(--bottom-nav-height);
+
+  /* let the inner section own visuals */
+  background: transparent;
+}
+
+.homeContent {
+  --offset-top: var(--top-nav-height);
+  --offset-bottom: var(--bottom-nav-height);
+  padding-top: var(--top-nav-height);
+  padding-bottom: var(--bottom-nav-height);
+  background: transparent;
+}
+
+
+/* Inner, self-scrolling viewport that fits between fixed nav bars */
+.pageScroll {
+  min-height: calc(100dvh - var(--top-nav-height) - var(--bottom-nav-height));
+  overflow-y: auto;
+
+}
+
+/* =========================
+   Apply white bg to all pages
+   EXCEPT content marked as Home
+   ========================= */
+ion-content:not(.viewportBetweenNavs):not(.homeContent) {
+  --background: #ffffff;
+  --color: #0a0a0a;
+}
+
+/* =========================
+   Home-only overrides
+   Expect: <IonContent id="homeContent" class="viewportBetweenNavs homeContent" />
+   ========================= */
+ion-content#homeContent.viewportBetweenNavs.homeContent {
+  /* force IonContent’s css-var + fallback to be transparent */
+  --background: transparent !important;
+  background: transparent !important;
+}
+
+/* also clear the shadow DOM background layer of IonContent */
+ion-content#homeContent.viewportBetweenNavs.homeContent::part(background) {
+  background: transparent !important;
+}
+
+/* (optional) uncomment for quick diagnostics if something still paints white */
+/*
+ion-content#homeContent .pageScroll * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+*/
+
+/* =========================
+   Buttons
+   ========================= */
+ion-button.custom-button {
+  --background: #174b4b;
+  --color: #ffffff;
+  --border-radius: 10px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+ion-button.custom-outline {
+  --background: transparent;
+  --color: #2a9d8f;
+  --border-radius: 10px;
+  --border-color: #2a9d8f;
+  --border-style: solid;
+  --border-width: 2px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+ion-button.custom-danger {
+  --background: #e63946;
+  --color: #ffffff;
+  --border-radius: 10px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* =========================
+   Inputs
+   ========================= */
+ion-input.custom-input {
+  --background: #e5f6f4; /* soft teal */
+  --color: #0a0a0a;
+  --placeholder-color: #333;
+  --highlight-color-focused: #2a9d8f;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 8px;
+  --border-color: #2a9d8f;
+  --border-width: 2px;
+  --border-style: solid;
+  font-size: 1rem;
+}
+
+ion-item.custom-input-item {
+  --background: #e5f6f4;
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 8px;
+}
+
+/* Autofill (scoped to ion-input) */
+ion-input.custom-input input:-webkit-autofill,
+ion-input.custom-input input:-webkit-autofill:focus,
+ion-input.custom-input input:-webkit-autofill:hover,
+ion-input.custom-input input:-webkit-autofill:active {
+-webkit-box-shadow: 0 0 0px 1000px #e5f6f4 inset !important;
+box-shadow: 0 0 0px 1000px #e5f6f4 inset !important;
+-webkit-text-fill-color: #0a0a0a !important;
+transition: background-color 9999s ease-out, color 9999s ease-out;
+transition-delay: 9999s;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;          /* the page’s own scroll stays on .container */
+  overscroll-behavior: none; /* belt-and-braces for the outer doc */
+}
+

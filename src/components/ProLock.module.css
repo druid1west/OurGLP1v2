@@ -1,0 +1,25 @@
+/* ProLock.module.css */
+
+.container {
+  position: relative;
+  display: inline-block;
+}
+
+.dimmedContent {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.lockButton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 2px solid #174b4b;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}

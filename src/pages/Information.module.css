@@ -1,0 +1,119 @@
+/* src/pages/Information.module.css */
+
+/* Optional: if you ever want to style IonContent background from this file */
+.content {
+  --background: var(--bg-primary);
+}
+
+/* Swiper fills IonContent */
+.swiper {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Make Swiper internals fill height */
+:global(.swiper-wrapper) {
+  height: 100%;
+}
+
+:global(.swiper-slide) {
+  height: 100%;
+}
+
+.slideScroll {
+height: 100%;
+overflow-y: auto;
+padding-bottom: 56px;
+box-sizing: border-box;
+}
+
+
+/* iOS momentum scrolling only */
+@supports (-webkit-overflow-scrolling: touch) {
+.slideScroll {
+-webkit-overflow-scrolling: touch;
+}
+}
+
+/* Pagination stays inside the content area */
+:global(.swiper-pagination) {
+  bottom: 12px !important;
+}
+
+/* Content container */
+.container {
+  padding: 1rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Center helper */
+.center {
+  text-align: center;
+}
+
+.heroImg {
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  margin: 0 auto 12px;
+  display: block;
+}
+
+.eyebrow {
+  color: var(--text-muted);
+  opacity: 0.7;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  margin-top: 6px;
+}
+
+.h2 {
+  color: var(--text-primary);
+  margin: 6px 0 8px;
+}
+
+.card {
+  border: 1px solid var(--border-light);
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.bullets {
+  margin-top: 8px;
+  padding-left: 18px;
+  color: var(--text-primary);
+}
+
+.mt12 {
+  margin-top: 12px;
+}
+
+.p6 {
+  margin-top: 6px;
+  margin-bottom: 0;
+  color: var(--text-primary);
+}
+
+.endSpacer {
+  height: 12px;
+}
+
+/* Slightly more padding on tablets */
+@media (min-width: 768px) {
+  .container {
+    padding: 20px;
+  }
+}

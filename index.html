@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OurGLP1-Tracker</title>
+
+    <!-- Optional: keep the API base consistent across web/native -->
+    <script>
+      window.__APP_CONFIG__ = { API_BASE: 'https://app.ourglp1.com' };
+    </script>
+
+    <!-- GA (skip in native) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JFZD2XQVYP"></script>
+    <script>
+      (function () {
+        var isNative = !!(window.Capacitor &&
+          window.Capacitor.isNativePlatform &&
+          window.Capacitor.isNativePlatform());
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        window.gtag = gtag;
+        gtag('js', new Date());
+
+        if (!isNative) {
+          gtag('config', 'G-JFZD2XQVYP', { send_page_view: true, debug_mode: true });
+        } else {
+          console.log('[gtag] Skipped init in native runtime');
+        }
+      })();
+    </script>
+
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- ANDROID ONLY: clamp runaway CSS vars + keep clamping if something rewrites them -->
+    <script>
+      (function () {
+        var docEl = document.documentElement;
+
+        function isAndroid() {
+          return docEl.classList.contains('plt-android');
+        }
+
+        var TOP_MIN = 56, TOP_MAX = 160;
+        var BOT_MIN = 56, BOT_MAX = 160;
+
+        function pxToNumber(v) {
+          if (!v) return NaN;
+          var n = parseFloat(String(v).replace('px', '').trim());
+          return Number.isFinite(n) ? n : NaN;
+        }
+
+        function clamp(n, min, max) {
+          return Math.min(max, Math.max(min, n));
+        }
+
+        function sanitizeVar(name, min, max, fallbackPx) {
+          var raw = docEl.style.getPropertyValue(name); // inline only
+          var n = pxToNumber(raw);
+          if (!Number.isFinite(n)) n = fallbackPx;
+          n = clamp(n, min, max);
+
+          var next = n + 'px';
+          if (docEl.style.getPropertyValue(name).trim() !== next) {
+            docEl.style.setProperty(name, next);
+          }
+        }
+
+        function sanitizeAll() {
+          if (!isAndroid()) return;
+          sanitizeVar('--top-nav-height', TOP_MIN, TOP_MAX, 96);
+          sanitizeVar('--bottom-nav-height', BOT_MIN, BOT_MAX, 88);
+
+          docEl.style.setProperty('--top-nav-height-safe', docEl.style.getPropertyValue('--top-nav-height').trim());
+          docEl.style.setProperty('--bottom-nav-height-safe', docEl.style.getPropertyValue('--bottom-nav-height').trim());
+        }
+
+        // run once immediately
+        sanitizeAll();
+
+        // keep clamping if something later rewrites <html style="...">
+        if (window.MutationObserver) {
+          var obs = new MutationObserver(function (mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+              if (mutations[i].type === 'attributes' && mutations[i].attributeName === 'style') {
+                sanitizeAll();
+                break;
+              }
+            }
+          });
+          obs.observe(docEl, { attributes: true, attributeFilter: ['style'] });
+        }
+      })();
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

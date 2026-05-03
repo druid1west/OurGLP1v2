@@ -1,0 +1,475 @@
+/* src/pages/Profile.module.css */
+
+/* Sleep badge base */
+.sleepBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+}
+
+/* Variants - Using theme-aware colors for badges */
+.sleepGreen {
+  background: var(--badge-active-bg);
+  border-color: var(--badge-active-border);
+  color: var(--text-secondary);
+}
+
+.sleepYellow {
+  background: #fff7ed; /* Keeping these specific for status if desired, or use variables */
+  border-color: #fed7aa;
+  color: #7c2d12;
+}
+
+.sleepRed {
+  background: var(--danger-bg);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* BMI Colors - Using standard status colors */
+.bmiBlue   { color: #3498db; }
+.bmiGreen  { color: var(--success-color, #2ecc71); }
+.bmiYellow { color: var(--warning-color, #f1c40f); }
+.bmiRed    { color: var(--danger-color, #e74c3c); }
+
+.input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border-primary);
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.loadingCenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: var(--bg-primary);
+}
+
+.noUserBox {
+  padding: 16px;
+  color: var(--danger-color);
+}
+
+.mainScroll {
+  height: 100vh;
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+}
+
+/* Spacing helpers */
+.mt8 { margin-top: 8px; }
+.mt6 { margin-top: 6px; }
+
+/* Flex helpers */
+.rowCenterGap8 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.rowGap6 {
+  display: flex;
+  gap: 6px;
+}
+
+/* Width helpers */
+.w40 { width: 40%; }
+.w60 { width: 60%; }
+.half { width: 50%; }
+
+/* Text helpers */
+.sourceRow {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* “Link-like” button */
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Cards grid */
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+
+/* Stat cards */
+.statCard {
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 2px solid var(--border-primary);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.statTitle {
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-heading);
+}
+
+/* Badge pill */
+.badgePill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  border: 1px solid var(--badge-border);
+}
+
+.photoCover {
+  object-fit: cover;
+}
+
+/* IonContent background */
+.contentPad { 
+  background: var(--bg-primary); 
+}
+
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 40px) + env(safe-area-inset-top) + 1px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 36px);
+}
+
+.profileContainer {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
+  color: var(--text-heading);
+  text-align: center;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.bmiBox,
+.photoBox,
+.fastingBox {
+  flex: 1 1 30%;
+}
+
+.photoBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex: 1 1 30%;
+}
+
+.flexRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.fieldGroup {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+}
+
+.strongLabel {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.button {
+  width: 60%;
+  padding: 1.0rem 2.0rem;
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  margin-top: 1rem;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.success {
+  text-align: center;
+  color: var(--success-color, #2ecc71);
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+.bmiValue {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 0.25rem;
+}
+
+.bmiLabel {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.photoSection {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.controlsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  align-items: stretch;
+}
+
+.photoBox .button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  min-height: 48px;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  border-radius: 12px;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dangerOutline {
+  background: var(--danger-bg);
+  border: 2px solid var(--danger-color);
+  color: var(--danger-color);
+}
+
+.dangerOutline:hover {
+  opacity: 0.8;
+}
+
+.photoBox .secondaryButton {
+  max-width: 260px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Time/Date inputs */
+.profileContainer input[type='time'],
+.profileContainer input[type='date'],
+.profileContainer input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border-primary);
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+@media (max-width: 390px) {
+  .controlsGrid {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+    gap: 8px;
+  }
+  .photoBox .button {
+    padding: 0.65rem 0.9rem;
+    min-height: 44px;
+    font-size: 0.9rem;
+  }
+ /* ---------- GLP-1 Activity ---------- */
+ 
+ .glp1CircleSvg {
+width: 72px;
+height: 72px;
+display: flex;
+align-items: center;
+justify-content: center;
+ }
+
+.glp1Row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.protocolMiniBadge {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9f3f0;
+  color: #174b4b;
+  border: 2px solid rgba(23, 75, 75, 0.22);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+}
+
+.glp1Circle {
+  --size: 72px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background-color: var(--border-primary); /* fallback */
+  background:
+    conic-gradient(
+      var(--glp1-color) calc(var(--progress) * 360deg),
+      var(--border-primary) 0
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.glp1Circle::before {
+  content: '';
+  width: 58px;
+  height: 58px;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  position: absolute;
+}
+
+.glp1Label {
+  position: relative;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* ---------- Progress buckets (GLOBAL for CSS Modules) ---------- */
+:global(.p0)   { --progress: 0; }
+:global(.p5)   { --progress: 0.05; }
+:global(.p10)  { --progress: 0.10; }
+:global(.p15)  { --progress: 0.15; }
+:global(.p20)  { --progress: 0.20; }
+:global(.p25)  { --progress: 0.25; }
+:global(.p30)  { --progress: 0.30; }
+:global(.p35)  { --progress: 0.35; }
+:global(.p40)  { --progress: 0.40; }
+:global(.p45)  { --progress: 0.45; }
+:global(.p50)  { --progress: 0.50; }
+:global(.p55)  { --progress: 0.55; }
+:global(.p60)  { --progress: 0.60; }
+:global(.p65)  { --progress: 0.65; }
+:global(.p70)  { --progress: 0.70; }
+:global(.p75)  { --progress: 0.75; }
+:global(.p80)  { --progress: 0.80; }
+:global(.p85)  { --progress: 0.85; }
+:global(.p90)  { --progress: 0.90; }
+:global(.p95)  { --progress: 0.95; }
+:global(.p100) { --progress: 1; }
+
+/* ---------- Color buckets (GLOBAL, Edge-safe) ---------- */
+:global(.p0),
+:global(.p5),
+:global(.p10),
+:global(.p15),
+:global(.p20) {
+  --glp1-color: #e74c3c; /* red */
+}
+
+:global(.p25),
+:global(.p30),
+:global(.p35),
+:global(.p40) {
+  --glp1-color: #f39c12; /* orange */
+}
+
+:global(.p45),
+:global(.p50),
+:global(.p55),
+:global(.p60) {
+  --glp1-color: #f1c40f; /* yellow */
+}
+
+:global(.p65),
+:global(.p70),
+:global(.p75),
+:global(.p80) {
+  --glp1-color: #9bd770; /* yellow-green */
+}
+
+:global(.p85),
+:global(.p90),
+:global(.p95),
+:global(.p100) {
+  --glp1-color: #2ecc71; /* green */
+}
+.clickableCard {
+-webkit-user-select: none; /* Safari / iOS */
+user-select: none; /* Modern browsers */
+-webkit-tap-highlight-color: transparent; /* iOS tap flash */
+}
+
+}

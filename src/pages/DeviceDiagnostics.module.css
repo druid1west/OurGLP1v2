@@ -1,0 +1,11 @@
+.preWrap {
+  white-space: pre-wrap;
+  margin: 0;
+  width: 100%;
+}
+
+.actionsGrid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}

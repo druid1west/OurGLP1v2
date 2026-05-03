@@ -1,0 +1,70 @@
+/* /src/pages/Register.module.css */
+
+.container {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  padding-top: 2.25rem;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  font-size: 1.75rem;
+  color: var(--text-primary);
+  text-align: center;
+  margin-top: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.nativeInput {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: 8px;
+  width: 100%;
+  border: 2px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.nativeInput:focus {
+  border-color: var(--accent-secondary);
+  outline: none;
+}
+
+.passwordInput {
+  padding-right: 42px; /* space for eye icon */
+}
+
+.inputBox {
+  position: relative;
+  width: 100%;
+}
+
+.eyeButton {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  opacity: 0.85;
+}
+.contentPad {
+  background: var(--background-primary);
+}
+
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 24px);
+  padding-left: 16px;
+  padding-right: 16px;
+}
+

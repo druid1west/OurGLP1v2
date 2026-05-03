@@ -1,0 +1,356 @@
+/* src/pages/personalPlan.module.css */
+/* Uses your existing theme tokens so dark/light stays correct */
+
+/* ---------------------------
+   IonContent + safe areas
+--------------------------- */
+.contentPad {
+  --background: var(--bg-primary);
+  background: var(--bg-primary);
+}
+
+/* IonContent internal scroll area padding (TopNav/BottomNav safe) */
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 45px) + env(safe-area-inset-top) + 8px);
+  padding-bottom: calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom) + 56px);
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+/* ---------------------------
+   General helper styles
+--------------------------- */
+.mt6 {
+  margin-top: 6px;
+}
+
+.mt12 {
+  margin-top: 12px;
+}
+
+.muted {
+  color: var(--text-muted);
+  margin: 0.5rem 0;
+}
+
+.errorBox {
+  color: var(--danger-color);
+  margin: 0.5rem 0;
+}
+
+/* ---------------------------
+   Page container
+   IMPORTANT: do NOT add overflow-y auto here; let IonContent scroll
+--------------------------- */
+.profileContainer {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  box-sizing: border-box;
+
+  background-color: transparent;
+}
+
+/* ---------------------------
+   Section boxes
+--------------------------- */
+.infoBox {
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.sectionTitle {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* ---------------------------
+   Lists (Sleep)
+--------------------------- */
+.cleanList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.listRow {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.listRowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* ---------------------------
+   Row blocks (Fasting / GLP-1 / etc)
+--------------------------- */
+.rowBlock {
+  margin-bottom: 12px;
+}
+
+.rowTitle {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rowActions {
+  margin-top: 6px;
+}
+
+/* If you use it (GLP-1 box) */
+.rowFlex {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ---------------------------
+   Icon button (delete 🗑️ etc)
+--------------------------- */
+.iconButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 6px;
+  border-radius: 10px;
+  color: var(--text-primary);
+}
+
+.iconButton:hover {
+  background: rgba(127, 127, 127, 0.18);
+}
+
+/* ---------------------------
+   Lines (health rows)
+--------------------------- */
+.lineRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Exercise list */
+.bulletedList {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-primary);
+}
+
+.exerciseRow {
+  margin-bottom: 8px;
+}
+
+/* ---------------------------
+   Bowel toggle
+--------------------------- */
+.infoHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.infoTitle {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-primary);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.toggleInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.toggleVisual {
+  width: 38px;
+  height: 22px;
+  background-color: var(--border-primary);
+  border-radius: 999px;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.toggleVisual::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.toggleInput:checked + .toggleVisual {
+  background-color: var(--accent-button-bg);
+}
+
+.toggleInput:checked + .toggleVisual::after {
+  transform: translateX(16px);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------
+   Headings
+--------------------------- */
+.subtitle {
+  font-size: 1.4rem;
+  color: var(--text-heading);
+  margin: 1rem 0 0.75rem;
+  text-align: center;
+}
+
+/* ---------------------------
+   Week Overview grid
+--------------------------- */
+.weekOverview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.dayItem {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  text-align: center;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--border-primary);
+  cursor: pointer;
+  font-weight: 800;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  opacity: 1;
+}
+
+.dayItem:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-secondary);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+}
+
+/* Only animate when user allows motion */
+@media (prefers-reduced-motion: no-preference) {
+.dayAnim {
+animation: fadeInUp 0.5s ease-out both;
+will-change: transform, opacity;
+}
+}
+
+
+/* If reduced motion, just show normally */
+@media (prefers-reduced-motion: reduce) {
+.dayAnim {
+animation: none;
+}
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.today {
+  background-color: var(--accent-button-bg);
+  color: var(--accent-button-text);
+  border-color: var(--accent-button-bg);
+}
+
+.anchor {
+  box-shadow: inset 0 0 0 2px currentColor;
+  border-radius: 12px;
+}
+
+/* ---------------------------
+   Big IonButtons (Weekly summary + Mood)
+--------------------------- */
+.weeklySummaryWrap {
+  margin-top: 1rem;
+  padding-bottom: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.weeklySummaryIon {
+  width: 100%;
+  max-width: 520px;
+
+  --background: var(--accent-button-bg);
+  --color: var(--accent-button-text);
+  --border-radius: 14px;
+
+  --padding-top: 18px;
+  --padding-bottom: 18px;
+  --padding-start: 18px;
+  --padding-end: 18px;
+
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+/* Slightly bigger on tablets */
+@media (min-width: 768px) {
+  .weeklySummaryIon {
+    max-width: 560px;
+    font-size: 1.15rem;
+    --padding-top: 20px;
+    --padding-bottom: 20px;
+  }
+
+  .infoBox {
+    padding: 1.15rem 1.4rem;
+  }
+}

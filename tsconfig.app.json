@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+    "@/*": ["src/*"]
+},
+    "composite": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "outDir": "./build",                          // ✅ All .js and .d.ts go here
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "useDefineForClassFields": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "typeRoots": ["src/types", "node_modules/@types"]
+  },
+  "include": [
+  "src/**/*.ts",
+  "src/**/*.tsx",
+  "src/**/*.json",
+  "Backend_Files/capacitor-native-biometric.d.ts"
+  ],  
+  "exclude": ["node_modules", "dist", "build"]
+}

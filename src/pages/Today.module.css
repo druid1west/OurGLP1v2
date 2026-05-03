@@ -1,0 +1,485 @@
+.content {
+  --background: #f6f8f7;
+}
+
+.content::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 14px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 28px);
+}
+
+.page {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 16px;
+  color: #123131;
+}
+
+.heroBand {
+  min-height: 178px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 18px;
+  padding: 22px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(23, 75, 75, 0.94), rgba(19, 96, 86, 0.88)),
+    url('/assets/bg-pattern.jpg');
+  background-size: cover;
+  background-position: center;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.heroBand h1 {
+  margin: 0;
+  font-size: 2.15rem;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.heroBand p {
+  margin: 10px 0 0;
+  max-width: 36rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.heroScore {
+  width: 92px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.heroScore span {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.heroScore small {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.metricCard,
+.healthBand,
+.protocolBand,
+.insightCard {
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(18, 49, 49, 0.1);
+  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+}
+
+.metricCard {
+  min-height: 132px;
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  padding: 14px;
+}
+
+.metricCard svg {
+  color: var(--metric-color);
+}
+
+.metricCard span,
+.insightCard span {
+  display: block;
+  color: #5c6f6b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.metricCard strong {
+  display: block;
+  margin-top: 4px;
+  color: #112f2f;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.protein { --metric-color: #c05621; }
+.hydration { --metric-color: #1677a3; }
+.steps { --metric-color: #27835f; }
+.sleep { --metric-color: #5f5aa2; }
+
+.progressTrack {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eeec;
+}
+
+.progressTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--metric-color);
+}
+
+.healthBand,
+.protocolBand {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: #112f2f;
+  font-size: 1.1rem;
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  color: #607470;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  --border-radius: 999px;
+  --color: #174b4b;
+  --background: #e9f3f0;
+}
+
+.healthStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.healthStats div {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f7f5;
+  color: #174b4b;
+  font-weight: 800;
+}
+
+.healthStats span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.syncMessage {
+  margin: 12px 0 0;
+  color: #4f625f;
+  font-size: 0.9rem;
+}
+
+.proPreview {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(192, 86, 33, 0.24);
+  background: linear-gradient(135deg, #fff7ed, #ffffff);
+  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+}
+
+.proKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #c05621;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.proPreview h2 {
+  margin: 6px 0 0;
+  color: #112f2f;
+  font-size: 1.08rem;
+}
+
+.proPreview p {
+  max-width: 560px;
+  margin: 6px 0 0;
+  color: #5c6f6b;
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.proAction {
+  min-height: 44px;
+  --background: #c05621;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 800;
+}
+
+.proAction::part(native) {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.protocolEmpty {
+  margin: 12px 0 0;
+  color: #5c6f6b;
+  font-size: 0.9rem;
+  line-height: 1.42;
+}
+
+.protocolList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.protocolPill {
+  min-height: 62px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f7f5;
+}
+
+.protocolPill span,
+.protocolPill strong {
+  display: block;
+}
+
+.protocolPill span {
+  color: #112f2f;
+  font-size: 0.9rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.protocolPill strong {
+  margin-top: 5px;
+  color: #607470;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.insightGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.insightCard {
+  min-height: 116px;
+  padding: 14px;
+  display: grid;
+  align-content: space-between;
+  color: #174b4b;
+}
+
+.insightCard strong {
+  color: #112f2f;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.actionBand {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 48px;
+  font-weight: 800;
+  --border-radius: 8px;
+}
+
+.primaryAction {
+  --background: #174b4b;
+  --color: #ffffff;
+}
+
+.primaryAction::part(native) {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.secondaryAction {
+  --border-color: #174b4b;
+  --color: #174b4b;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+:global([data-theme='dark']) .content,
+:global(body[data-theme='dark']) .content,
+:global(html[data-theme='dark']) .content {
+  --background: #111716;
+}
+
+:global([data-theme='dark']) .page,
+:global(body[data-theme='dark']) .page,
+:global(html[data-theme='dark']) .page {
+  color: #dce8e5;
+}
+
+:global([data-theme='dark']) .metricCard,
+:global([data-theme='dark']) .healthBand,
+:global([data-theme='dark']) .proPreview,
+:global([data-theme='dark']) .protocolBand,
+:global([data-theme='dark']) .insightCard,
+:global(body[data-theme='dark']) .metricCard,
+:global(body[data-theme='dark']) .healthBand,
+:global(body[data-theme='dark']) .proPreview,
+:global(body[data-theme='dark']) .protocolBand,
+:global(body[data-theme='dark']) .insightCard {
+  background: #1b2422;
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: none;
+}
+
+:global([data-theme='dark']) .metricCard strong,
+:global([data-theme='dark']) .sectionHeader h2,
+:global([data-theme='dark']) .proPreview h2,
+:global([data-theme='dark']) .protocolPill span,
+:global([data-theme='dark']) .insightCard strong,
+:global(body[data-theme='dark']) .metricCard strong,
+:global(body[data-theme='dark']) .sectionHeader h2,
+:global(body[data-theme='dark']) .proPreview h2,
+:global(body[data-theme='dark']) .protocolPill span,
+:global(body[data-theme='dark']) .insightCard strong {
+  color: #f2fbf8;
+}
+
+:global([data-theme='dark']) .metricCard span,
+:global([data-theme='dark']) .sectionHeader p,
+:global([data-theme='dark']) .proPreview p,
+:global([data-theme='dark']) .protocolEmpty,
+:global([data-theme='dark']) .protocolPill strong,
+:global([data-theme='dark']) .insightCard span,
+:global(body[data-theme='dark']) .metricCard span,
+:global(body[data-theme='dark']) .sectionHeader p,
+:global(body[data-theme='dark']) .proPreview p,
+:global(body[data-theme='dark']) .protocolEmpty,
+:global(body[data-theme='dark']) .protocolPill strong,
+:global(body[data-theme='dark']) .insightCard span {
+  color: #9bb2ad;
+}
+
+:global([data-theme='dark']) .healthStats div,
+:global([data-theme='dark']) .protocolPill,
+:global(body[data-theme='dark']) .healthStats div {
+  background: #14201e;
+  color: #bde8df;
+}
+
+:global(body[data-theme='dark']) .protocolPill {
+  background: #14201e;
+}
+
+:global([data-theme='dark']) .progressTrack,
+:global(body[data-theme='dark']) .progressTrack {
+  background: #2a3734;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 12px;
+  }
+
+  .heroBand {
+    grid-template-columns: 1fr;
+    min-height: 168px;
+    padding: 18px;
+  }
+
+  .heroScore {
+    width: 76px;
+  }
+
+  .heroBand h1 {
+    font-size: 1.85rem;
+  }
+
+  .metricsGrid,
+  .insightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .healthStats {
+    grid-template-columns: 1fr;
+  }
+
+  .protocolList {
+    grid-template-columns: 1fr;
+  }
+
+  .proPreview {
+    grid-template-columns: 1fr;
+  }
+
+  .proAction {
+    width: 100%;
+  }
+
+  .actionBand {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 390px) {
+  .metricsGrid,
+  .insightGrid {
+    grid-template-columns: 1fr;
+  }
+}

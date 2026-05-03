@@ -1,0 +1,282 @@
+/* src/pages/DayPage.module.css */
+
+/* Push IonContent's internal scroll area below TopNav and above BottomNav */
+.contentPad { 
+  background: var(--background-primary); 
+}
+
+.contentPad::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 45px) + env(safe-area-inset-top) + 1px);
+  padding-bottom: calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom) + 45px);
+}
+
+/* NEW: full-height scroll container that respects Bottom Nav space */
+.container {
+  padding: 1rem;
+  background-color: var(--background-primary);
+  box-sizing: border-box;
+}
+
+.container > h1:first-child {
+  margin-top: 4px;
+  color: var(--text-primary);
+}
+
+/* NEW: center content, but allow full width on small screens */
+.pageInner {
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+  margin-top: 1rem;
+}
+
+/* NEW: floating action button to jump to current time block */
+.scrollFab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--bottom-nav-height, 96px) + 24px + env(safe-area-inset-bottom));
+  z-index: 9999;
+  border-radius: 9999px;
+  padding: 10px 14px;
+  background: var(--button-primary-bg);
+  color: #ffffff; /* pure white text */
+  border: none;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+
+.block {
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.block:hover {
+  filter: brightness(1.05);
+}
+
+/* Keep original red/green for status visibility */
+.fasting {
+  background-color: #ffe5e5; 
+  color: #a94442;
+}
+
+.eating {
+  background-color: #e6ffed; 
+  color: #2e7d32;
+}
+
+.current {
+  border: 2px solid var(--accent-primary);
+}
+
+.injection {
+  font-weight: bold;
+  background-color: var(--injection-bg);
+  color: var(--injection-text);
+}
+
+.injectionBanner {
+  background: var(--banner-bg);
+  color: var(--banner-text);
+  border-left: 4px solid var(--banner-border);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.modal {
+  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6); /* Slightly darker overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+/* Modal Content: White bg/Black text in Light, Dark bg/White text in Dark */
+.modalContent {
+  background: #ffffff; /* Uses #ffffff in light, #1e1e1e in dark */
+  padding: 1.5rem;
+  border-radius: 12px;
+  max-width: 320px;
+  max-height: 85vh;
+  text-align: center;
+  overflow-y: auto;
+  color: var(--text-primary); /* Uses #000000 in light, #ffffff in dark */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.day-page-container {
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-timeline {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 1rem;
+  background-color: var(--background-secondary);
+}
+
+/* Separation lines for 15 min blocks */
+.time-block {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.time-block:last-child {
+  border-bottom: none;
+}
+
+.time-label {
+  width: 80px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.event-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event {
+  background-color: var(--button-primary-bg);
+  color: #ffffff; /* pure white text */
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  width: fit-content;
+}
+
+.no-event {
+  flex: 1;
+  height: 1rem;
+}
+
+/* --- Inline-style removals (new classes) --- */
+
+.injectionHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.injectionTitle {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.injectionMeta {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.injectionNotSet {
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+
+.lastTaken {
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.modalHeaderRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.moodLabel {
+  opacity: 0.75;
+  color: var(--text-primary);
+}
+
+.moodBtn {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--background-primary);
+  cursor: pointer;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.moodBtnSelected {
+  border: 2px solid var(--button-primary-bg);
+  background: var(--background-secondary);
+}
+
+.removeMoodBtn {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--error-color);
+  font-weight: bold;
+}
+
+.modalActionRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.smallButtonSuccess {
+  background: var(--success-bg);
+  color: #ffffff; /* pure white text */
+  border: 1px solid var(--success-bg);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* The message text inside the modal */
+.preWrap {
+  white-space: pre-wrap;
+  margin: 10px 0;
+  color: var(--text-primary); /* Black in light mode, White in dark mode */
+  font-size: 1rem;
+  line-height: 1.4;
+}
+/* Dark mode override */
+[data-theme='dark'] .modalContent,
+body[data-theme='dark'] .modalContent,
+html[data-theme='dark'] .modalContent {
+  background: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}

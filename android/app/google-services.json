@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557159382889",
+    "project_id": "glp1-parisclinic",
+    "storage_bucket": "glp1-parisclinic.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557159382889:android:4d5f25842ae622353d47f8",
+        "android_client_info": {
+          "package_name": "com.ourglp1.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJ9r1mRH-BxipSYoJQG_yHXFIawCMF1Ys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

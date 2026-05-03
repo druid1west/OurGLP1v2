@@ -1,0 +1,557 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { IonButton, IonContent, IonPage } from '@ionic/react';
+import { useIonRouter } from '@ionic/react';
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  ClipboardList,
+  Droplets,
+  Dumbbell,
+  Flame,
+  HeartPulse,
+  Moon,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Syringe,
+  Utensils,
+  Watch,
+} from 'lucide-react';
+
+import TopNav from '../context/TopNav';
+import BottomNav from '../context/BottomNav';
+import { useAuth } from '../context/useAuth';
+import {
+  getFastingByDay,
+  getHealthDailySummaryByDay,
+  getLastInjectionLocal,
+  initHealthTables,
+  listExercises,
+  listHealthLogsRange,
+  upsertHealthDailySummary,
+  type ExerciseEntry,
+  type HealthDailySummary,
+  type HealthLog,
+} from '../db/HealthRepository';
+import { listSleepLogsRange, type SleepLogRow } from '../db/SleepRepository';
+import {
+  initProtocolTables,
+  listProtocolEventsForDay,
+  listProtocols,
+  type Protocol,
+  type ProtocolEvent,
+} from '../db/ProtocolRepository';
+import {
+  AppleHealth,
+  isAppleHealthSupportedPlatform,
+  type AppleHealthDailySummary,
+} from '../plugins/appleHealth';
+import { logger } from '../utils/logger';
+import styles from './Today.module.css';
+
+type TodayStats = {
+  protein: number;
+  hydration: number;
+  manualExerciseMinutes: number;
+  manualSleepMinutes: number;
+  moodAverage: number | null;
+  latestBloodPressure: string | null;
+  latestBloodSugar: string | null;
+  firstMeal: string | null;
+  lastMeal: string | null;
+  lastInjectionLabel: string;
+};
+
+type LoadState = 'loading' | 'ready' | 'error';
+type SyncState = 'idle' | 'syncing' | 'synced' | 'unavailable' | 'error';
+
+const PROTEIN_TARGET_G = 90;
+const HYDRATION_TARGET_ML = 2200;
+const STEPS_TARGET = 8000;
+const SLEEP_TARGET_MINUTES = 7 * 60;
+
+function localYmd(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function localDayBounds(ymd: string): { start: string; end: string } {
+  const startDate = new Date(`${ymd}T00:00:00`);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 1);
+  return { start: startDate.toISOString(), end: endDate.toISOString() };
+}
+
+function minutesBetween(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0;
+  const a = new Date(start).getTime();
+  const b = new Date(end).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
+  return Math.round((b - a) / 60000);
+}
+
+function exerciseMinutes(entry: ExerciseEntry): number {
+  const start = new Date(`2000-01-01T${entry.start_time}`);
+  const end = new Date(`2000-01-01T${entry.end_time}`);
+  const diff = end.getTime() - start.getTime();
+  if (!Number.isFinite(diff) || diff <= 0) return 0;
+  return Math.round(diff / 60000);
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes <= 0) return '0m';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h <= 0) return `${m}m`;
+  if (m <= 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+}
+
+function percentage(value: number, target: number): number {
+  if (!target || target <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((value / target) * 100)));
+}
+
+function toNumber(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatTime(value?: string | null): string | null {
+  if (!value) return null;
+  const parts = value.split(':');
+  if (parts.length < 2) return value;
+  return `${parts[0]}:${parts[1]}`;
+}
+
+function summarizeLogs(logs: HealthLog[]): Pick<
+  TodayStats,
+  'protein' | 'hydration' | 'moodAverage' | 'latestBloodPressure' | 'latestBloodSugar'
+> {
+  let protein = 0;
+  let hydration = 0;
+  const mood: number[] = [];
+  let latestBloodPressure: string | null = null;
+  let latestBloodSugar: string | null = null;
+
+  for (const log of logs) {
+    const data = log.data as Record<string, unknown> | null;
+    if (!data) continue;
+
+    if (log.entry_type === 'protein') {
+      protein += toNumber(data.grams) ?? 0;
+    }
+
+    if (log.entry_type === 'hydration') {
+      hydration += toNumber(data.amount) ?? 0;
+    }
+
+    if (log.entry_type === 'mood') {
+      const score = toNumber(data.score ?? data.mood ?? data.value);
+      if (score !== null) mood.push(score);
+    }
+
+    if (log.entry_type === 'blood_pressure') {
+      const systolic = toNumber(data.systolic);
+      const diastolic = toNumber(data.diastolic);
+      if (systolic && diastolic) latestBloodPressure = `${systolic}/${diastolic}`;
+    }
+
+    if (log.entry_type === 'blood_sugar') {
+      const value = toNumber(data.value);
+      const unit = typeof data.unit === 'string' ? data.unit : '';
+      if (value !== null) latestBloodSugar = `${value} ${unit}`.trim();
+    }
+  }
+
+  return {
+    protein: Math.round(protein),
+    hydration: Math.round(hydration),
+    moodAverage: mood.length
+      ? Math.round((mood.reduce((sum, n) => sum + n, 0) / mood.length) * 10) / 10
+      : null,
+    latestBloodPressure,
+    latestBloodSugar,
+  };
+}
+
+function syncLabel(state: SyncState): string {
+  switch (state) {
+    case 'syncing':
+      return 'Syncing';
+    case 'synced':
+      return 'Synced today';
+    case 'unavailable':
+      return 'iPhone only';
+    case 'error':
+      return 'Needs attention';
+    default:
+      return 'Not synced';
+  }
+}
+
+const Today: React.FC = () => {
+  const router = useIonRouter();
+  const { user, isPro } = useAuth();
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [stats, setStats] = useState<TodayStats | null>(null);
+  const [appleSummary, setAppleSummary] = useState<HealthDailySummary | null>(null);
+  const [protocols, setProtocols] = useState<Protocol[]>([]);
+  const [protocolEvents, setProtocolEvents] = useState<ProtocolEvent[]>([]);
+  const [syncState, setSyncState] = useState<SyncState>('idle');
+  const [syncMessage, setSyncMessage] = useState<string>('');
+
+  const today = useMemo(() => localYmd(), []);
+
+  const loadToday = useCallback(async () => {
+    setLoadState('loading');
+    try {
+      await initHealthTables();
+      await initProtocolTables();
+      const { start, end } = localDayBounds(today);
+      const [
+        logs,
+        fasting,
+        exercises,
+        sleepLogs,
+        imported,
+        lastInjection,
+        protocolRows,
+        protocolEventRows,
+      ] = await Promise.all([
+        listHealthLogsRange(start, end),
+        getFastingByDay(today),
+        listExercises(),
+        listSleepLogsRange(today, today),
+        getHealthDailySummaryByDay(today),
+        getLastInjectionLocal(),
+        user?.id ? listProtocols(user.id) : Promise.resolve([]),
+        user?.id ? listProtocolEventsForDay(user.id, today) : Promise.resolve([]),
+      ]);
+
+      const logSummary = summarizeLogs(logs);
+      const todaysExercises = exercises.filter((entry) => entry.exercise_date === today);
+      const manualExerciseMinutes = todaysExercises.reduce(
+        (sum, entry) => sum + exerciseMinutes(entry),
+        0
+      );
+      const manualSleepMinutes = (sleepLogs as SleepLogRow[]).reduce(
+        (sum, entry) => sum + minutesBetween(entry.sleep_at, entry.wake_at),
+        0
+      );
+
+      setAppleSummary(imported);
+      setProtocols(protocolRows);
+      setProtocolEvents(protocolEventRows);
+      setStats({
+        ...logSummary,
+        manualExerciseMinutes,
+        manualSleepMinutes,
+        firstMeal: fasting?.first_meal_at ?? null,
+        lastMeal: fasting?.last_meal_at ?? null,
+        lastInjectionLabel: lastInjection?.taken_at
+          ? new Intl.DateTimeFormat(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }).format(new Date(lastInjection.taken_at))
+          : 'No injection logged yet',
+      });
+      setLoadState('ready');
+    } catch (error) {
+      logger.warn('[Today] failed to load dashboard', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setLoadState('error');
+    }
+  }, [today, user?.id]);
+
+  useEffect(() => {
+    void loadToday();
+    const refresh = () => void loadToday();
+    window.addEventListener('health:changed', refresh);
+    window.addEventListener('exercise:changed', refresh);
+    window.addEventListener('sleep:changed', refresh);
+    return () => {
+      window.removeEventListener('health:changed', refresh);
+      window.removeEventListener('exercise:changed', refresh);
+      window.removeEventListener('sleep:changed', refresh);
+    };
+  }, [loadToday]);
+
+  const handleAppleHealthSync = async (): Promise<void> => {
+    setSyncMessage('');
+
+    if (!isAppleHealthSupportedPlatform()) {
+      setSyncState('unavailable');
+      setSyncMessage('Apple Health sync is available on iPhone builds.');
+      return;
+    }
+
+    setSyncState('syncing');
+    try {
+      const availability = await AppleHealth.isAvailable();
+      if (!availability.available) {
+        setSyncState('unavailable');
+        setSyncMessage('Apple Health is not available on this device.');
+        return;
+      }
+
+      await AppleHealth.requestAuthorization();
+      const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day: today });
+
+      await upsertHealthDailySummary({
+        day: summary.day,
+        source: 'apple_health',
+        steps: summary.steps,
+        activeEnergyKcal: summary.activeEnergyKcal,
+        exerciseMinutes: summary.exerciseMinutes,
+        sleepMinutes: summary.sleepMinutes,
+        restingHeartRate: summary.restingHeartRate,
+        workouts: summary.workouts,
+      });
+
+      setSyncState('synced');
+      setSyncMessage('Apple Health is up to date for today.');
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] Apple Health sync failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setSyncState('error');
+      setSyncMessage('Apple Health could not sync yet.');
+    }
+  };
+
+  const firstName = user?.first_name?.trim() || 'there';
+  const importedSteps = appleSummary?.steps ?? 0;
+  const importedExercise = appleSummary?.exerciseMinutes ?? 0;
+  const importedSleep = appleSummary?.sleepMinutes ?? 0;
+  const importedEnergy = appleSummary?.activeEnergyKcal ?? 0;
+  const activityMinutes = Math.max(importedExercise, stats?.manualExerciseMinutes ?? 0);
+  const sleepMinutes = Math.max(importedSleep, stats?.manualSleepMinutes ?? 0);
+  const activeProtocols = protocols.filter((protocol) => protocol.is_active);
+  const protocolLoggedIds = new Set(protocolEvents.map((event) => event.protocol_id));
+
+  const focusText = useMemo(() => {
+    if (!stats) return 'Loading your day';
+    if ((stats.protein ?? 0) < 45) return 'Make protein the easy win today';
+    if ((stats.hydration ?? 0) < 1000) return 'A steadier water day would help';
+    if (sleepMinutes > 0 && sleepMinutes < 360) return 'Keep today gentle after shorter sleep';
+    if (importedSteps >= 7000) return 'Movement is carrying the day nicely';
+    return 'Small steady choices are enough today';
+  }, [importedSteps, sleepMinutes, stats]);
+
+  return (
+    <IonPage>
+      <TopNav showWhenAnon={false} />
+      <IonContent fullscreen className={styles.content}>
+        <main className={styles.page}>
+          <section className={styles.heroBand}>
+            <div className={styles.heroCopy}>
+              <div className={styles.eyebrow}>
+                <CalendarDays size={16} />
+                <span>{new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</span>
+              </div>
+              <h1>Today, {firstName}</h1>
+              <p>{focusText}</p>
+            </div>
+            <div className={styles.heroScore} aria-label="Daily rhythm score">
+              <span>{loadState === 'ready' ? percentage((stats?.protein ?? 0) + (stats?.hydration ?? 0) / 30 + activityMinutes, 190) : 0}</span>
+              <small>rhythm</small>
+            </div>
+          </section>
+
+          <section className={styles.metricsGrid} aria-label="Today metrics">
+            <article className={`${styles.metricCard} ${styles.protein}`}>
+              <Utensils size={21} />
+              <div>
+                <span>Protein</span>
+                <strong>{formatNumber(stats?.protein ?? 0)}g</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(stats?.protein ?? 0, PROTEIN_TARGET_G)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.hydration}`}>
+              <Droplets size={21} />
+              <div>
+                <span>Hydration</span>
+                <strong>{formatNumber(stats?.hydration ?? 0)}ml</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(stats?.hydration ?? 0, HYDRATION_TARGET_ML)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.steps}`}>
+              <Activity size={21} />
+              <div>
+                <span>Steps</span>
+                <strong>{formatNumber(importedSteps)}</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(importedSteps, STEPS_TARGET)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.sleep}`}>
+              <Moon size={21} />
+              <div>
+                <span>Sleep</span>
+                <strong>{formatMinutes(sleepMinutes)}</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(sleepMinutes, SLEEP_TARGET_MINUTES)}%` }} />
+              </div>
+            </article>
+          </section>
+
+          <section className={styles.healthBand}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Apple Health</h2>
+                <p>{syncLabel(syncState)}</p>
+              </div>
+              <IonButton
+                className={styles.iconButton}
+                fill="clear"
+                onClick={() => void handleAppleHealthSync()}
+                disabled={syncState === 'syncing'}
+                aria-label="Sync Apple Health"
+              >
+                {syncState === 'syncing' ? <RefreshCw className={styles.spin} size={20} /> : <Watch size={20} />}
+              </IonButton>
+            </div>
+
+            <div className={styles.healthStats}>
+              <div>
+                <Flame size={18} />
+                <span>{formatNumber(importedEnergy)} kcal</span>
+              </div>
+              <div>
+                <Dumbbell size={18} />
+                <span>{formatMinutes(activityMinutes)}</span>
+              </div>
+              <div>
+                <HeartPulse size={18} />
+                <span>{appleSummary?.restingHeartRate ? `${Math.round(appleSummary.restingHeartRate)} bpm` : 'No HR'}</span>
+              </div>
+            </div>
+
+            {syncMessage && <p className={styles.syncMessage}>{syncMessage}</p>}
+          </section>
+
+          {!isPro && (
+            <section className={styles.proPreview}>
+              <div>
+                <div className={styles.proKicker}>
+                  <Sparkles size={16} />
+                  <span>Pro insight</span>
+                </div>
+                <h2>Turn today into a weekly pattern</h2>
+                <p>
+                  Pro keeps the longer view: personal plan, saved summaries,
+                  day detail, and GLP-1 trend archives.
+                </p>
+              </div>
+              <IonButton
+                className={styles.proAction}
+                onClick={() => router.push('/paywall?returnTo=/today', 'forward')}
+              >
+                <BarChart3 size={17} />
+                See Pro
+              </IonButton>
+            </section>
+          )}
+
+          <section className={styles.protocolBand}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Protocols</h2>
+                <p>
+                  {activeProtocols.length
+                    ? `${activeProtocols.length} active routine${activeProtocols.length === 1 ? '' : 's'}`
+                    : 'GLP-1 and peptide tracking'}
+                </p>
+              </div>
+              <IonButton
+                className={styles.iconButton}
+                fill="clear"
+                onClick={() => router.push('/protocols', 'forward')}
+                aria-label="Open protocols"
+              >
+                <ClipboardList size={20} />
+              </IonButton>
+            </div>
+
+            {activeProtocols.length === 0 ? (
+              <p className={styles.protocolEmpty}>
+                Add GLP-1, copper peptide, or another protocol to keep timing, dose labels, and observations together.
+              </p>
+            ) : (
+              <div className={styles.protocolList}>
+                {activeProtocols.slice(0, 3).map((protocol) => (
+                  <div className={styles.protocolPill} key={protocol.id}>
+                    <span>{protocol.name}</span>
+                    <strong>
+                      {protocolLoggedIds.has(protocol.id)
+                        ? 'Logged today'
+                        : protocol.cadence_label || 'As directed'}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className={styles.insightGrid}>
+            <article className={styles.insightCard}>
+              <Syringe size={20} />
+              <span>Injection</span>
+              <strong>{stats?.lastInjectionLabel ?? 'Loading'}</strong>
+            </article>
+
+            <article className={styles.insightCard}>
+              <Utensils size={20} />
+              <span>Fasting Window</span>
+              <strong>
+                {formatTime(stats?.firstMeal) || '--:--'} to {formatTime(stats?.lastMeal) || '--:--'}
+              </strong>
+            </article>
+
+            <article className={styles.insightCard}>
+              <ShieldCheck size={20} />
+              <span>Body Check</span>
+              <strong>{stats?.latestBloodPressure || stats?.latestBloodSugar || 'No reading today'}</strong>
+            </article>
+          </section>
+
+          <section className={styles.actionBand}>
+            <IonButton className={styles.primaryAction} onClick={() => router.push('/healthtracker', 'forward')}>
+              Log something
+              <ArrowRight size={17} />
+            </IonButton>
+            <IonButton className={styles.secondaryAction} fill="outline" onClick={() => router.push('/weeklysummary', 'forward')}>
+              Weekly review
+            </IonButton>
+          </section>
+        </main>
+      </IonContent>
+      <BottomNav showWhenAnon={false} />
+    </IonPage>
+  );
+};
+
+export default Today;

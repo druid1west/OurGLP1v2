@@ -1,0 +1,456 @@
+.scrollContainer {
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding: 18px 14px calc(104px + env(safe-area-inset-bottom));
+  background:
+    linear-gradient(180deg, rgba(42, 157, 143, 0.12), transparent 220px),
+    var(--bg-primary);
+  box-sizing: border-box;
+}
+
+.paywallContainer {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  color: var(--text-primary);
+}
+
+.loadingBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 88px;
+  padding: 18px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.heroPanel {
+  padding: 26px 0 18px;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 720px;
+  margin: 0;
+  color: var(--text-heading);
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.heroHighlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 560px;
+  margin-top: 22px;
+}
+
+.heroHighlights div {
+  min-height: 74px;
+  padding: 14px;
+  border: 1px solid rgba(13, 43, 43, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.heroHighlights strong,
+.heroHighlights span {
+  display: block;
+}
+
+.heroHighlights strong {
+  color: var(--text-heading);
+  font-size: 0.9rem;
+}
+
+.heroHighlights span {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.valueGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.valueColumn,
+.planPanel,
+.legalPanel {
+  border: 1px solid rgba(13, 43, 43, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 34px rgba(13, 43, 43, 0.08);
+}
+
+.valueColumn {
+  padding: 16px;
+}
+
+.proColumn {
+  border-color: rgba(192, 86, 33, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 255, 255, 0.9)),
+    #fff;
+}
+
+.columnHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.columnHeader span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.columnHeader strong {
+  color: var(--text-heading);
+  font-size: 1.05rem;
+}
+
+.featureList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.featureList li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 58px;
+}
+
+.featureList svg {
+  margin-top: 2px;
+  color: #0f766e;
+}
+
+.proColumn .featureList svg {
+  color: #c05621;
+}
+
+.featureList strong,
+.featureList span {
+  display: block;
+}
+
+.featureList strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.featureList span {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.planPanel {
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.planIntro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planIntro h3 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.25rem;
+}
+
+.planIntro p {
+  max-width: 560px;
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.priceNote {
+  flex: 0 0 auto;
+  padding-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.subscriptionOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 12px;
+}
+
+.subscriptionCard {
+  position: relative;
+  min-height: 164px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(13, 43, 43, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.subscriptionCard:hover {
+  border-color: rgba(15, 118, 110, 0.55);
+  box-shadow: 0 8px 22px rgba(13, 43, 43, 0.1);
+  transform: translateY(-1px);
+}
+
+.subscriptionCard.selected {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+}
+
+.subscriptionCard.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.subscriptionTitle,
+.subscriptionPrice,
+.subscriptionPeriod,
+.savingsText {
+  display: block;
+}
+
+.subscriptionTitle {
+  max-width: 60%;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.subscriptionPrice {
+  margin-top: 20px;
+  color: var(--text-heading);
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.subscriptionPeriod {
+  margin-top: 9px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.savingsText {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.subscriptionSummary {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.errorBox {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger-color);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger-color);
+  font-size: 0.86rem;
+  white-space: pre-line;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.buyButton {
+  --background: var(--accent-button-bg);
+  --color: var(--accent-button-text);
+  --border-radius: 8px;
+  font-weight: 800;
+}
+
+.restoreButton {
+  --border-color: var(--accent-primary);
+  --color: var(--accent-primary);
+  --border-radius: 8px;
+  font-weight: 750;
+}
+
+.secondaryActions {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.secondaryActions button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.secondaryActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.legalPanel {
+  margin-top: 14px;
+  padding: 14px 16px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.legalPanel p {
+  margin: 0;
+}
+
+.legalPanel p + p {
+  margin-top: 8px;
+}
+
+.legalPanel a {
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.customerId {
+  opacity: 0.56;
+}
+
+.spacer {
+  height: 18px;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:global([data-theme='dark']) .scrollContainer,
+:global(body[data-theme='dark']) .scrollContainer {
+  background:
+    linear-gradient(180deg, rgba(61, 181, 163, 0.16), transparent 220px),
+    var(--bg-primary);
+}
+
+:global([data-theme='dark']) .heroHighlights div,
+:global([data-theme='dark']) .valueColumn,
+:global([data-theme='dark']) .planPanel,
+:global([data-theme='dark']) .legalPanel,
+:global([data-theme='dark']) .subscriptionCard,
+:global(body[data-theme='dark']) .heroHighlights div,
+:global(body[data-theme='dark']) .valueColumn,
+:global(body[data-theme='dark']) .planPanel,
+:global(body[data-theme='dark']) .legalPanel,
+:global(body[data-theme='dark']) .subscriptionCard {
+  background: rgba(30, 30, 30, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+:global([data-theme='dark']) .proColumn,
+:global(body[data-theme='dark']) .proColumn {
+  background: rgba(42, 34, 28, 0.92);
+  border-color: rgba(251, 146, 60, 0.24);
+}
+
+@media (max-width: 720px) {
+  .scrollContainer {
+    padding-inline: 12px;
+  }
+
+  .heroPanel {
+    padding-top: 18px;
+  }
+
+  .heroHighlights,
+  .valueGrid,
+  .subscriptionOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .planIntro {
+    display: block;
+  }
+
+  .priceNote {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .subscriptionCard {
+    min-height: 146px;
+  }
+}

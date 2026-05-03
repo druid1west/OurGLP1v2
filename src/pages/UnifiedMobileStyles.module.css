@@ -1,0 +1,252 @@
+/* === Unified Mobile-First Styling for GLP1 App === */
+
+.container {
+  overflow-y: auto;
+  max-height: 100vh;
+  height: auto;         /* Don't force 100% */
+  overflow-y: unset;    /* Let parent scroll */
+  max-height: unset;    /* Remove this limit */
+  background-color: #0d2b2b
+}
+
+.page {
+  min-height: 100vh;
+  background-color: #0d2b2b;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  color: #046b79;
+}
+
+.page > .container {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+
+/* General container for all pages */
+ .wrapper, .profileContainer {
+  height: 100%;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background-color: #0d2b2b; /* dark green-blue */
+  color: #eff3f3; /* light blue text */
+  box-shadow: 0 0 10px rgba(4, 107, 121, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.title, .titleBox, h1, h2 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.subtitle, .subheading {
+  font-size: .9rem;
+  text-align: center;
+  color: #e5edec; /* light green-blue */
+  margin-bottom: 1rem;
+}
+
+/* Buttons */
+.button,
+.ion-button,
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #046b79;
+  border: 2px solid #2a9d8f;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+
+  -webkit-user-select: none; /* Safari / iOS */
+  user-select: none;
+}
+
+.button:hover, .ion-button:hover, button:hover {
+  background-color: #2a9d8f;
+  transform: scale(1.03);
+}
+.buttonGroup > * {
+  margin-bottom: 1rem;
+}
+.label {
+  font-size: .9rem;        /* ✅ increase font size */
+  color: #edf0f0;           /* ✅ light green-blue */
+  font-weight: 600;
+  margin-top: 1rem;
+  display: block;
+}
+
+/* Inputs & selects */
+.input, .select, input, select {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 2px solid #f6f9f9;
+  background-color: #0d2b2b;
+  color: #f0f4f5;
+  margin-bottom: 1rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+.profilehwInput {
+  border: 2px solid #2a9d8f;
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 25%;
+}
+.profilehwselect {
+  width: 25%;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 2px solid #f6f9f9;
+  background-color: #0d2b2b;
+  color: #f0f4f5;
+  margin-bottom: 1rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+.flexRow {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.fieldGroup {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input:focus, .select:focus, input:focus, select:focus {
+  border-color: #5beeda;
+}
+
+.input:disabled, input:disabled {
+  background-color: #073535;
+  color: #f0f4f3;
+  cursor: not-allowed;
+}
+
+/* Photo Upload Preview */
+.photoSection {
+  width: 150px;
+  height: 140px;
+  margin: 0 auto 1.5rem auto;
+  border-radius: 50%;
+  background-color: #174b4b;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid #2a9d8f;
+}
+
+.preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.placeholder {
+  color: #5beeda;
+  font-weight: 600;
+  -webkit-user-select: none; /* Safari / iOS */
+  user-select: none;
+}
+/* Toast and error messages */
+.errorMessage, .success {
+  color: #ff5252;
+  text-align: center;
+  font-weight: 600;
+  margin-top: 1rem;
+}
+
+.success {
+  color: #5beeda;
+}
+
+/* 🧬 Outline button (if you ever bring it back) */
+ion-button.custom-outline::part(native) {
+  border: 2px solid #0d2b2b !important;
+  color: #0d2b2b !important;
+  background: transparent;
+  border-radius: 10px;
+  padding: 8px;
+  font-size: .9rem;
+  font-weight: 600;
+}
+ /* Normalize date/time inputs so they look the same on iPad, iPhone and desktop */
+.inputField[type='time'],
+.inputField[type='date'],
+.inputField[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 44px;         /* nice tappable size on tablet */
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #0d2b2b;
+  background-color: #f8f5f5;
+  color: #0a0a0a;
+  font-size: 1rem;
+}
+/* Make date/time inputs full-sized on iPad (and everywhere) */
+.profileContainer input[type='time'],
+.profileContainer input[type='date'],
+.profileContainer input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 44px;         /* nice thumb size on iPad */
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #0d2b2b;
+  background-color: #f8f5f5;
+  color: #0a0a0a;
+  font-size: 1rem;
+}
+
+
+
+
+
+
+/* Responsive adjustments 
+@media (max-width: 480px) {
+  .container, .wrapper, .profileContainer {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .subtitle, .subheading {
+    font-size: 1rem;
+  }
+}                                    */

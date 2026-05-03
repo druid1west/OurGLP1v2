@@ -1,0 +1,304 @@
+/* /src/theme/variables.css */
+:root {
+  /* must match your TopNav/BottomNav inline heights */
+  --top-nav-height: 96px;
+  --bottom-nav-height: 88px;
+
+  /* ============= COLOR TOKENS (Light Mode - Default) ============= */
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --bg-tertiary: #f6f9f9;
+  --bg-input: #f8f5f5;
+  
+  /* Text colors */
+  --text-primary: #0a0a0a;
+  --text-secondary: #0d2b2b;
+  --text-heading: #174b4b;
+  --text-muted: #173b3b;
+  
+  /* Borders */
+  --border-primary: #0d2b2b;
+  --border-light: rgba(0, 0, 0, 0.06);
+  
+  /* Accents */
+  --accent-primary: #2a9d8f;
+  --accent-button-bg: #0d2b2b;
+  --accent-button-text: #fff;
+  
+  /* Status colors */
+  --badge-active-bg: #e6f0f0;
+  --badge-active-border: #0d2b2b;
+  --badge-inactive-bg: #ffffff;
+  --badge-inactive-border: rgba(13, 43, 43, 0.35);
+  
+  /* Danger/Error */
+  --danger-color: #8b0000;
+  --danger-bg: #fff6f6;
+  --danger-button: #e63946;
+}
+
+/* ============= DARK MODE ============= */
+[data-theme='dark'],
+body[data-theme='dark'],
+html[data-theme='dark'] {
+  /* Backgrounds */
+  --bg-primary: #121212 !important;
+  --bg-secondary: #1e1e1e !important;
+  --bg-tertiary: #1a1a1a !important;
+  --bg-input: #2a2a2a !important;
+  
+  /* Text colors */
+  --text-primary: #e0e0e0 !important;
+  --text-secondary: #b0b0b0 !important;
+  --text-heading: #4db8a8 !important;
+  --text-muted: #888888 !important;
+  
+  /* Borders */
+  --border-primary: #3a3a3a !important;
+  --border-light: rgba(255, 255, 255, 0.1) !important;
+  
+  /* Accents */
+  --accent-primary: #3db5a3 !important;
+  --accent-button-bg: #2a7a6f !important;
+  --accent-button-text: #ffffff !important;
+  
+  /* Status colors */
+  --badge-active-bg: #1e3a3a !important;
+  --badge-active-border: #3db5a3 !important;
+  --badge-inactive-bg: #2a2a2a !important;
+  --badge-inactive-border: rgba(61, 181, 163, 0.35) !important;
+  
+  /* Danger/Error */
+  --danger-color: #ff6b6b !important;
+  --danger-bg: #2a1a1a !important;
+  --danger-button: #e74c3c !important;
+}
+
+/* Force Ionic components to follow theme */
+[data-theme='dark'] ion-content {
+  --background: var(--bg-primary) !important;
+  --color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] ion-item {
+  --background: var(--bg-secondary) !important;
+  --color: var(--text-primary) !important;
+}
+
+[data-theme='dark'] ion-list {
+  background: var(--bg-primary) !important;
+}
+
+[data-theme='dark'] ion-label {
+  color: var(--text-primary) !important;
+}
+
+/* ================= ANDROID/TABLET SAFETY CLAMPS =================
+   Prevent runaway inline --top-nav-height values on Android WebView.
+   iOS is untouched because it's scoped to .plt-android only.
+*/
+.plt-android {
+  /* e.g. treat top nav as ~80px instead of 96px on Android */
+  --top-nav-height-safe: clamp(56px, 64px, 120px);
+  --bottom-nav-height-safe: clamp(56px, var(--bottom-nav-height, 88px), 160px);
+}
+
+/* ============= Buttons ============= */
+/* Primary (solid) */
+ion-button.custom-button {
+  --background: var(--accent-button-bg);
+  --color: var(--accent-button-text);
+  --border-radius: 10px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+/* Outline */
+ion-button.custom-outline {
+  --background: transparent;
+  --color: var(--accent-primary);
+  --border-radius: 10px;
+  --border-color: var(--accent-primary);
+  --border-style: solid;
+  --border-width: 2px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Danger (solid) */
+ion-button.custom-danger {
+  --background: var(--danger-button);
+  --color: #ffffff;
+  --border-radius: 10px;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ============= Inputs ============= */
+/* Base Ionic tokens – used across modes */
+ion-input.custom-input {
+  --background: var(--bg-input);
+  --color: var(--text-primary);
+  --placeholder-color: var(--text-secondary);
+  --highlight-color-focused: var(--accent-primary);
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 8px;
+  --border-color: var(--border-primary);
+  --border-width: 2px;
+  --border-style: solid;
+  font-size: 1rem;
+}
+
+/* If you wrap inputs in ion-item and want the same background/padding */
+ion-item.custom-input-item {
+  --background: var(--bg-input);
+  --inner-padding-start: 0;
+  --inner-padding-end: 0;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 8px;
+}
+
+/* Autofill override – scope to inputs inside Ionic to avoid global leaks */
+ion-input.custom-input input:-webkit-autofill,
+ion-input.custom-input input:-webkit-autofill:focus,
+ion-input.custom-input input:-webkit-autofill:hover,
+ion-input.custom-input input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+  transition-delay: 9999s;
+}
+
+/* ============= App background ============= */
+html, body, ion-app {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+ion-content {
+  --background: var(--bg-primary);
+  --color: var(--text-primary);
+}
+
+/* Your newer, stronger input styling override */
+ion-input.custom-input {
+  --background: var(--bg-input) !important;
+  --color: var(--text-primary) !important;
+  --highlight-color-focused: var(--border-primary);
+}
+
+.md ion-input.custom-input {
+  --background: var(--bg-input);
+  --color: var(--text-primary);
+  --highlight-color-focused: var(--border-primary);
+
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 8px;
+  --border-width: 2px;
+  --border-style: solid;
+  --border-color: var(--border-primary);
+}
+
+/* ============= Layout utilities (SAFE FIX) ============= */
+
+/* IonContent between fixed navs: SOLID by default (prevents bleed-through) */
+ion-content.viewportBetweenNavs {
+  --offset-top: var(--top-nav-height);
+  --offset-bottom: var(--bottom-nav-height);
+
+  /* ✅ this is the correct way to pad IonContent's scroll area */
+  --padding-top: calc(var(--top-nav-height) + 12px);     /* adds the extra breathing room you wanted */
+  --padding-bottom: var(--bottom-nav-height);
+
+  --background: var(--bg-primary);
+  --color: var(--text-primary);
+  --overflow: hidden;
+}
+/* ✅ let .pageScroll do the scrolling */
+  
+
+/* Ensure Ionic's shadow background layer is also solid */
+ion-content.viewportBetweenNavs::part(background) {
+  background: var(--bg-primary);
+}
+
+/* Home is the ONLY transparent page */
+ion-content#homeContent.viewportBetweenNavs.homeContent {
+  --background: transparent !important;
+  background: transparent !important;
+}
+
+ion-content#homeContent.viewportBetweenNavs.homeContent::part(background) {
+  background: transparent !important;
+}
+
+
+
+/* ✅ ANDROID-ONLY OVERRIDES: use clamped safe vars (prevents crazy 361484px) */
+.plt-android ion-content.viewportBetweenNavs {
+  --offset-top: var(--top-nav-height-safe);
+  --offset-bottom: var(--bottom-nav-height-safe);
+
+/* ✅ Ionic-safe padding so IonContent keeps scrolling */
+  --padding-top: calc(var(--top-nav-height-safe) + 12px);
+  --padding-bottom: var(--bottom-nav-height-safe);
+}
+/* ✅ Inner scroller used by pages (Home/Register/etc) */
+.pageScroll {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Global document layout: full-height app, no outer scroll */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Ensure reset */
+html,
+body,
+ion-app {
+  margin: 0;
+  padding: 0;
+}
+
+/* Android only: tweak stacked label above inputs */
+.md ion-item.custom-input-item ion-label {
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Android only: register page extra bottom padding (won't leak) */
+.md ion-content.android-register-content {
+  --padding-bottom: 90px;
+}
+
+/* ANDROID-ONLY TopNav shrink */
+.plt-android .top-nav {
+  /* Reduce the padding and height only on Android */
+  padding-top: 64px !important;        /* was env(...) + 52px */
+  padding-bottom: 22px !important;/* space below links */
+  min-height: 64px !important;         /* was calc(var(--top-nav-height, 96px) + env(...)) */
+}

@@ -1,0 +1,12 @@
+cd ios
+rm -rf App.xcworkspace Pods Podfile.lock
+pod install
+chmod +x "Pods/Target Support Files/Pods-App/Pods-App-frameworks.sh"
+
+Then:
+
+open App.xcworkspace
+
+cd ios
+pod install
+npx cap sync ios
