@@ -34,11 +34,17 @@ import {
   listHealthLogs,
   listHealthLogsRange,
   listExercises,
+  listHealthDailySummariesRange,
   getWeeklyProteinIntake,
   getWeeklyHydrationIntake,
+  type HealthDailySummary,
   type WeeklyHydrationRow,
 } from "../db/HealthRepository";
 import { listSleepLogsRange } from "@/db/SleepRepository";
+import {
+  listGlp1ExperienceRange,
+  type Glp1GraphPoint,
+} from "../db/EffectivenessRepository";
 
 // Chart helpers (offscreen canvas -> base64 PNG)
 import {
@@ -55,6 +61,8 @@ import {
 } from "../lib/nutrition";
 
 import { onHealthChange, offHealthChange, type HealthEventKind } from "../services/healthBus";
+import Glp1TrendGraph from "../components/Glp1TrendGraph";
+import { getGlp1VisibleWeekPoints } from "../lib/glp1Trend";
 
 /* -----------------------------
    Types (local)
@@ -142,6 +150,21 @@ function ymd(d: Date): string {
   return `${y}-${m}-${dd}`;
 }
 
+function addDaysYmd(ymdStr: string, days: number): string {
+  const [y, m, d] = ymdStr.split("-").map((part) => Number(part));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ymdStr;
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+function localYmdFromIso(iso: string, tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
 function ymdToDayKey(ymdStr: string): DayKey {
   const d = new Date(`${ymdStr}T12:00:00`);
   const k = d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 3);
@@ -221,6 +244,43 @@ type Log = {
   value?: number | null;
   systolic?: number | null;
   diastolic?: number | null;
+};
+
+type ArchiveSnapshot = {
+  version: 1;
+  protein?: {
+    buckets: number[];
+    labels?: DayKey[];
+    range?: ProteinRange | null;
+  };
+  hydration?: {
+    buckets: number[];
+    labels?: DayKey[];
+    range?: HydrationRange | null;
+  };
+  activity?: WeeklyActivitySummary;
+  glp1?: WeeklyGlp1Summary;
+};
+
+type WeeklyActivitySummary = {
+  labels: DayKey[];
+  steps: number[];
+  exerciseMinutes: number[];
+  activeEnergyKcal: number[];
+  manualExerciseMinutes: number[];
+  workouts: number[];
+  syncedDays: number;
+  totals: {
+    steps: number;
+    exerciseMinutes: number;
+    activeEnergyKcal: number;
+    manualExerciseMinutes: number;
+    workouts: number;
+  };
+};
+
+type WeeklyGlp1Summary = {
+  points: Glp1GraphPoint[];
 };
 
 function inRangeYmd(dateIso: string, fromYmd: string, toYmd: string): boolean {
@@ -434,18 +494,10 @@ async function buildWeeklyCharts(
   bloodSugar?: string;
   bloodPressure?: string;
 }> {
-  const fromYmd = fromIsoUtc.slice(0, 10);
-  const toYmd = toIsoUtc.slice(0, 10);
-
-  // NEW: UTC ISO -> local YYYY-MM-DD for the provided tz
-  const ymdLocal = (iso: string): string => {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  };
+  const ymdLocal = (iso: string): string => localYmdFromIso(iso, tz);
+  const fromYmd = ymdLocal(fromIsoUtc);
+  const toYmd = addDaysYmd(fromYmd, 6);
+  const appleActivity = await listHealthDailySummariesRange(fromYmd, toYmd);
 
   // 1) health_logs
   const raw = await safeListHealthLogs(fromIsoUtc, toIsoUtc);
@@ -491,6 +543,7 @@ async function buildWeeklyCharts(
   const protein = zeros();
   const hydration = zeros();
   const exercise = zeros();
+  const appleExercise = zeros();
   const mood = zeros();
   const bowel = zeros();
   const bloodPressureSys = zeros();
@@ -543,6 +596,19 @@ async function buildWeeklyCharts(
         break;
       }
     }
+  }
+
+  for (const row of appleActivity) {
+    const idx = DAY_KEYS.indexOf(ymdToDayKey(row.day));
+    if (idx < 0) continue;
+    const mins = Number(row.exerciseMinutes ?? 0);
+    if (Number.isFinite(mins) && mins > appleExercise[idx]) {
+      appleExercise[idx] = mins;
+    }
+  }
+
+  for (let i = 0; i < 7; i += 1) {
+    exercise[i] = Math.max(exercise[i], appleExercise[i]);
   }
 
   // 4) rotate arrays to the anchored start (e.g., Thu → Wed) so bars align with labels
@@ -677,6 +743,73 @@ async function buildWeeklyCharts(
     bowel: bowelPng,
     bloodPressure: bpPng,
     bloodSugar: sugarPng,
+  };
+}
+
+function buildWeeklyActivitySummary(
+  fromIsoUtc: string,
+  tz: string,
+  anchorStartIdx: number,
+  exercises: ExerciseRow[],
+  appleRows: HealthDailySummary[]
+): WeeklyActivitySummary {
+  const startYmd = localYmdFromIso(fromIsoUtc, tz);
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDaysYmd(startYmd, index));
+  const dayToIndex = new Map(weekDays.map((day, index) => [day, index]));
+
+  const steps = zeros();
+  const exerciseMins = zeros();
+  const activeEnergy = zeros();
+  const manualMins = zeros();
+  const workouts = zeros();
+
+  for (const row of exercises) {
+    const day = row.exercise_date ?? "";
+    const idx = dayToIndex.get(day);
+    if (idx == null) continue;
+    const minsA = exerciseMinutes(day, row.start_time ?? "00:00", row.end_time ?? "00:00");
+    const minsB = row.duration_minutes ?? null;
+    const mins = minsA ?? minsB ?? 0;
+    manualMins[idx] += Number.isFinite(mins) ? Math.max(0, mins) : 0;
+  }
+
+  for (const row of appleRows) {
+    const idx = dayToIndex.get(row.day);
+    if (idx == null) continue;
+    steps[idx] = Math.max(steps[idx], Math.round(Number(row.steps ?? 0) || 0));
+    exerciseMins[idx] = Math.max(exerciseMins[idx], Math.round(Number(row.exerciseMinutes ?? 0) || 0));
+    activeEnergy[idx] = Math.max(activeEnergy[idx], Math.round(Number(row.activeEnergyKcal ?? 0) || 0));
+    workouts[idx] = Math.max(workouts[idx], Math.round(Number(row.workouts ?? 0) || 0));
+  }
+
+  for (let i = 0; i < 7; i += 1) {
+    exerciseMins[i] = Math.max(exerciseMins[i], manualMins[i]);
+  }
+
+  const rotate = <T,>(values: readonly T[]) => rotateToStart(values, Math.max(0, anchorStartIdx));
+  const rotatedSteps = rotate(steps);
+  const rotatedExercise = rotate(exerciseMins);
+  const rotatedEnergy = rotate(activeEnergy);
+  const rotatedManual = rotate(manualMins);
+  const rotatedWorkouts = rotate(workouts);
+
+  const sum = (values: readonly number[]) => values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
+
+  return {
+    labels: rotate(DAY_KEYS) as DayKey[],
+    steps: rotatedSteps,
+    exerciseMinutes: rotatedExercise,
+    activeEnergyKcal: rotatedEnergy,
+    manualExerciseMinutes: rotatedManual,
+    workouts: rotatedWorkouts,
+    syncedDays: appleRows.filter((row) => dayToIndex.has(row.day)).length,
+    totals: {
+      steps: sum(rotatedSteps),
+      exerciseMinutes: sum(rotatedExercise),
+      activeEnergyKcal: sum(rotatedEnergy),
+      manualExerciseMinutes: sum(rotatedManual),
+      workouts: sum(rotatedWorkouts),
+    },
   };
 }
 
@@ -1068,6 +1201,8 @@ const WeeklySummaryPage: React.FC = () => {
   // hydration per-day buckets Mon..Sun (mL)
   const [hydrationBuckets, setHydrationBuckets] = useState<number[] | undefined>(undefined);
   const [hydrationLabels, setHydrationLabels] = useState<DayKey[] | undefined>(undefined);
+  const [activitySummary, setActivitySummary] = useState<WeeklyActivitySummary | undefined>(undefined);
+  const [glp1Summary, setGlp1Summary] = useState<WeeklyGlp1Summary | undefined>(undefined);
 
   // User timezone (memoized) for day-change watcher
   const tz = React.useMemo(
@@ -1120,6 +1255,7 @@ const WeeklySummaryPage: React.FC = () => {
         case "blood_pressure": setBpRefreshKey(v => v + 1); break;
         case "blood_sugar": setBgRefreshKey(v => v + 1); break;
         case "sleep": setSleepRefreshKey(v => v + 1); break;
+        case "fasting": setFastingRefreshKey(v => v + 1); break;
         case "bulk":
         case "unknown":
         default:
@@ -1132,6 +1268,7 @@ const WeeklySummaryPage: React.FC = () => {
           setBpRefreshKey(v => v + 1);
           setBgRefreshKey(v => v + 1);
           setSleepRefreshKey(v => v + 1);
+          setFastingRefreshKey(v => v + 1);
       }
     };
     const handler = (e: { kind: HealthEventKind }): void => bump(e.kind);
@@ -1152,6 +1289,7 @@ const WeeklySummaryPage: React.FC = () => {
         case "blood_pressure": setBpRefreshKey(v => v + 1); break;
         case "blood_sugar": setBgRefreshKey(v => v + 1); break;
         case "sleep": setSleepRefreshKey(v => v + 1); break;
+        case "fasting": setFastingRefreshKey(v => v + 1); break;
         default:
           setProteinRefreshKey(v => v + 1);
           setHydrationRefreshKey(v => v + 1);
@@ -1161,6 +1299,7 @@ const WeeklySummaryPage: React.FC = () => {
           setBpRefreshKey(v => v + 1);
           setBgRefreshKey(v => v + 1);
           setSleepRefreshKey(v => v + 1);
+          setFastingRefreshKey(v => v + 1);
       }
     };
     const onDomHealthChanged = (e: Event) => bump((e as CustomEvent)?.detail?.kind);
@@ -1178,7 +1317,39 @@ const WeeklySummaryPage: React.FC = () => {
   const [bpRefreshKey, setBpRefreshKey] = useState<number>(0);
   const [bgRefreshKey, setBgRefreshKey] = useState<number>(0);
   const [sleepRefreshKey, setSleepRefreshKey] = useState<number>(0);
+  const [fastingRefreshKey, setFastingRefreshKey] = useState<number>(0);
+  const [glp1RefreshKey, setGlp1RefreshKey] = useState<number>(0);
+  const [profileRefreshKey, setProfileRefreshKey] = useState<number>(0);
 
+  useEffect(() => {
+    const onProfileSaved = (): void => {
+      void refreshUser();
+      setProfileRefreshKey((n) => n + 1);
+      setProteinRefreshKey((n) => n + 1);
+      setHydrationRefreshKey((n) => n + 1);
+      setExerciseRefreshKey((n) => n + 1);
+      setMoodRefreshKey((n) => n + 1);
+      setBowelRefreshKey((n) => n + 1);
+      setBpRefreshKey((n) => n + 1);
+      setBgRefreshKey((n) => n + 1);
+      setSleepRefreshKey((n) => n + 1);
+      setGlp1RefreshKey((n) => n + 1);
+    };
+    const onFastingChanged = (): void => {
+      setFastingRefreshKey((n) => n + 1);
+    };
+    const onGlp1Changed = (): void => {
+      setGlp1RefreshKey((n) => n + 1);
+    };
+    window.addEventListener("profile:saved", onProfileSaved);
+    window.addEventListener("fasting:changed", onFastingChanged);
+    window.addEventListener("glp1:changed", onGlp1Changed);
+    return () => {
+      window.removeEventListener("profile:saved", onProfileSaved);
+      window.removeEventListener("fasting:changed", onFastingChanged);
+      window.removeEventListener("glp1:changed", onGlp1Changed);
+    };
+  }, [refreshUser]);
 
   // minimal preview payload (uses chartImgs)
   const payload: WeeklyPayload | null = useMemo(() => {
@@ -1215,9 +1386,14 @@ const WeeklySummaryPage: React.FC = () => {
       setHydrationRefreshKey((n) => n + 1);
     };
     window.addEventListener("hydration:changed", onHydrationChanged);
+    const onExerciseChanged: () => void = () => {
+      setExerciseRefreshKey((n) => n + 1);
+    };
+    window.addEventListener("exercise:changed", onExerciseChanged);
     return () => {
       window.removeEventListener("protein:changed", onProteinChanged);
       window.removeEventListener("hydration:changed", onHydrationChanged);
+      window.removeEventListener("exercise:changed", onExerciseChanged);
     };
   }, []);
 
@@ -1261,13 +1437,13 @@ const WeeklySummaryPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [user?.timezone, user?.injection_day, user?.injection_time, refreshUser]);
+  }, [user?.timezone, user?.injection_day, user?.injection_time, profileRefreshKey, refreshUser]);
 
   // load fasting rows for this window (local DB)
   useEffect(() => {
     if (!winParams || !include?.fasting) return;
-    const fromDate = winParams.from.slice(0, 10);
-    const toDate = winParams.to.slice(0, 10);
+    const fromDate = localYmdFromIso(winParams.from, winParams.tz);
+    const toDate = addDaysYmd(fromDate, 6);
     (async () => {
 
       try {
@@ -1284,7 +1460,7 @@ const WeeklySummaryPage: React.FC = () => {
         setFastingRows([]);
       }
     })();
-  }, [winParams, include?.fasting]);
+  }, [winParams, include?.fasting, fastingRefreshKey]);
 
   // build live chart PNGs for preview when week window changes
   useEffect(() => {
@@ -1338,6 +1514,78 @@ const WeeklySummaryPage: React.FC = () => {
     refreshUser,
     user?.injection_day
   ]);
+
+  useEffect(() => {
+    if (!winParams) {
+      setActivitySummary(undefined);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(injFull));
+        const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
+        const toYmd = addDaysYmd(fromYmd, 6);
+        const [exRaw, appleRows] = await Promise.all([
+          listExercises(),
+          listHealthDailySummariesRange(fromYmd, toYmd),
+        ]);
+        const exRows = Array.isArray(exRaw)
+          ? exRaw.map(toExerciseRow).filter((row): row is ExerciseRow => row !== null)
+          : [];
+        const summary = buildWeeklyActivitySummary(
+          winParams.from,
+          winParams.tz,
+          Math.max(0, startIdx),
+          exRows,
+          appleRows
+        );
+        if (!cancelled) setActivitySummary(summary);
+      } catch (e) {
+        logger.warn("[weekly-summary] activity summary failed", e);
+        if (!cancelled) setActivitySummary(undefined);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [winParams, exerciseRefreshKey, user?.injection_day]);
+
+  useEffect(() => {
+    if (!winParams || !user?.id) {
+      setGlp1Summary(undefined);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
+        const toYmd = addDaysYmd(fromYmd, 6);
+        const userId = typeof user.id === "string" ? user.id : String(user.id);
+        const rows = await listGlp1ExperienceRange(userId, fromYmd, toYmd);
+        const points = rows
+          .map((row) => ({
+            recordedAt: row.recorded_at,
+            hunger: row.hunger,
+            nausea: row.nausea,
+          }))
+          .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+
+        if (!cancelled) setGlp1Summary({ points });
+      } catch (e) {
+        logger.warn("[weekly-summary] GLP-1 graph failed", e);
+        if (!cancelled) setGlp1Summary(undefined);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [winParams, user?.id, glp1RefreshKey]);
 
   
   // DEV: side-by-side sanity check (only when ?debug=1)
@@ -1449,8 +1697,8 @@ if (needsFallback) {
       day: '2-digit',
     }).format(new Date(iso));
 
-  const fromYmd = winParams.from.slice(0, 10);
-  const toYmd   = winParams.to.slice(0, 10);
+  const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
+  const toYmd = addDaysYmd(fromYmd, 6);
 
   const raw = await safeListHealthLogs(winParams.from, winParams.to);
 
@@ -1541,8 +1789,8 @@ if (needsFallback) {
               month: "2-digit",
               day: "2-digit",
             }).format(new Date(iso));
-          const fromYmd = winParams.from.slice(0, 10);
-          const toYmd = winParams.to.slice(0, 10);
+          const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
+          const toYmd = addDaysYmd(fromYmd, 6);
           const raw = await safeListHealthLogs(winParams.from, winParams.to);
           const logs = normalizeHealthRows(Array.isArray(raw) ? raw : [], fromYmd, toYmd);
           for (const l of logs) {
@@ -1642,6 +1890,18 @@ if (needsFallback) {
     archivingRef.current = true;
     setArchiving(true);
 try {
+    const chartEntries = (Object.entries(payload.charts) as [keyof Charts, string | undefined][])
+      .flatMap(([metric, png]): [keyof Charts, string][] => {
+        if (!png || !payload.includePrefs[metric as keyof Include]) return [];
+        return [[metric, png]];
+      });
+
+    if (chartEntries.length === 0) {
+      const msg = "Charts are still updating. Wait a moment, then save the summary again.";
+      openArchiveDialog(msg);
+      return;
+    }
+
     // Compute basic fasting stats locally
     const target = parseTargetFrom(payload.fasting, user?.fasting_schedule ?? null);
     const computedDays: FastingStats["days"] | undefined =
@@ -1666,6 +1926,28 @@ try {
       days: computedDays ?? null,
     });
 
+    const snapshot: ArchiveSnapshot = { version: 1 };
+    if (Array.isArray(proteinBuckets) && proteinBuckets.length === 7) {
+      snapshot.protein = {
+        buckets: proteinBuckets,
+        labels: proteinLabels && proteinLabels.length === 7 ? proteinLabels : undefined,
+        range: proteinRange,
+      };
+    }
+    if (Array.isArray(hydrationBuckets) && hydrationBuckets.length === 7) {
+      snapshot.hydration = {
+        buckets: hydrationBuckets,
+        labels: hydrationLabels && hydrationLabels.length === 7 ? hydrationLabels : undefined,
+        range: hydrationRange,
+      };
+    }
+    if (activitySummary) {
+      snapshot.activity = activitySummary;
+    }
+    if (glp1Summary) {
+      snapshot.glp1 = glp1Summary;
+    }
+
     // Insert archive row
     const archiveId = await insertArchive({
       fromUtc: winParams.from,
@@ -1685,12 +1967,11 @@ try {
         ? payload.injectionTakenAt[0]
         : payload.injectionTakenAt ?? null,
       fastingJson,
+      snapshotJson: JSON.stringify(snapshot),
     });
 
     // Persist chart PNGs to weekly_summary_charts
-    const entries = Object.entries(payload.charts) as [keyof Charts, string | undefined][];
-    for (const [metric, png] of entries) {
-      if (!png) continue;
+    for (const [metric, png] of chartEntries) {
       const base64 = png.startsWith("data:image") ? png.split(",")[1] ?? "" : png;
       if (base64) {
         await upsertChart(archiveId, String(metric), base64);
@@ -1713,7 +1994,14 @@ try {
     winParams,
     fastingRows,
     user?.fasting_schedule,
-   
+    proteinBuckets,
+    proteinLabels,
+    proteinRange,
+    hydrationBuckets,
+    hydrationLabels,
+    hydrationRange,
+    activitySummary,
+    glp1Summary,
     openArchiveDialog
   ]);
 
@@ -1852,6 +2140,9 @@ try {
                         hydrationBuckets={hydrationBuckets}
                         hydrationLabels={hydrationLabels}
                         hydrationRange={hydrationRange ?? undefined}
+                        activitySummary={activitySummary}
+                        glp1Summary={glp1Summary}
+                        onOpenEffectiveness={() => router.push("/effectiveness", "forward")}
                       />
                     )}
                   </CardContent>
@@ -1943,6 +2234,9 @@ function EmailPreview({
   hydrationBuckets,
   hydrationLabels,
   hydrationRange,
+  activitySummary,
+  glp1Summary,
+  onOpenEffectiveness,
 }: {
   charts: Charts;
   include: Include;
@@ -1960,6 +2254,9 @@ function EmailPreview({
   hydrationBuckets?: number[];
   hydrationLabels?: readonly DayKey[];
   hydrationRange?: HydrationRange;
+  activitySummary?: WeeklyActivitySummary;
+  glp1Summary?: WeeklyGlp1Summary;
+  onOpenEffectiveness?: () => void;
 }) {
   const target = parseTargetFrom(fasting, fastingSchedule);
   const computedDays: FastingStats["days"] | undefined = Array.isArray(fastingRows) && fastingRows.length > 0
@@ -2014,6 +2311,15 @@ function EmailPreview({
         )}
       </div>
 
+      {(glp1Summary || onOpenEffectiveness) && (
+        <Glp1WeeklyCard
+          summary={glp1Summary}
+          injectionDay={injectionScheduledDay}
+          timezone={win.tz}
+          onOpenEffectiveness={onOpenEffectiveness}
+        />
+      )}
+
       {/* Highlights & insights (uses `bullets`) */}
      {Array.isArray(bullets) && bullets.length > 0 && (
        <Card className={styles.card}>
@@ -2064,7 +2370,11 @@ function EmailPreview({
     />
   )}
   {include.exercise && (
-    <ChartCard metric="exercise" title="Exercise" src={charts.exercise} axisLabels={axisLabels} />
+    activitySummary ? (
+      <ActivitySummaryCard summary={activitySummary} />
+    ) : (
+      <ChartCard metric="exercise" title="Exercise" src={charts.exercise} axisLabels={axisLabels} />
+    )
   )}
   {include.mood && (
     <ChartCard metric="mood" title="Mood" src={charts.mood} axisLabels={axisLabels} />
@@ -2088,6 +2398,78 @@ function EmailPreview({
   </span>
 </div>
     </div>
+  );
+}
+
+function Glp1WeeklyCard({
+  summary,
+  injectionDay,
+  timezone,
+  onOpenEffectiveness,
+}: {
+  summary?: WeeklyGlp1Summary;
+  injectionDay?: string;
+  timezone: string;
+  onOpenEffectiveness?: () => void;
+}) {
+  const points = summary?.points ?? [];
+  const visiblePoints = getGlp1VisibleWeekPoints(points, injectionDay, timezone);
+  const avg = (key: "hunger" | "nausea"): string => {
+    if (visiblePoints.length === 0) return "—";
+    const total = visiblePoints.reduce((sum, point) => sum + point[key], 0);
+    return (total / visiblePoints.length).toFixed(1);
+  };
+
+  return (
+    <Card className={styles.card} style={cardAccent("mood")} data-metric="glp1">
+      <CardHeader
+        className={styles.cardHeader}
+        style={{
+          background: "rgba(23, 75, 75, 0.08)",
+          color: "#174b4b",
+          borderColor: "rgba(23, 75, 75, 0.18)",
+        }}
+      >
+        <CardTitle className={styles.cardTitle} style={{ fontSize: "1rem" }}>
+          Medication effectiveness
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={`${styles.cardContent} ${styles.stackSm}`}>
+        <div className={styles.metricSummaryRow}>
+          <div>
+            <span>Avg hunger</span>
+            <strong>{avg("hunger")}</strong>
+          </div>
+          <div>
+            <span>Avg nausea</span>
+            <strong>{avg("nausea")}</strong>
+          </div>
+          <div>
+            <span>Logs</span>
+            <strong>{visiblePoints.length}</strong>
+          </div>
+        </div>
+
+        <Glp1TrendGraph
+          points={points}
+          injectionDay={injectionDay}
+          timezone={timezone}
+          compact
+        />
+
+        {onOpenEffectiveness && (
+          <div className={styles.inlineActionRow}>
+            <button
+              type="button"
+              className={styles.inlineAction}
+              onClick={onOpenEffectiveness}
+            >
+              Open full effectiveness graph
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2162,11 +2544,11 @@ function ChartCard({
 
             return (
               <div key={labels[idx]} className={styles.miniBarCol}>
-                <div
-                  title={`${labels[idx]}: ${val} g`}
-                  className={`${styles.miniBar} ${styles[`miniBar_${level}`]}`}
-                  data-height={heightPct}
-                />
+	                <div
+	                  title={`${labels[idx]}: ${val} g`}
+	                  className={`${styles.miniBar} ${styles[`miniBar_${level}`]}`}
+	                  style={{ height: `${heightPct}%` }}
+	                />
                 <div
                   className={`${styles.miniBarLabel} ${styles[`miniBarLabel_${level}`]}`}
                 >
@@ -2226,7 +2608,7 @@ if (metric === "hydration" && Array.isArray(hydrationBuckets) && hydrationBucket
           <div
   title={`${labels[idx]}: ${val} mL`}
   className={`${styles.miniBar} ${styles[`miniBar_${level}`]}`}
-  data-bar-h={heightPct}
+  style={{ height: `${heightPct}%` }}
 />
           <div className={`${styles.miniBarLabel} ${styles[`miniBarLabel_${level}`]}`}>
             {labels[idx]}
@@ -2284,6 +2666,74 @@ if (metric === "hydration" && Array.isArray(hydrationBuckets) && hydrationBucket
         )}
       </CardContent>
 
+      </Card>
+    </motion.div>
+  );
+}
+
+function ActivitySummaryCard({ summary }: { summary: WeeklyActivitySummary }) {
+  const maxSteps = Math.max(1, 10000, ...summary.steps);
+  const format = (value: number) => Math.round(value).toLocaleString();
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+      <Card className={styles.card} style={cardAccent("exercise")} data-metric="exercise">
+        <CardHeader
+          className={styles.cardHeader}
+          style={{
+            background: CHART_ACCENTS.exercise.bg,
+            color: CHART_ACCENTS.exercise.fg,
+            borderColor: CHART_ACCENTS.exercise.border,
+          }}
+        >
+          <CardTitle className={styles.cardTitle} style={{ fontSize: "1rem" }}>
+            Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={styles.cardContent}>
+          <div className={styles.activityTotals}>
+            <div>
+              <span>Steps</span>
+              <strong>{format(summary.totals.steps)}</strong>
+            </div>
+            <div>
+              <span>Exercise</span>
+              <strong>{format(summary.totals.exerciseMinutes)} min</strong>
+            </div>
+            <div>
+              <span>Move</span>
+              <strong>{format(summary.totals.activeEnergyKcal)} kcal</strong>
+            </div>
+            <div>
+              <span>Workouts</span>
+              <strong>{format(summary.totals.workouts)}</strong>
+            </div>
+          </div>
+
+          <div className={styles.miniBarGrid}>
+            {summary.steps.map((val, idx) => {
+              const heightPct = Math.max(2, Math.min(100, (val / maxSteps) * 100));
+              const level: "low" | "ok" | "high" = val >= 7000 ? "ok" : val > 0 ? "high" : "low";
+              return (
+                <div key={`${summary.labels[idx]}-${idx}`} className={styles.miniBarCol}>
+                  <div
+                    title={`${summary.labels[idx]}: ${format(val)} steps`}
+                    className={`${styles.miniBar} ${styles[`miniBar_${level}`]}`}
+                    style={{ height: `${heightPct}%` }}
+                  />
+                  <div className={`${styles.miniBarLabel} ${styles[`miniBarLabel_${level}`]}`}>
+                    {summary.labels[idx]}
+                  </div>
+                  <div className={styles.miniBarValue}>{format(val)}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className={`${styles.tiny} ${styles.activityMeta}`}>
+            Apple Health days {summary.syncedDays}/7 · Manual exercise {format(summary.totals.manualExerciseMinutes)} min
+          </div>
+        </CardContent>
       </Card>
     </motion.div>
   );
@@ -2401,5 +2851,3 @@ function FastingSummary({
     </div>
   );
 }
-
-

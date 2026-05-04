@@ -256,6 +256,28 @@
   gap: 8px;
 }
 
+.inlineActionRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.inlineAction {
+  min-height: 38px;
+  border: 1px solid var(--button-primary-bg);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--button-primary-bg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 8px 11px;
+}
+
+.inlineAction:hover {
+  background: var(--hover-bg);
+}
+
 /* Switch */
 .switchRoot {
   display: inline-flex;
@@ -356,6 +378,10 @@
   }
   .grid { grid-template-columns: 1fr !important; }
   .card, .row, .chartViewport { max-width: 100%; overflow: hidden; }
+  .activityTotals,
+  .metricSummaryRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Spinner */
@@ -807,6 +833,13 @@ html[data-theme='dark'] .sleepBar_red {
   min-height: 120px;
 }
 
+.miniBarsRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  min-height: 120px;
+}
+
 .miniBarCol {
   flex: 1;
   text-align: center;
@@ -846,6 +879,50 @@ html[data-theme='dark'] .sleepBar_red {
 .miniBarValue {
   font-size: 11px;
   color: var(--text-primary);
+}
+
+.activityTotals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metricSummaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.activityTotals div,
+.metricSummaryRow div {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--card-muted-bg, rgba(15, 118, 110, 0.05));
+  min-width: 0;
+}
+
+.activityTotals span,
+.metricSummaryRow span {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.activityTotals strong,
+.metricSummaryRow strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.activityMeta {
+  margin-top: 10px;
+  color: var(--text-muted);
 }
 
 .bloodSugarNote {
@@ -935,9 +1012,4 @@ html[data-theme='dark'] .sleepBar_red {
 [data-theme="dark"] .card[data-metric="exercise"] .metricHeader { background: rgba(6, 95, 70, 0.25); color: #a7f3d0; }
 [data-theme="dark"] .card[data-metric="mood"] .metricHeader { background: rgba(124, 45, 18, 0.25); color: #fed7aa; }
 [data-theme="dark"] .card[data-metric="fasting"] .metricHeader { background: rgba(17, 94, 89, 0.25); color: #99f6e4; }
-
-
-
-
-
 

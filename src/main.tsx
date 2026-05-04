@@ -13,6 +13,7 @@ import { resetLocalDbDev } from './db/devReset';
 import { Capacitor } from '@capacitor/core';
 import { initHealthTables } from './db/HealthRepository';
 import { initProtocolTables } from './db/ProtocolRepository';
+import { canUseStoreKitTestProducts } from './plugins/storeKitTest';
 
 // import '@/polyfills/crypto-subtle';
 
@@ -46,21 +47,27 @@ async function boot() {
 
   // ✅ Configure RevenueCat + listener (native only)
   if (isNative) {
-    await initRevenueCat();
-
     const rcLog = logger.child('RC');
-    Purchases.addCustomerInfoUpdateListener((info) => {
-      writeRcCacheFromCustomerInfo(info);
-      rcLog.info('customerInfo updated');
-      window.dispatchEvent(new Event('rc:customerInfoChanged'));
-    });
+    const useStoreKitTest = isDev ? await canUseStoreKitTestProducts() : false;
 
-    // ✅ Seed local cache once so Settings has data immediately
-    try {
-      const info = await Purchases.getCustomerInfo();
-      writeRcCacheFromCustomerInfo(info);
-    } catch (e) {
-      rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });
+    if (useStoreKitTest) {
+      rcLog.info('Skipping RevenueCat in Xcode StoreKit test mode');
+    } else {
+      await initRevenueCat();
+
+      Purchases.addCustomerInfoUpdateListener((info) => {
+        writeRcCacheFromCustomerInfo(info);
+        rcLog.info('customerInfo updated');
+        window.dispatchEvent(new Event('rc:customerInfoChanged'));
+      });
+
+      // ✅ Seed local cache once so Settings has data immediately
+      try {
+        const info = await Purchases.getCustomerInfo();
+        writeRcCacheFromCustomerInfo(info);
+      } catch (e) {
+        rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });
+      }
     }
   }
 
@@ -80,5 +87,3 @@ boot().catch((err) => {
   logger.error('[BOOT] Failed to initialize app:', err);
   document.body.innerHTML = `<div style="padding:2rem;color:red;">Failed to start app. Check console.</div>`;
 });
-
-

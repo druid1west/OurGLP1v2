@@ -236,6 +236,13 @@ export async function setProtocolActive(protocolId: number, active: boolean): Pr
   );
 }
 
+export async function deleteProtocol(protocolId: number): Promise<void> {
+  await initProtocolTables();
+  const db = await getDb();
+  await db.run(`DELETE FROM protocol_events WHERE protocol_id = ?`, [protocolId]);
+  await db.run(`DELETE FROM protocols WHERE id = ?`, [protocolId]);
+}
+
 export async function logProtocolEvent(
   protocol: Pick<Protocol, 'id' | 'user_id' | 'dose_label'>,
   notes?: string | null

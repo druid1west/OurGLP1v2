@@ -168,6 +168,29 @@
   background: #f8fbfa;
 }
 
+.pausedProtocolCard {
+  background: #f4f6f5;
+  border-style: dashed;
+  opacity: 0.92;
+}
+
+.subsectionHeader {
+  margin: 18px 0 10px;
+}
+
+.subsectionHeader h3 {
+  margin: 0;
+  color: #112f2f;
+  font-size: 1rem;
+}
+
+.subsectionHeader p {
+  margin: 4px 0 0;
+  color: #607470;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .protocolTop {
   display: flex;
   align-items: center;
@@ -187,6 +210,10 @@
   color: #27835f;
   font-size: 0.76rem;
   font-weight: 900;
+}
+
+.protocolTop .pausedBadge {
+  color: #8a5a00;
 }
 
 .protocolCard h3 {
@@ -266,6 +293,21 @@
 .cardActions button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.cardActions .dangerAction {
+  border-color: rgba(180, 35, 24, 0.24);
+  color: #b42318;
+}
+
+.cardActions .resumeAction {
+  border-color: rgba(39, 131, 95, 0.34);
+  color: #16694d;
+  background: #f0faf4;
+}
+
+.cardActions .dangerAction:hover {
+  background: #fff1f0;
 }
 
 .emptyState,
@@ -369,12 +411,26 @@
   background: #14201e;
 }
 
+:global([data-theme='dark']) .cardActions .dangerAction,
+:global(body[data-theme='dark']) .cardActions .dangerAction {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+  background: #1b2422;
+}
+
+:global([data-theme='dark']) .cardActions .dangerAction:hover,
+:global(body[data-theme='dark']) .cardActions .dangerAction:hover {
+  background: rgba(127, 29, 29, 0.22);
+}
+
 :global([data-theme='dark']) .sectionHeader h2,
+:global([data-theme='dark']) .subsectionHeader h3,
 :global([data-theme='dark']) .protocolCard h3,
 :global([data-theme='dark']) .metaGrid strong,
 :global([data-theme='dark']) .emptyState strong,
 :global([data-theme='dark']) .eventList strong,
 :global(body[data-theme='dark']) .sectionHeader h2,
+:global(body[data-theme='dark']) .subsectionHeader h3,
 :global(body[data-theme='dark']) .protocolCard h3,
 :global(body[data-theme='dark']) .metaGrid strong,
 :global(body[data-theme='dark']) .emptyState strong,

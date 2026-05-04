@@ -15,8 +15,11 @@ import {
   clearFastingByDay,
   insertExercise,
   listHealthLogsRange,
+  getHealthDailySummaryByDay,
+  upsertHealthDailySummary,
   upsertDailyProtein,
   upsertDailyHydration,
+  type HealthDailySummary,
 } from '../db/HealthRepository';
 import {
   insertSleepStart,
@@ -38,6 +41,11 @@ import BottomNav from '../context/BottomNav';
 
 import { toHHMMSS, isDayShort } from '../utils/validators';
 import type { DayShort } from '../utils/validators';
+import {
+  AppleHealth,
+  isAppleHealthSupportedPlatform,
+  type AppleHealthDailySummary,
+} from '../plugins/appleHealth';
 
 // ---------------------------------------------------------------------------
 // Minimal TZ helpers: convert a local wall-clock time in a given IANA tz to UTC
@@ -375,6 +383,9 @@ const HealthTracker: React.FC = () => {
   const [exStart, setExStart] = useState('08:00');
   const [exEnd, setExEnd] = useState('09:00');
   const [exCals, setExCals] = useState<number | ''>('');
+  const [exerciseHealthSummary, setExerciseHealthSummary] = useState<HealthDailySummary | null>(null);
+  const [exerciseHealthSyncing, setExerciseHealthSyncing] = useState(false);
+  const [exerciseHealthMessage, setExerciseHealthMessage] = useState('');
 
   // Sleep — inputs for actual start/wake
   const [actualStartLocal, setActualStartLocal] = useState<string>(''); // 'YYYY-MM-DDTHH:MM'
@@ -498,6 +509,70 @@ const HealthTracker: React.FC = () => {
     if (isDayShort(dow)) setExDay(dow);
     else setExDay('Mon');
   }, [exDate]);
+
+  const loadExerciseHealthSummary = useCallback(async (): Promise<void> => {
+    if (!exDate) {
+      setExerciseHealthSummary(null);
+      return;
+    }
+    try {
+      const summary = await getHealthDailySummaryByDay(exDate);
+      setExerciseHealthSummary(summary);
+    } catch (err) {
+      logger.warn('[HealthTracker] Apple Health activity load failed', {
+        msg: err instanceof Error ? err.message : String(err),
+      });
+      setExerciseHealthSummary(null);
+    }
+  }, [exDate]);
+
+  useEffect(() => {
+    void loadExerciseHealthSummary();
+    const refresh = () => void loadExerciseHealthSummary();
+    window.addEventListener('health:changed', refresh);
+    window.addEventListener('exercise:changed', refresh);
+    return () => {
+      window.removeEventListener('health:changed', refresh);
+      window.removeEventListener('exercise:changed', refresh);
+    };
+  }, [loadExerciseHealthSummary]);
+
+  const syncExerciseAppleHealth = useCallback(async (): Promise<void> => {
+    setExerciseHealthMessage('');
+    if (!isAppleHealthSupportedPlatform()) {
+      setExerciseHealthMessage('Apple Health is available on iPhone builds.');
+      return;
+    }
+    setExerciseHealthSyncing(true);
+    try {
+      const availability = await AppleHealth.isAvailable();
+      if (!availability.available) {
+        setExerciseHealthMessage('Apple Health is not available on this device.');
+        return;
+      }
+      await AppleHealth.requestAuthorization();
+      const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day: exDate });
+      await upsertHealthDailySummary({
+        day: summary.day,
+        source: 'apple_health',
+        steps: summary.steps,
+        activeEnergyKcal: summary.activeEnergyKcal,
+        exerciseMinutes: summary.exerciseMinutes,
+        sleepMinutes: summary.sleepMinutes,
+        restingHeartRate: summary.restingHeartRate,
+        workouts: summary.workouts,
+      });
+      setExerciseHealthMessage('Apple Health activity synced.');
+      await loadExerciseHealthSummary();
+    } catch (err) {
+      logger.warn('[HealthTracker] Apple Health activity sync failed', {
+        msg: err instanceof Error ? err.message : String(err),
+      });
+      setExerciseHealthMessage('Apple Health could not sync yet.');
+    } finally {
+      setExerciseHealthSyncing(false);
+    }
+  }, [exDate, loadExerciseHealthSummary]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Sleep — detect open log
@@ -1180,6 +1255,26 @@ const HealthTracker: React.FC = () => {
   <h2 className={styles.subtitle}>Exercise</h2>
 
   <div className={styles.formGroup}>
+    <div className={styles.label}>Apple Health</div>
+    <div className={styles.label}>
+      Steps: {(exerciseHealthSummary?.steps ?? 0).toLocaleString()} · Exercise:{' '}
+      {Math.round(exerciseHealthSummary?.exerciseMinutes ?? 0)} min · Move:{' '}
+      {Math.round(exerciseHealthSummary?.activeEnergyKcal ?? 0).toLocaleString()} kcal
+    </div>
+    <IonButton
+      className="custom-button"
+      expand="block"
+      onClick={() => void syncExerciseAppleHealth()}
+      disabled={exerciseHealthSyncing}
+    >
+      {exerciseHealthSyncing ? 'Syncing Apple Health…' : 'Sync Apple Health Activity'}
+    </IonButton>
+    {exerciseHealthMessage && (
+      <div className={`${styles.label} ${styles.mt4}`}>{exerciseHealthMessage}</div>
+    )}
+  </div>
+
+  <div className={styles.formGroup}>
     <label className={styles.label} htmlFor="exercise-title">
       Title
     </label>
@@ -1698,10 +1793,6 @@ alert('Error saving health data.');
 };
 
 export default HealthTracker;
-
-
-
-
 
 
 

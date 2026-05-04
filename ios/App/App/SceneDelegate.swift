@@ -5,6 +5,15 @@
 import UIKit
 import Capacitor
 
+final class AppBridgeViewController: CAPBridgeViewController {
+  override func capacitorDidLoad() {
+    super.capacitorDidLoad()
+
+    bridge?.registerPluginInstance(AppleHealthPlugin())
+    bridge?.registerPluginInstance(StoreKitTestPlugin())
+  }
+}
+
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   var window: UIWindow?
@@ -16,7 +25,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   ) {
     guard let windowScene = scene as? UIWindowScene else { return }
     let window = UIWindow(windowScene: windowScene)
-    window.rootViewController = CAPBridgeViewController()
+    window.rootViewController = AppBridgeViewController()
     self.window = window
     window.makeKeyAndVisible()
   }
@@ -35,5 +44,4 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     NotificationCenter.default.post(name: Notification.Name.capacitorContinueActivity, object: userActivity)
   }
 }
-
 

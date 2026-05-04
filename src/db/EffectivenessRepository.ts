@@ -12,6 +12,73 @@ export type Glp1ExperienceLog = {
   created_at: string;
 };
 
+type QueryRow = Record<string, unknown>;
+type QueryResult = { values?: unknown[] } | null | undefined;
+
+function rows(result: QueryResult): QueryRow[] {
+  const values = result?.values;
+  if (!values || values.length === 0) return [];
+
+  if (Array.isArray(values[0]) && values.length >= 2 && Array.isArray(values[1])) {
+    const cols = values[0] as string[];
+    return (values.slice(1) as unknown[][]).map((arr) => {
+      const row: QueryRow = {};
+      cols.forEach((col, index) => {
+        row[col] = arr[index];
+      });
+      return row;
+    });
+  }
+
+  if (
+    typeof values[0] === 'object' &&
+    values[0] !== null &&
+    'ios_columns' in (values[0] as QueryRow)
+  ) {
+    const cols = (values[0] as { ios_columns: string[] }).ios_columns;
+    return values
+      .slice(1)
+      .filter((row): row is QueryRow => typeof row === 'object' && row !== null && !Array.isArray(row))
+      .map((rowObj) => {
+        const row: QueryRow = {};
+        cols.forEach((col) => {
+          row[col] = Object.prototype.hasOwnProperty.call(rowObj, col) ? rowObj[col] : undefined;
+        });
+        return row;
+      });
+  }
+
+  return values.filter(
+    (row): row is QueryRow => typeof row === 'object' && row !== null && !Array.isArray(row)
+  );
+}
+
+function str(value: unknown): string {
+  return typeof value === 'string' ? value : String(value ?? '');
+}
+
+function optionalStr(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function num(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapLog(row: QueryRow): Glp1ExperienceLog {
+  return {
+    id: num(row.id),
+    user_id: str(row.user_id),
+    recorded_at: str(row.recorded_at),
+    local_day: str(row.local_day),
+    hunger: num(row.hunger),
+    nausea: num(row.nausea),
+    note: optionalStr(row.note),
+    created_at: str(row.created_at),
+  };
+}
+
 export async function insertGlp1ExperienceLog(input: {
   userId: string;
   recordedAt: string; // UTC ISO
@@ -55,7 +122,7 @@ export async function listGlp1ExperienceRange(
     [userId, fromLocalDay, toLocalDay]
   );
 
-  return (res.values ?? []) as Glp1ExperienceLog[];
+  return rows(res).map(mapLog).filter((row) => row.id > 0 && row.recorded_at);
 }
 export async function deleteGlp1ExperienceLog(id: number): Promise<void> {
 const db = await getDb();

@@ -344,15 +344,16 @@
     min-height: 44px;
     font-size: 0.9rem;
   }
- /* ---------- GLP-1 Activity ---------- */
- 
- .glp1CircleSvg {
-width: 72px;
-height: 72px;
-display: flex;
-align-items: center;
-justify-content: center;
- }
+}
+
+/* ---------- GLP-1 Activity ---------- */
+.glp1CircleSvg {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .glp1Row {
   display: flex;
@@ -467,9 +468,7 @@ justify-content: center;
   --glp1-color: #2ecc71; /* green */
 }
 .clickableCard {
--webkit-user-select: none; /* Safari / iOS */
-user-select: none; /* Modern browsers */
--webkit-tap-highlight-color: transparent; /* iOS tap flash */
-}
-
+  -webkit-user-select: none; /* Safari / iOS */
+  user-select: none; /* Modern browsers */
+  -webkit-tap-highlight-color: transparent; /* iOS tap flash */
 }

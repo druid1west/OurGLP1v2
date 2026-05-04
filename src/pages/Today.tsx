@@ -24,7 +24,6 @@ import TopNav from '../context/TopNav';
 import BottomNav from '../context/BottomNav';
 import { useAuth } from '../context/useAuth';
 import {
-  getFastingByDay,
   getHealthDailySummaryByDay,
   getLastInjectionLocal,
   initHealthTables,
@@ -48,6 +47,8 @@ import {
   isAppleHealthSupportedPlatform,
   type AppleHealthDailySummary,
 } from '../plugins/appleHealth';
+import { getSettings, type Settings as StoredSettings } from '../db/SettingsRepository';
+import { rotateShortFromFull, type WeekdayFull, type WeekdayShort } from '../lib/time';
 import { logger } from '../utils/logger';
 import styles from './Today.module.css';
 
@@ -59,9 +60,26 @@ type TodayStats = {
   moodAverage: number | null;
   latestBloodPressure: string | null;
   latestBloodSugar: string | null;
-  firstMeal: string | null;
-  lastMeal: string | null;
   lastInjectionLabel: string;
+};
+
+type RhythmBlock = {
+  time: string;
+  isFasting: boolean;
+  isCurrent: boolean;
+  isInjectionTime: boolean;
+};
+
+type TodayRhythm = {
+  injectionDay: WeekdayFull | null;
+  injectionTime: string | null;
+  anchorDays: WeekdayShort[];
+  todayShort: WeekdayShort;
+  fastingLabel: string;
+  eatingLabel: string;
+  nextInjectionLabel: string;
+  isInjectionDay: boolean;
+  blocks: RhythmBlock[];
 };
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -126,11 +144,157 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function formatTime(value?: string | null): string | null {
-  if (!value) return null;
-  const parts = value.split(':');
-  if (parts.length < 2) return value;
-  return `${parts[0]}:${parts[1]}`;
+const FULL_TO_SHORT: Record<WeekdayFull, WeekdayShort> = {
+  Sunday: 'Sun',
+  Monday: 'Mon',
+  Tuesday: 'Tue',
+  Wednesday: 'Wed',
+  Thursday: 'Thu',
+  Friday: 'Fri',
+  Saturday: 'Sat',
+};
+
+const SHORT_FROM_INDEX: WeekdayShort[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const FULL_FROM_INDEX: WeekdayFull[] = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+function normalizeHHMM(value?: string | null): string | null {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return null;
+  const match = text.match(/(\d{1,2}):(\d{1,2})/);
+  if (!match) return null;
+  const hours = Math.max(0, Math.min(23, Number(match[1]) || 0));
+  const minutes = Math.max(0, Math.min(59, Number(match[2]) || 0));
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function parseFastingHours(value?: string | null): number | null {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return null;
+  const match = text.match(/\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const hours = Number(match[0]);
+  return Number.isFinite(hours) ? Math.max(0, Math.min(24, hours)) : null;
+}
+
+function hhmmToMinutes(hhmm: string): number {
+  const [hours, minutes] = hhmm.split(':').map((part) => Number(part));
+  return (Math.max(0, Math.min(23, hours || 0)) * 60) + Math.max(0, Math.min(59, minutes || 0));
+}
+
+function minutesToHHMM(total: number): string {
+  const dayMinutes = 24 * 60;
+  const normalized = ((Math.round(total) % dayMinutes) + dayMinutes) % dayMinutes;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function normalizeWeekdayFull(value?: string | null): WeekdayFull | null {
+  const key = typeof value === 'string' ? value.slice(0, 3).toLowerCase() : '';
+  switch (key) {
+    case 'sun':
+      return 'Sunday';
+    case 'mon':
+      return 'Monday';
+    case 'tue':
+      return 'Tuesday';
+    case 'wed':
+      return 'Wednesday';
+    case 'thu':
+      return 'Thursday';
+    case 'fri':
+      return 'Friday';
+    case 'sat':
+      return 'Saturday';
+    default:
+      return null;
+  }
+}
+
+function nextInjectionDate(injectionDay: WeekdayFull | null, hhmm: string | null): Date | null {
+  if (!injectionDay || !hhmm) return null;
+  const now = new Date();
+  const [hours, minutes] = hhmm.split(':').map((part) => Number(part));
+  const targetDow = FULL_FROM_INDEX.indexOf(injectionDay);
+  if (targetDow < 0) return null;
+  let daysAway = (targetDow - now.getDay() + 7) % 7;
+  const candidate = new Date(now);
+  candidate.setHours(hours || 0, minutes || 0, 0, 0);
+  if (daysAway === 0 && candidate.getTime() <= now.getTime()) daysAway = 7;
+  candidate.setDate(candidate.getDate() + daysAway);
+  return candidate;
+}
+
+function buildTodayRhythm(settings: StoredSettings): TodayRhythm {
+  const injectionDay = normalizeWeekdayFull(settings.injection_day);
+  const injectionTime = normalizeHHMM(settings.injection_time);
+  const todayShort = SHORT_FROM_INDEX[new Date().getDay()];
+  const anchorDays = rotateShortFromFull(injectionDay ?? 'Monday');
+  const fastingStart = normalizeHHMM(settings.fasting_start);
+  const fastingHours = parseFastingHours(settings.fasting_schedule);
+  const currentIndex = Math.floor((new Date().getHours() * 60 + new Date().getMinutes()) / 15);
+  const injectionIndex =
+    injectionDay && injectionTime && FULL_TO_SHORT[injectionDay] === todayShort
+      ? Math.floor(hhmmToMinutes(injectionTime) / 15)
+      : -1;
+
+  const blocks: RhythmBlock[] = [];
+
+  if (fastingStart && fastingHours !== null) {
+    const fastingStartMinutes = hhmmToMinutes(fastingStart);
+    const fastingEndMinutes = (fastingStartMinutes + fastingHours * 60) % (24 * 60);
+
+    for (let i = 0; i < 24 * 4; i += 1) {
+      const minutes = i * 15;
+      const isFasting =
+        fastingStartMinutes < fastingEndMinutes
+          ? minutes >= fastingStartMinutes && minutes < fastingEndMinutes
+          : minutes >= fastingStartMinutes || minutes < fastingEndMinutes;
+
+      blocks.push({
+        time: minutesToHHMM(minutes),
+        isFasting,
+        isCurrent: i === currentIndex,
+        isInjectionTime: i === injectionIndex,
+      });
+    }
+  }
+
+  const fastingEnd = fastingStart && fastingHours !== null
+    ? minutesToHHMM(hhmmToMinutes(fastingStart) + fastingHours * 60)
+    : null;
+  const eatingHours = fastingHours !== null ? Math.max(0, 24 - fastingHours) : null;
+  const nextInjection = nextInjectionDate(injectionDay, injectionTime);
+
+  return {
+    injectionDay,
+    injectionTime,
+    anchorDays,
+    todayShort,
+    fastingLabel: fastingStart && fastingEnd && fastingHours !== null
+      ? `${fastingHours}h ${fastingStart}-${fastingEnd}`
+      : 'Set in Profile',
+    eatingLabel: fastingStart && fastingEnd && eatingHours !== null
+      ? `${eatingHours}h ${fastingEnd}-${fastingStart}`
+      : 'Set in Profile',
+    nextInjectionLabel: nextInjection
+      ? new Intl.DateTimeFormat(undefined, {
+          weekday: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(nextInjection)
+      : 'Set in Profile',
+    isInjectionDay: !!injectionDay && FULL_TO_SHORT[injectionDay] === todayShort,
+    blocks,
+  };
 }
 
 function summarizeLogs(logs: HealthLog[]): Pick<
@@ -207,6 +371,7 @@ const Today: React.FC = () => {
   const [appleSummary, setAppleSummary] = useState<HealthDailySummary | null>(null);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
   const [protocolEvents, setProtocolEvents] = useState<ProtocolEvent[]>([]);
+  const [rhythm, setRhythm] = useState<TodayRhythm | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
 
@@ -220,22 +385,22 @@ const Today: React.FC = () => {
       const { start, end } = localDayBounds(today);
       const [
         logs,
-        fasting,
         exercises,
         sleepLogs,
         imported,
         lastInjection,
         protocolRows,
         protocolEventRows,
+        settings,
       ] = await Promise.all([
         listHealthLogsRange(start, end),
-        getFastingByDay(today),
         listExercises(),
         listSleepLogsRange(today, today),
         getHealthDailySummaryByDay(today),
         getLastInjectionLocal(),
         user?.id ? listProtocols(user.id) : Promise.resolve([]),
         user?.id ? listProtocolEventsForDay(user.id, today) : Promise.resolve([]),
+        getSettings(),
       ]);
 
       const logSummary = summarizeLogs(logs);
@@ -252,12 +417,11 @@ const Today: React.FC = () => {
       setAppleSummary(imported);
       setProtocols(protocolRows);
       setProtocolEvents(protocolEventRows);
+      setRhythm(buildTodayRhythm(settings));
       setStats({
         ...logSummary,
         manualExerciseMinutes,
         manualSleepMinutes,
-        firstMeal: fasting?.first_meal_at ?? null,
-        lastMeal: fasting?.last_meal_at ?? null,
         lastInjectionLabel: lastInjection?.taken_at
           ? new Intl.DateTimeFormat(undefined, {
               month: 'short',
@@ -282,10 +446,20 @@ const Today: React.FC = () => {
     window.addEventListener('health:changed', refresh);
     window.addEventListener('exercise:changed', refresh);
     window.addEventListener('sleep:changed', refresh);
+    window.addEventListener('profile:saved', refresh);
+    window.addEventListener('settings:changed', refresh);
+    window.addEventListener('protocols:changed', refresh);
+    window.addEventListener('anchor:changed', refresh as EventListener);
+    window.addEventListener('fasting:changed', refresh);
     return () => {
       window.removeEventListener('health:changed', refresh);
       window.removeEventListener('exercise:changed', refresh);
       window.removeEventListener('sleep:changed', refresh);
+      window.removeEventListener('profile:saved', refresh);
+      window.removeEventListener('settings:changed', refresh);
+      window.removeEventListener('protocols:changed', refresh);
+      window.removeEventListener('anchor:changed', refresh as EventListener);
+      window.removeEventListener('fasting:changed', refresh);
     };
   }, [loadToday]);
 
@@ -345,12 +519,13 @@ const Today: React.FC = () => {
 
   const focusText = useMemo(() => {
     if (!stats) return 'Loading your day';
+    if (rhythm?.isInjectionDay) return 'Anchor day. Keep the plan simple and steady';
     if ((stats.protein ?? 0) < 45) return 'Make protein the easy win today';
     if ((stats.hydration ?? 0) < 1000) return 'A steadier water day would help';
     if (sleepMinutes > 0 && sleepMinutes < 360) return 'Keep today gentle after shorter sleep';
     if (importedSteps >= 7000) return 'Movement is carrying the day nicely';
     return 'Small steady choices are enough today';
-  }, [importedSteps, sleepMinutes, stats]);
+  }, [importedSteps, rhythm?.isInjectionDay, sleepMinutes, stats]);
 
   return (
     <IonPage>
@@ -416,6 +591,88 @@ const Today: React.FC = () => {
                 <i style={{ width: `${percentage(sleepMinutes, SLEEP_TARGET_MINUTES)}%` }} />
               </div>
             </article>
+          </section>
+
+          <section className={styles.rhythmBand}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Week rhythm</h2>
+                <p>
+                  {rhythm?.injectionDay && rhythm.injectionTime
+                    ? `Anchor ${rhythm.injectionDay} ${rhythm.injectionTime}`
+                    : 'Anchor not set yet'}
+                </p>
+              </div>
+              <IonButton
+                className={styles.iconButton}
+                fill="clear"
+                onClick={() => router.push(`/plan/day/${(rhythm?.todayShort ?? 'Mon').toLowerCase()}`, 'forward')}
+                aria-label="Open today's plan"
+              >
+                <CalendarDays size={20} />
+              </IonButton>
+            </div>
+
+            <div className={styles.anchorStrip} aria-label="Injection anchored week">
+              {(rhythm?.anchorDays ?? rotateShortFromFull('Monday')).map((day, index) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={[
+                    styles.anchorDay,
+                    index === 0 ? styles.anchorStart : '',
+                    day === rhythm?.todayShort ? styles.anchorToday : '',
+                  ].join(' ')}
+                  onClick={() => router.push(`/plan/day/${day.toLowerCase()}`, 'forward')}
+                  aria-label={`Open ${day} plan`}
+                >
+                  <span>{day}</span>
+                  {index === 0 && <strong>Anchor</strong>}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.rhythmMeta}>
+              <div>
+                <span>Next injection</span>
+                <strong>{rhythm?.nextInjectionLabel ?? 'Set in Profile'}</strong>
+              </div>
+              <div>
+                <span>Fasting</span>
+                <strong>{rhythm?.fastingLabel ?? 'Set in Profile'}</strong>
+              </div>
+              <div>
+                <span>Eating</span>
+                <strong>{rhythm?.eatingLabel ?? 'Set in Profile'}</strong>
+              </div>
+            </div>
+
+            {rhythm?.blocks.length ? (
+              <>
+                <div className={styles.rhythmTimeline} aria-label="Today fasting and eating blocks">
+                  {rhythm.blocks.map((block) => (
+                    <i
+                      key={block.time}
+                      className={[
+                        block.isFasting ? styles.rhythmFasting : styles.rhythmEating,
+                        block.isCurrent ? styles.rhythmCurrent : '',
+                        block.isInjectionTime ? styles.rhythmInjection : '',
+                      ].join(' ')}
+                      title={`${block.time} ${block.isFasting ? 'fasting' : 'eating'}`}
+                    />
+                  ))}
+                </div>
+                <div className={styles.rhythmLegend}>
+                  <span><i className={styles.rhythmFasting} /> Fasting</span>
+                  <span><i className={styles.rhythmEating} /> Eating</span>
+                  <span><i className={styles.rhythmInjection} /> Injection</span>
+                </div>
+              </>
+            ) : (
+              <p className={styles.rhythmEmpty}>
+                Fasting and injection schedule not set yet.
+              </p>
+            )}
           </section>
 
           <section className={styles.healthBand}>
@@ -519,15 +776,19 @@ const Today: React.FC = () => {
           <section className={styles.insightGrid}>
             <article className={styles.insightCard}>
               <Syringe size={20} />
-              <span>Injection</span>
-              <strong>{stats?.lastInjectionLabel ?? 'Loading'}</strong>
+              <span>Injection Anchor</span>
+              <strong>
+                {rhythm?.injectionDay && rhythm.injectionTime
+                  ? `${rhythm.injectionDay} ${rhythm.injectionTime}`
+                  : stats?.lastInjectionLabel ?? 'Loading'}
+              </strong>
             </article>
 
             <article className={styles.insightCard}>
               <Utensils size={20} />
-              <span>Fasting Window</span>
+              <span>Planned Fast</span>
               <strong>
-                {formatTime(stats?.firstMeal) || '--:--'} to {formatTime(stats?.lastMeal) || '--:--'}
+                {rhythm?.fastingLabel ?? 'Set in Profile'}
               </strong>
             </article>
 

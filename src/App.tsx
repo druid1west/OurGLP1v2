@@ -532,6 +532,7 @@ const App: React.FC = () => {
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />
                   <PrivateRoute exact path="/reminders" component={RemindersPage} />
                   <PrivateRoute exact path="/weeklysummary" component={WeeklySummary} />
+                  <PrivateRoute exact path="/weekly-summary" component={WeeklySummary} />
                   <PrivateRoute exact path="/effectiveness" component={Effectiveness} />
                   <PrivateRoute exact path="/glp1-graph/archive" component={Glp1GraphArchiveGuarded} />
                   <PrivateRoute exact path="/glp1-graph/archive/:id" component={Glp1GraphArchiveDetailGuarded} />
@@ -556,6 +557,5 @@ const App: React.FC = () => {
 };
 
 export default App;
-
 
 

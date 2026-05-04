@@ -25,6 +25,7 @@ import {
 
 // Correct casing matters on case-sensitive FS
 import { SummaryPreview } from "./weeklySummaryPage";
+import type { Glp1GraphPoint } from "../db/EffectivenessRepository";
 
 // NEW: bring in user (for weight/id), rollups, and target ranges
 import { useAuth } from "@/context/useAuth";
@@ -70,6 +71,40 @@ type FastingStats = {
   daysMetTarget?: number | null;
   days?: Array<{ day: string; met: boolean; hours?: number | null }>;
 };
+type WeeklyActivitySummary = {
+  labels: DayKey[];
+  steps: number[];
+  exerciseMinutes: number[];
+  activeEnergyKcal: number[];
+  manualExerciseMinutes: number[];
+  workouts: number[];
+  syncedDays: number;
+  totals: {
+    steps: number;
+    exerciseMinutes: number;
+    activeEnergyKcal: number;
+    manualExerciseMinutes: number;
+    workouts: number;
+  };
+};
+type WeeklyGlp1Summary = {
+  points: Glp1GraphPoint[];
+};
+type ArchiveSnapshot = {
+  version?: number;
+  protein?: {
+    buckets?: number[];
+    labels?: DayKey[];
+    range?: ProteinRange | null;
+  };
+  hydration?: {
+    buckets?: number[];
+    labels?: DayKey[];
+    range?: HydrationRange | null;
+  };
+  activity?: WeeklyActivitySummary;
+  glp1?: WeeklyGlp1Summary;
+};
 
 /** ---------- utils ---------- */
 function normalizeDateString(input: string): string {
@@ -87,6 +122,12 @@ function parseISO(input?: string | null): Date | null {
   if (!input) return null;
   const t = Date.parse(normalizeDateString(input));
   return Number.isNaN(t) ? null : new Date(t);
+}
+
+function isGlp1Snapshot(value: unknown): value is WeeklyGlp1Summary {
+  if (!value || typeof value !== "object") return false;
+  const points = (value as { points?: unknown }).points;
+  return Array.isArray(points);
 }
 function fmtDateTime(iso?: string | null): string {
   const d = parseISO(iso);
@@ -113,6 +154,24 @@ function fullToDayKey(d?: string): DayKey {
   };
   const key = d && m[d] ? m[d] : "Mon";
   return key;
+}
+function isSevenNumbers(value: unknown): value is number[] {
+  return Array.isArray(value) && value.length === 7 && value.every((n) => typeof n === "number" && Number.isFinite(n));
+}
+function isDayKeyArray(value: unknown): value is DayKey[] {
+  return Array.isArray(value) && value.length === 7 && value.every((d) => DAY_KEYS.includes(d as DayKey));
+}
+function isActivitySnapshot(value: unknown): value is WeeklyActivitySummary {
+  if (!value || typeof value !== "object") return false;
+  const rec = value as Partial<WeeklyActivitySummary>;
+  return isDayKeyArray(rec.labels) &&
+    isSevenNumbers(rec.steps) &&
+    isSevenNumbers(rec.exerciseMinutes) &&
+    isSevenNumbers(rec.activeEnergyKcal) &&
+    isSevenNumbers(rec.manualExerciseMinutes) &&
+    isSevenNumbers(rec.workouts) &&
+    !!rec.totals &&
+    typeof rec.totals === "object";
 }
 
 // ------- Android Gallery helpers -------
@@ -389,6 +448,24 @@ if (Capacitor.getPlatform() === "android") {
     }
   }, [rec?.fasting_json]);
 
+  const snapshot = useMemo<ArchiveSnapshot | null>(() => {
+    if (!rec?.snapshot_json) return null;
+    try {
+      const parsed = JSON.parse(rec.snapshot_json) as ArchiveSnapshot;
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [rec?.snapshot_json]);
+
+  const activitySummary = useMemo<WeeklyActivitySummary | undefined>(() => {
+    return isActivitySnapshot(snapshot?.activity) ? snapshot.activity : undefined;
+  }, [snapshot]);
+
+  const glp1Summary = useMemo<WeeklyGlp1Summary | undefined>(() => {
+    return isGlp1Snapshot(snapshot?.glp1) ? snapshot.glp1 : undefined;
+  }, [snapshot]);
+
   const injectionTakenAt: string | undefined = rec?.injection_taken_at || undefined;
 
   const scheduledDayTime = useMemo(() => {
@@ -403,6 +480,25 @@ if (Capacitor.getPlatform() === "android") {
     (async () => {
       if (!rec) return;
       try {
+        const snapshotProtein = snapshot?.protein;
+        const snapshotHydration = snapshot?.hydration;
+        const hasSnapshotProtein = isSevenNumbers(snapshotProtein?.buckets);
+        const hasSnapshotHydration = isSevenNumbers(snapshotHydration?.buckets);
+        const snapshotProteinLabels = isDayKeyArray(snapshotProtein?.labels) ? snapshotProtein.labels : undefined;
+        const snapshotHydrationLabels = isDayKeyArray(snapshotHydration?.labels) ? snapshotHydration.labels : undefined;
+
+        if (hasSnapshotProtein && !cancelled) {
+          setProteinBuckets(snapshotProtein.buckets);
+          setProteinLabels(snapshotProteinLabels);
+          setProteinRange(snapshotProtein.range ?? undefined);
+        }
+        if (hasSnapshotHydration && !cancelled) {
+          setHydrationBuckets(snapshotHydration.buckets);
+          setHydrationLabels(snapshotHydrationLabels);
+          setHydrationRange(snapshotHydration.range ?? undefined);
+        }
+        if (hasSnapshotProtein && hasSnapshotHydration) return;
+
         const tz = rec.tz || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
         // local week start (YYYY-MM-DD in tz) based on from_utc
         const weekStartLocal = new Intl.DateTimeFormat("en-CA", {
@@ -416,8 +512,8 @@ if (Capacitor.getPlatform() === "android") {
         const weightNum = Number(user?.weight ?? 0);
         const pr = computeProteinRange(weightNum) ?? undefined;
         const hr = computeHydrationRange(weightNum) ?? undefined;
-        setProteinRange(pr);
-        setHydrationRange(hr);
+        if (!hasSnapshotProtein) setProteinRange(pr);
+        if (!hasSnapshotHydration) setHydrationRange(hr);
 
         // Fetch rollups for this archived window
         const userIdStr =
@@ -458,10 +554,14 @@ if (Capacitor.getPlatform() === "android") {
         const hRot = rotateToStart(hBuckets, idxSafe);
 
         if (!cancelled) {
-          setProteinBuckets(pRot);
-          setHydrationBuckets(hRot);
-          setProteinLabels(labelsRot);
-          setHydrationLabels(labelsRot);
+          if (!hasSnapshotProtein) {
+            setProteinBuckets(pRot);
+            setProteinLabels(labelsRot);
+          }
+          if (!hasSnapshotHydration) {
+            setHydrationBuckets(hRot);
+            setHydrationLabels(labelsRot);
+          }
         }
       } catch (e) {
         console.warn("[ArchiveDetail] rollups failed", e);
@@ -476,7 +576,7 @@ if (Capacitor.getPlatform() === "android") {
     return () => {
       cancelled = true;
     };
-  }, [rec, user?.id, user?.weight, scheduledDayTime.day]);
+  }, [rec, user?.id, user?.weight, scheduledDayTime.day, snapshot]);
 
   const filename = useMemo(
     () => (rec ? archiveFilename(rec.from_utc, rec.to_utc) : "—"),
@@ -593,6 +693,8 @@ if (Capacitor.getPlatform() === "android") {
                     hydrationBuckets={hydrationBuckets}
                     hydrationLabels={hydrationLabels}
                     hydrationRange={hydrationRange}
+                    activitySummary={activitySummary}
+                    glp1Summary={glp1Summary}
                   />
                 </div>
               </CardContent>
@@ -608,4 +710,3 @@ if (Capacitor.getPlatform() === "android") {
 
 
 }
-

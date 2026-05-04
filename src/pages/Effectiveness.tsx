@@ -22,6 +22,7 @@ import { logger } from '../utils/logger';
 
 import { computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
 import Glp1EffectivenessRing from '../components/Glp1EffectivenessRing';
+import Glp1TrendGraph from '../components/Glp1TrendGraph';
 
 // IMPORTANT: create child logger OUTSIDE component so it is stable
 const log = logger.child('glp1-archive');
@@ -157,223 +158,6 @@ const TYPICAL_PATTERN: Readonly<Record<ShortDay, TypicalRow>> = {
 };
 
 /* ────────────────────────────────────────────────────────────────
-   Graph
-──────────────────────────────────────────────────────────────── */
-
-const GraphCard: React.FC<{
-  points: Glp1GraphPoint[];
-  injectionDay?: string;
-  timezone: string;
-}> = ({ points, injectionDay, timezone }) => {
-  const width = 340;
-  const height = 220;
-  const paddingLeft = 36;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 50;
-
-  if (points.length === 0) {
-    return <div className={styles.muted}>No data yet</div>;
-  }
-
-  const getAnchorDate = (): Date => {
-    const now = new Date();
-    const dayMap: Record<string, number> = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
-
-    const targetDay = injectionDay
-      ? dayMap[injectionDay.toLowerCase().slice(0, 3)] ?? 1
-      : 1;
-
-    const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      weekday: 'short',
-    });
-
-    const dayMap2: Record<string, number> = {
-      Sun: 0,
-      Mon: 1,
-      Tue: 2,
-      Wed: 3,
-      Thu: 4,
-      Fri: 5,
-      Sat: 6,
-    };
-
-    const currentDay = dayMap2[fmt.format(now) as keyof typeof dayMap2] ?? 0;
-
-    let daysBack = currentDay - targetDay;
-    if (daysBack < 0) daysBack += 7;
-
-    const anchor = new Date(now);
-    anchor.setDate(anchor.getDate() - daysBack);
-    anchor.setHours(0, 0, 0, 0);
-    return anchor;
-  };
-
-  const anchorDate = getAnchorDate();
-  const minTime = anchorDate.getTime();
-  const maxTime = minTime + 7 * 24 * 60 * 60 * 1000;
-
-  const scaleX = (timestamp: string): number => {
-    const time = new Date(timestamp).getTime();
-    const ratio = (time - minTime) / (maxTime - minTime);
-    return paddingLeft + ratio * (width - paddingLeft - paddingRight);
-  };
-
-  const scaleY = (value: number): number => {
-    const ratio = value / 10;
-    return height - paddingBottom - ratio * (height - paddingTop - paddingBottom);
-  };
-
-  const linePath = (key: 'hunger' | 'nausea'): string => {
-    const filtered = points.filter((p) => {
-      const t = new Date(p.recordedAt).getTime();
-      return t >= minTime && t <= maxTime;
-    });
-    if (filtered.length === 0) return '';
-    return filtered
-      .map((p, i) =>
-        `${i === 0 ? 'M' : 'L'} ${scaleX(p.recordedAt)} ${scaleY(p[key])}`
-      )
-      .join(' ');
-  };
-
-  const dayLabels: Array<{ x: number; label: string; isAnchor: boolean }> = [];
-  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' });
-  for (let i = 0; i < 8; i++) {
-    const date = new Date(anchorDate);
-    date.setDate(date.getDate() + i);
-    const dayName = fmt.format(date);
-    const x = paddingLeft + (i / 7) * (width - paddingLeft - paddingRight);
-    dayLabels.push({ x, label: dayName, isAnchor: i === 0 });
-  }
-
-  const yLabels = [0, 2, 4, 6, 8, 10];
-
-  const visiblePoints = points.filter((p) => {
-    const t = new Date(p.recordedAt).getTime();
-    return t >= minTime && t <= maxTime;
-  });
-
-  return (
-    <>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className={styles.graphSvg}
-        role="img"
-        aria-label="Hunger and nausea trend over time"
-      >
-        {yLabels.map((val) => (
-          <line
-            key={`grid-${val}`}
-            x1={paddingLeft}
-            y1={scaleY(val)}
-            x2={width - paddingRight}
-            y2={scaleY(val)}
-            className={styles.graphGrid}
-          />
-        ))}
-
-        {dayLabels.slice(0, -1).map((day, i) => (
-          <line
-            key={`vline-${i}`}
-            x1={day.x}
-            y1={paddingTop}
-            x2={day.x}
-            y2={height - paddingBottom}
-            className={day.isAnchor ? styles.graphAnchorLine : styles.graphDayLine}
-          />
-        ))}
-
-        <line
-          x1={paddingLeft}
-          y1={height - paddingBottom}
-          x2={width - paddingRight}
-          y2={height - paddingBottom}
-          className={styles.graphAxis}
-        />
-        <line
-          x1={paddingLeft}
-          y1={paddingTop}
-          x2={paddingLeft}
-          y2={height - paddingBottom}
-          className={styles.graphAxis}
-        />
-
-        {linePath('hunger') && <path d={linePath('hunger')} className={styles.graphHunger} />}
-        {linePath('nausea') && <path d={linePath('nausea')} className={styles.graphNausea} />}
-
-        {visiblePoints.map((p, i) => (
-          <g key={`point-${i}`}>
-            <circle
-              cx={scaleX(p.recordedAt)}
-              cy={scaleY(p.hunger)}
-              r="4"
-              className={styles.graphHungerPoint}
-            />
-            <circle
-              cx={scaleX(p.recordedAt)}
-              cy={scaleY(p.nausea)}
-              r="4"
-              className={styles.graphNauseaPoint}
-            />
-          </g>
-        ))}
-
-        {yLabels.map((val) => (
-          <text
-            key={`ylabel-${val}`}
-            x={paddingLeft - 10}
-            y={scaleY(val)}
-            className={styles.graphYLabel}
-            textAnchor="end"
-            dominantBaseline="middle"
-          >
-            {val}
-          </text>
-        ))}
-
-        {dayLabels.slice(0, -1).map((day, i) => (
-          <text
-            key={`xlabel-${i}`}
-            x={day.x}
-            y={height - paddingBottom + 18}
-            className={day.isAnchor ? styles.graphXLabelAnchor : styles.graphXLabel}
-            textAnchor="middle"
-          >
-            {day.label}
-          </text>
-        ))}
-
-        {injectionDay && (
-          <text
-            x={paddingLeft}
-            y={height - paddingBottom + 35}
-            className={styles.graphInjectionLabel}
-            textAnchor="middle"
-          >
-            💉 Injection
-          </text>
-        )}
-      </svg>
-
-      <div className={styles.graphLegend}>
-        <span className={styles.legendHunger}>● Hunger</span>
-        <span className={styles.legendNausea}>● Nausea</span>
-      </div>
-    </>
-  );
-};
-
-/* ────────────────────────────────────────────────────────────────
    Page
 ──────────────────────────────────────────────────────────────── */
 
@@ -432,7 +216,7 @@ const Effectiveness: React.FC = () => {
     await insertGlp1ExperienceLog({
       userId,
       recordedAt: iso,
-      localDay: iso.slice(0, 10),
+      localDay: time.split('T')[0] ?? iso.slice(0, 10),
       hunger,
       nausea,
       note: note.trim() || undefined,
@@ -441,6 +225,7 @@ const Effectiveness: React.FC = () => {
     setNote('');
     const rows = await listGlp1ExperienceForGraph(userId, 14);
     setGraphPoints(rows);
+    window.dispatchEvent(new Event('glp1:changed'));
     alert('Experience logged');
   }
 
@@ -735,7 +520,11 @@ requestAnimationFrame(() => {
               <div className={styles.cardTitle}>📈 Hunger &amp; Nausea Trend</div>
 
               <div ref={graphRef}>
-                <GraphCard points={graphPoints} injectionDay={injectionDay} timezone={timezone} />
+                <Glp1TrendGraph
+                  points={graphPoints}
+                  injectionDay={injectionDay}
+                  timezone={timezone}
+                />
               </div>
 
               <div className={styles.buttonRow}>
@@ -802,4 +591,3 @@ requestAnimationFrame(() => {
 };
 
 export default Effectiveness;
-

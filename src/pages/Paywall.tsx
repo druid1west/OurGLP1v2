@@ -45,6 +45,12 @@ import {
   rcGetBothPackages,
   rcGetPriceString,
 } from '@/lib/revenuecat';
+import {
+  StoreKitTest,
+  STOREKIT_PRODUCT_IDS,
+  isStoreKitTestSupportedPlatform,
+  type StoreKitProduct,
+} from '@/plugins/storeKitTest';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -52,9 +58,11 @@ import {
 type SubscriptionType = 'monthly' | 'yearly';
 
 interface PackageInfo {
-  pkg: PurchasesPackage;
+  pkg?: PurchasesPackage;
+  productId: string;
   price: string;
   identifier: string;
+  source: 'revenuecat' | 'storekit';
 }
 
 interface FeatureItem {
@@ -103,6 +111,10 @@ const ENABLE_LOCAL_PURCHASE_BYPASS =
   import.meta.env.VITE_ENABLE_LOCAL_PURCHASE_BYPASS === '1' ||
   import.meta.env.VITE_ENABLE_LOCAL_PURCHASE_BYPASS === 'true';
 
+const ENABLE_TEST_PURCHASE_BYPASS =
+  import.meta.env.VITE_ENABLE_TEST_PURCHASE_BYPASS === '1' ||
+  import.meta.env.VITE_ENABLE_TEST_PURCHASE_BYPASS === 'true';
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Utilities
 // ──────────────────────────────────────────────────────────────────────────────
@@ -148,6 +160,11 @@ function getDefaultPriceLabel(type: SubscriptionType = 'monthly'): string {
   return likelyGB ? '£4.99/month' : '$4.99/month';
 }
 
+function findStoreKitProduct(products: StoreKitProduct[], type: SubscriptionType): StoreKitProduct | null {
+  const suffix = type === 'yearly' ? '.yearly' : '.monthly';
+  return products.find((product) => product.id.endsWith(suffix)) ?? null;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────────────────────
@@ -165,12 +182,14 @@ export default function Paywall(): JSX.Element {
   const [monthlyPackage, setMonthlyPackage] = useState<PackageInfo | null>(null);
   const [yearlyPackage, setYearlyPackage] = useState<PackageInfo | null>(null);
   const [selectedType, setSelectedType] = useState<SubscriptionType>('yearly');
+  const [storeKitMode, setStoreKitMode] = useState(false);
 
   const platform = useMemo(() => Capacitor.getPlatform(), []);
   const isIOS = platform === 'ios';
   const isAndroid = platform === 'android';
   const isProd = import.meta.env.PROD === true;
   const isLocalBypass = IS_LOCAL_AUTH && !isProd && ENABLE_LOCAL_PURCHASE_BYPASS;
+  const isTesterBypass = IS_LOCAL_AUTH && ENABLE_TEST_PURCHASE_BYPASS;
 
   const platformLabel =
     isIOS ? 'Apple ID' : isAndroid ? 'Google account' : 'store account';
@@ -185,8 +204,11 @@ export default function Paywall(): JSX.Element {
     return selectedType === 'yearly' ? yearlyPackage : monthlyPackage;
   }, [selectedType, yearlyPackage, monthlyPackage]);
 
-  const showYearlyOption = Boolean(yearlyPackage || isLocalBypass);
-  const showMonthlyOption = Boolean(monthlyPackage || isLocalBypass);
+  const hasAnyStorePackage = Boolean(monthlyPackage || yearlyPackage);
+  const bypassEnabled = isLocalBypass || isTesterBypass;
+  const canUseBypass = isLocalBypass || (isTesterBypass && !hasAnyStorePackage);
+  const showYearlyOption = Boolean(yearlyPackage || canUseBypass);
+  const showMonthlyOption = Boolean(monthlyPackage || canUseBypass);
   const selectedPriceLabel =
     selectedPackage?.price || getDefaultPriceLabel(selectedType);
 
@@ -201,9 +223,60 @@ export default function Paywall(): JSX.Element {
     }
   }, [loading, user?.id, returnTo, router]);
 
-  // Init RevenueCat and read packages
+  // Init purchase products. Debug builds can use the Xcode StoreKit file first;
+  // TestFlight/App Store builds use RevenueCat first, then StoreKit as a fallback.
   useEffect(() => {
     let didCancel = false;
+
+    const loadStoreKitFallback = async (reason: string): Promise<boolean> => {
+      if (!isIOS || !isStoreKitTestSupportedPlatform()) return false;
+
+      try {
+        const availability = await StoreKitTest.isAvailable();
+        if (!availability.available) return false;
+
+        const { products } = await StoreKitTest.getProducts({
+          productIds: [...STOREKIT_PRODUCT_IDS],
+        });
+        if (didCancel || products.length === 0) return false;
+
+        const monthly = findStoreKitProduct(products, 'monthly');
+        const yearly = findStoreKitProduct(products, 'yearly');
+
+        if (monthly) {
+          setMonthlyPackage({
+            productId: monthly.id,
+            price: monthly.displayPrice,
+            identifier: monthly.id,
+            source: 'storekit',
+          });
+        }
+
+        if (yearly) {
+          setYearlyPackage({
+            productId: yearly.id,
+            price: yearly.displayPrice,
+            identifier: yearly.id,
+            source: 'storekit',
+          });
+        }
+
+        if (monthly || yearly) {
+          setStoreKitMode(true);
+          setError(null);
+          logger.info('[Paywall boot] using StoreKit fallback', { reason });
+          return true;
+        }
+      } catch (e) {
+        logger.warn('[Paywall boot] StoreKit fallback unavailable', {
+          reason,
+          msg: toMessage(e),
+        });
+      }
+
+      return false;
+    };
+
     (async () => {
       try {
         logger.info('[Paywall boot] starting', {
@@ -212,6 +285,12 @@ export default function Paywall(): JSX.Element {
           platform,
           hasUser: Boolean(user?.id),
         });
+
+        if (!isProd) {
+          const loadedStoreKitFirst = await loadStoreKitFallback('Xcode StoreKit products are available');
+          if (didCancel) return;
+          if (loadedStoreKitFirst) return;
+        }
 
         const id = await initAndGetAppUserId();
         if (didCancel) return;
@@ -226,8 +305,10 @@ export default function Paywall(): JSX.Element {
           const price = rcGetPriceString(monthly);
           setMonthlyPackage({
             pkg: monthly,
+            productId: 'com.ourglp1.app.pro.monthly',
             price,
             identifier: monthly.identifier,
+            source: 'revenuecat',
           });
           logger.info('[Paywall boot] monthly package loaded:', price);
         }
@@ -236,24 +317,32 @@ export default function Paywall(): JSX.Element {
           const price = rcGetPriceString(yearly);
           setYearlyPackage({
             pkg: yearly,
+            productId: 'com.ourglp1.app.pro.yearly',
             price,
             identifier: yearly.identifier,
+            source: 'revenuecat',
           });
           logger.info('[Paywall boot] yearly package loaded:', price);
         }
 
         if (!monthly && !yearly) {
           logger.warn('[Paywall boot] No packages available from RC');
-          setError(
-            isLocalBypass
-              ? null
-              : 'No subscription packages available yet. Check the RevenueCat offering and store product IDs.',
-          );
+          const loadedStoreKit = await loadStoreKitFallback('RevenueCat returned no packages');
+          if (!loadedStoreKit) {
+            setError(
+              bypassEnabled
+                ? null
+                : 'No subscription packages are available yet. TestFlight does not use the Xcode .storekit file; it needs App Store Connect products or a working RevenueCat offering.',
+            );
+          }
         }
       } catch (e) {
         const msg = toMessage(e);
         logger.error('[Paywall boot] init failed:', msg);
-        setError(isLocalBypass ? null : msg);
+        const loadedStoreKit = await loadStoreKitFallback(msg);
+        if (!loadedStoreKit) {
+          setError(bypassEnabled ? null : msg);
+        }
       } finally {
         if (!didCancel) setLoading(false);
       }
@@ -261,7 +350,7 @@ export default function Paywall(): JSX.Element {
     return () => {
       didCancel = true;
     };
-  }, [user?.id, platform, isProd, isLocalBypass]);
+  }, [user?.id, platform, isProd, bypassEnabled, isIOS]);
 
   // After purchase/restore, wait for entitlement
   const waitForEntitlement = useCallback(
@@ -293,7 +382,7 @@ export default function Paywall(): JSX.Element {
   const handleBuy = useCallback(async () => {
     if (busy) return;
 
-    if (!selectedPackage && !isLocalBypass) {
+    if (!selectedPackage && !canUseBypass) {
       setError('Please select a subscription plan');
       return;
     }
@@ -310,13 +399,50 @@ export default function Paywall(): JSX.Element {
     });
 
     try {
-      if (isLocalBypass) {
-        logger.info('[Paywall] Local/dev build → bypassing purchases');
+      if (!selectedPackage && canUseBypass) {
+        logger.info('[Paywall] Tester/local build → bypassing purchases');
         await finalizeAndReturn();
         return;
       }
 
       if (!selectedPackage) return;
+
+      if (selectedPackage.source === 'storekit') {
+        logger.info('[Paywall] calling Xcode StoreKit purchase...', {
+          productId: selectedPackage.productId,
+        });
+
+        const result = await StoreKitTest.purchase({
+          productId: selectedPackage.productId,
+        });
+
+        if (result.cancelled) {
+          setError('Purchase cancelled.');
+          setBusy(false);
+          return;
+        }
+
+        if (result.pending) {
+          setError('Purchase is pending approval.');
+          setBusy(false);
+          return;
+        }
+
+        if (!result.success) {
+          setError('StoreKit purchase did not complete.');
+          setBusy(false);
+          return;
+        }
+
+        await finalizeAndReturn();
+        return;
+      }
+
+      if (!selectedPackage.pkg) {
+        setError('Selected subscription package is not available.');
+        setBusy(false);
+        return;
+      }
 
       logger.info('[Paywall] calling purchasePackage()...', {
         identifier: selectedPackage.identifier,
@@ -344,6 +470,7 @@ export default function Paywall(): JSX.Element {
     }
   }, [
     busy,
+    canUseBypass,
     finalizeAndReturn,
     isLocalBypass,
     isProd,
@@ -366,8 +493,24 @@ export default function Paywall(): JSX.Element {
     });
 
     try {
-      if (isLocalBypass) {
-        logger.info('[Paywall] Local/dev build → bypassing restore');
+      if (canUseBypass && !storeKitMode) {
+        logger.info('[Paywall] Tester/local build → bypassing restore');
+        await finalizeAndReturn();
+        return;
+      }
+
+      if (storeKitMode) {
+        logger.info('[Paywall] calling Xcode StoreKit restore...');
+        const restored = await StoreKitTest.restore({
+          productIds: [...STOREKIT_PRODUCT_IDS],
+        });
+
+        if (!restored.active) {
+          setError(`No active StoreKit test subscription found for this ${platformLabel}.`);
+          setBusy(false);
+          return;
+        }
+
         await finalizeAndReturn();
         return;
       }
@@ -395,12 +538,14 @@ export default function Paywall(): JSX.Element {
     }
   }, [
     busy,
+    canUseBypass,
     finalizeAndReturn,
     isLocalBypass,
     isProd,
     user?.id,
     waitForEntitlement,
     platformLabel,
+    storeKitMode,
   ]);
 
   const handleManage = useCallback(() => {
@@ -526,7 +671,13 @@ export default function Paywall(): JSX.Element {
                   <h3>Choose Pro</h3>
                   <p>Lower monthly entry for v2, with the yearly plan kept as the best long-term value.</p>
                 </div>
-                <span className={styles.priceNote}>Prices may vary by region.</span>
+                <span className={styles.priceNote}>
+                  {storeKitMode
+                    ? isProd ? 'Apple StoreKit mode' : 'Xcode StoreKit test mode'
+                    : canUseBypass && !hasAnyStorePackage
+                    ? 'Tester unlock enabled'
+                    : 'Prices may vary by region.'}
+                </span>
               </div>
 
               <div className={styles.subscriptionOptions} role="radiogroup" aria-label="Subscription plan">
@@ -587,14 +738,25 @@ export default function Paywall(): JSX.Element {
 
               {error && <div className={styles.errorBox}>{error}</div>}
 
+              {canUseBypass && !hasAnyStorePackage && (
+                <div className={styles.testerBox}>
+                  Tester mode is active for this build, so this unlocks Pro on this device without
+                  showing an Apple payment sheet.
+                </div>
+              )}
+
               <div className={styles.actions}>
                 <IonButton
                   onClick={handleBuy}
                   expand="block"
-                  disabled={busy || (!selectedPackage && !isLocalBypass)}
+                  disabled={busy || (!selectedPackage && !canUseBypass)}
                   className={styles.buyButton}
                 >
-                  {busy ? 'Processing...' : `Continue - ${selectedPriceLabel}`}
+                  {busy
+                    ? 'Processing...'
+                    : !selectedPackage && canUseBypass
+                    ? 'Unlock Pro for testing'
+                    : `Continue - ${selectedPriceLabel}`}
                 </IonButton>
 
                 <IonButton

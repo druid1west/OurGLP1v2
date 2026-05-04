@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { IonButton, IonPage, IonContent } from '@ionic/react';
+import { useHistory } from 'react-router-dom';
 import styles from './Support.module.css';
 
 import TopNav from '@/context/TopNav';
 import BottomNav from '@/context/BottomNav';
 
 import {
-  purchaseById,
-  restorePurchases as rcRestorePurchases,
   getCustomerInfo as rcGetCustomerInfo,
   isProFromCustomerInfo as rcIsPro,
   openManageSubscriptions,
@@ -64,24 +63,6 @@ function getStatusFromCustomerInfo(ci: unknown): SubscriptionStatus {
   };
 }
 
-function toMessage(err: unknown): string {
-  if (typeof err === 'string') return err;
-  if (err && typeof err === 'object') {
-    const obj = err as Record<string, unknown>;
-    const data = obj.data as Record<string, unknown> | undefined;
-    const underlying =
-      typeof data?.underlyingErrorMessage === 'string' ? data.underlyingErrorMessage : undefined;
-    const dataMsg = typeof data?.message === 'string' ? data.message : undefined;
-    const msg = typeof obj.message === 'string' ? (obj.message as string) : undefined;
-    return underlying ?? dataMsg ?? msg ?? 'Unknown error';
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return 'Unknown error';
-  }
-}
-
 /* ------------------------------ subscription ------------------------------ */
 
 function useSubscriptionStatus(): SubscriptionStatus {
@@ -120,28 +101,11 @@ function useSubscriptionStatus(): SubscriptionStatus {
   return status;
 }
 
-async function waitForPro(timeoutMs = 12000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const ci = await rcGetCustomerInfo();
-      if (rcIsPro(ci)) return true;
-    } catch {
-      // ignore; retry
-    }
-    await new Promise((r) => setTimeout(r, 650));
-  }
-  return false;
-}
-
 /* ---------------------------------- view ----------------------------------- */
 
 const Support: React.FC = () => {
+  const history = useHistory();
   const sub = useSubscriptionStatus();
-
-  const [busyBuy, setBusyBuy] = useState<boolean>(false);
-  const [busyRestore, setBusyRestore] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   const subLabel = useMemo(() => {
     if (sub.kind === 'pro') return sub.sandbox ? 'Pro — Sandbox (Test)' : 'Pro — Active';
@@ -151,43 +115,9 @@ const Support: React.FC = () => {
 
   const showUpgrade = sub.kind !== 'pro';
 
-  const doPurchase = useCallback(async (): Promise<void> => {
-    if (busyBuy) return;
-    setError(null);
-    setBusyBuy(true);
-    try {
-      await purchaseById();
-      const active = await waitForPro(15000);
-      if (!active) {
-        setError('Purchase completed but Pro is not active yet. Try “Restore Purchases”.');
-        return;
-      }
-      alert('Thanks for upgrading! Pro is active.');
-    } catch (e) {
-      setError(toMessage(e));
-    } finally {
-      setBusyBuy(false);
-    }
-  }, [busyBuy]);
-
-  const doRestore = useCallback(async (): Promise<void> => {
-    if (busyRestore) return;
-    setError(null);
-    setBusyRestore(true);
-    try {
-      await rcRestorePurchases();
-      const active = await waitForPro(10000);
-      if (!active) {
-        setError('No active subscription found to restore for this account.');
-        return;
-      }
-      alert('Purchases restored. Pro is active.');
-    } catch (e) {
-      setError(toMessage(e));
-    } finally {
-      setBusyRestore(false);
-    }
-  }, [busyRestore]);
+  const openPaywall = useCallback((): void => {
+    history.push('/paywall?returnTo=/support');
+  }, [history]);
 
   return (
     <IonPage>
@@ -211,8 +141,8 @@ const Support: React.FC = () => {
 
             <div className={styles.actions}>
               {showUpgrade ? (
-                <IonButton onClick={() => void doPurchase()} expand="block" disabled={busyBuy}>
-                  {busyBuy ? 'Processing…' : 'Go Pro'}
+                <IonButton onClick={openPaywall} expand="block">
+                  Go Pro
                 </IonButton>
               ) : (
                 <IonButton onClick={() => openManageSubscriptions()} expand="block" fill="outline">
@@ -221,16 +151,13 @@ const Support: React.FC = () => {
               )}
 
               <IonButton
-                onClick={() => void doRestore()}
+                onClick={openPaywall}
                 expand="block"
                 fill="outline"
-                disabled={busyRestore}
               >
-                {busyRestore ? 'Restoring…' : 'Restore Purchases'}
+                Restore Purchases
               </IonButton>
             </div>
-
-            {error && <div className={styles.errorBox}>{error}</div>}
 
             <p className={`${styles.body} ${styles.note}`}>
               Testers: if you’re using a sandbox/test account, the status will show{' '}
@@ -277,7 +204,6 @@ const Support: React.FC = () => {
 };
 
 export default Support;
-
 
 
 

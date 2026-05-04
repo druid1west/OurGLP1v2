@@ -175,9 +175,7 @@ const Register: React.FC = () => {
         confirm_passphrase: '',
       });
 
-      setTimeout(() => {
-        router.push('/today', 'forward', 'push');
-      }, 700);
+      router.push('/today', 'root', 'replace');
     } catch (e) {
       logger.error('[Register] error', e);
       alert('Registration failed. Please try again.');
@@ -359,6 +357,5 @@ const Register: React.FC = () => {
 };
 
 export default Register;
-
 
 

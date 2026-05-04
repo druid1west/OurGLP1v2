@@ -94,6 +94,7 @@
 
 .metricCard,
 .healthBand,
+.rhythmBand,
 .protocolBand,
 .insightCard {
   border-radius: 8px;
@@ -150,9 +151,156 @@
 }
 
 .healthBand,
+.rhythmBand,
 .protocolBand {
   margin-top: 12px;
   padding: 16px;
+}
+
+.rhythmBand {
+  display: grid;
+  gap: 14px;
+}
+
+.anchorStrip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.anchorDay {
+  min-height: 52px;
+  border: 1px solid rgba(18, 49, 49, 0.1);
+  border-radius: 8px;
+  background: #f3f7f5;
+  color: #174b4b;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.anchorDay span {
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.anchorDay strong {
+  color: #c05621;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.anchorStart {
+  border-color: rgba(192, 86, 33, 0.35);
+  background: #fff7ed;
+}
+
+.anchorToday {
+  outline: 2px solid #174b4b;
+  outline-offset: 1px;
+}
+
+.rhythmMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rhythmMeta div {
+  min-height: 62px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f7f5;
+}
+
+.rhythmMeta span,
+.rhythmMeta strong {
+  display: block;
+}
+
+.rhythmMeta span {
+  color: #607470;
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.rhythmMeta strong {
+  margin-top: 5px;
+  color: #112f2f;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.rhythmTimeline {
+  display: grid;
+  grid-template-columns: repeat(48, minmax(3px, 1fr));
+  gap: 2px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #eef4f1;
+}
+
+.rhythmTimeline i,
+.rhythmLegend i {
+  display: block;
+  border-radius: 3px;
+}
+
+.rhythmTimeline i {
+  min-height: 16px;
+  position: relative;
+}
+
+.rhythmFasting {
+  background: #ffd7d7;
+  border: 1px solid rgba(169, 68, 66, 0.2);
+}
+
+.rhythmEating {
+  background: #dff8e7;
+  border: 1px solid rgba(46, 125, 50, 0.18);
+}
+
+.rhythmCurrent {
+  box-shadow: 0 0 0 2px #174b4b;
+}
+
+.rhythmInjection {
+  background: #f4b942;
+  border-color: rgba(111, 74, 10, 0.25);
+  box-shadow: 0 0 0 2px rgba(192, 86, 33, 0.45);
+}
+
+.rhythmLegend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #607470;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.rhythmLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rhythmLegend i {
+  width: 14px;
+  height: 14px;
+}
+
+.rhythmEmpty {
+  margin: 0;
+  color: #5c6f6b;
+  font-size: 0.9rem;
+  line-height: 1.42;
 }
 
 .sectionHeader {
@@ -375,11 +523,13 @@
 
 :global([data-theme='dark']) .metricCard,
 :global([data-theme='dark']) .healthBand,
+:global([data-theme='dark']) .rhythmBand,
 :global([data-theme='dark']) .proPreview,
 :global([data-theme='dark']) .protocolBand,
 :global([data-theme='dark']) .insightCard,
 :global(body[data-theme='dark']) .metricCard,
 :global(body[data-theme='dark']) .healthBand,
+:global(body[data-theme='dark']) .rhythmBand,
 :global(body[data-theme='dark']) .proPreview,
 :global(body[data-theme='dark']) .protocolBand,
 :global(body[data-theme='dark']) .insightCard {
@@ -390,11 +540,13 @@
 
 :global([data-theme='dark']) .metricCard strong,
 :global([data-theme='dark']) .sectionHeader h2,
+:global([data-theme='dark']) .rhythmMeta strong,
 :global([data-theme='dark']) .proPreview h2,
 :global([data-theme='dark']) .protocolPill span,
 :global([data-theme='dark']) .insightCard strong,
 :global(body[data-theme='dark']) .metricCard strong,
 :global(body[data-theme='dark']) .sectionHeader h2,
+:global(body[data-theme='dark']) .rhythmMeta strong,
 :global(body[data-theme='dark']) .proPreview h2,
 :global(body[data-theme='dark']) .protocolPill span,
 :global(body[data-theme='dark']) .insightCard strong {
@@ -403,12 +555,18 @@
 
 :global([data-theme='dark']) .metricCard span,
 :global([data-theme='dark']) .sectionHeader p,
+:global([data-theme='dark']) .rhythmMeta span,
+:global([data-theme='dark']) .rhythmEmpty,
+:global([data-theme='dark']) .rhythmLegend,
 :global([data-theme='dark']) .proPreview p,
 :global([data-theme='dark']) .protocolEmpty,
 :global([data-theme='dark']) .protocolPill strong,
 :global([data-theme='dark']) .insightCard span,
 :global(body[data-theme='dark']) .metricCard span,
 :global(body[data-theme='dark']) .sectionHeader p,
+:global(body[data-theme='dark']) .rhythmMeta span,
+:global(body[data-theme='dark']) .rhythmEmpty,
+:global(body[data-theme='dark']) .rhythmLegend,
 :global(body[data-theme='dark']) .proPreview p,
 :global(body[data-theme='dark']) .protocolEmpty,
 :global(body[data-theme='dark']) .protocolPill strong,
@@ -417,10 +575,25 @@
 }
 
 :global([data-theme='dark']) .healthStats div,
+:global([data-theme='dark']) .anchorDay,
+:global([data-theme='dark']) .rhythmMeta div,
 :global([data-theme='dark']) .protocolPill,
-:global(body[data-theme='dark']) .healthStats div {
+:global(body[data-theme='dark']) .healthStats div,
+:global(body[data-theme='dark']) .anchorDay,
+:global(body[data-theme='dark']) .rhythmMeta div {
   background: #14201e;
   color: #bde8df;
+}
+
+:global([data-theme='dark']) .anchorStart,
+:global(body[data-theme='dark']) .anchorStart {
+  background: rgba(192, 86, 33, 0.16);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+:global([data-theme='dark']) .rhythmTimeline,
+:global(body[data-theme='dark']) .rhythmTimeline {
+  background: #101a18;
 }
 
 :global(body[data-theme='dark']) .protocolPill {
@@ -458,6 +631,31 @@
 
   .healthStats {
     grid-template-columns: 1fr;
+  }
+
+  .anchorStrip {
+    grid-template-columns: repeat(7, minmax(38px, 1fr));
+    gap: 4px;
+  }
+
+  .anchorDay {
+    min-height: 46px;
+  }
+
+  .anchorDay span {
+    font-size: 0.8rem;
+  }
+
+  .anchorDay strong {
+    font-size: 0.54rem;
+  }
+
+  .rhythmMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .rhythmTimeline {
+    grid-template-columns: repeat(24, minmax(4px, 1fr));
   }
 
   .protocolList {

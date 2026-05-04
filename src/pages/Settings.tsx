@@ -31,8 +31,6 @@ import { dropAllLocalData } from '@/db/_maintenance';
 import { logger } from '@/utils/logger';
 
 import {
-  purchaseById,
-  restorePurchases as rcRestorePurchases,
   getCustomerInfo as rcGetCustomerInfo,
   isProFromCustomerInfo as rcIsPro,
   openManageSubscriptions,
@@ -138,48 +136,11 @@ function useSubscriptionStatus(): SubscriptionStatus {
   return status.kind === 'pro' ? status : { kind: 'free' };
 }
 
-/* ----------------------------- misc utils ----------------------------- */
-
-function toMessage(err: unknown): string {
-  if (typeof err === 'string') return err;
-  if (err && typeof err === 'object') {
-    const obj = err as Record<string, unknown>;
-    const data = obj.data as Record<string, unknown> | undefined;
-    const underlying =
-      typeof data?.underlyingErrorMessage === 'string' ? data.underlyingErrorMessage : undefined;
-    const dataMsg = typeof data?.message === 'string' ? data.message : undefined;
-    const msg = typeof obj.message === 'string' ? (obj.message as string) : undefined;
-    if (underlying) return underlying;
-    if (dataMsg) return dataMsg;
-    if (msg) return msg;
-    try {
-      return JSON.stringify(err);
-    } catch {
-      /* noop */
-    }
-  }
-  return 'Unknown error';
-}
-
-async function waitForPro(timeoutMs = 12000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const ci = await rcGetCustomerInfo();
-      if (rcIsPro(ci)) return true;
-    } catch {
-      // ignore; retry
-    }
-    await new Promise((r) => setTimeout(r, 650));
-  }
-  return false;
-}
-
 /* -------------------------------- Page -------------------------------- */
 
 const Settings: React.FC = () => {
   const history = useHistory();
-  const { user, refreshUser } = useAuth();
+  const { user, isPro } = useAuth();
 
   const [soundId, setSoundIdState] = useState<SoundId>('default');
   const [savedToast, setSavedToast] = useState<boolean>(false);
@@ -189,13 +150,20 @@ const Settings: React.FC = () => {
   const [confirmEraseOpen, setConfirmEraseOpen] = useState<boolean>(false);
   const [erasing, setErasing] = useState<boolean>(false);
 
-  const [busyBuy, setBusyBuy] = useState<boolean>(false);
-  const [busyRestore, setBusyRestore] = useState<boolean>(false);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
-
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
 
-  const sub = useSubscriptionStatus();
+  const rcSub = useSubscriptionStatus();
+  const sub = useMemo<SubscriptionStatus>(() => {
+    if (rcSub.kind === 'pro') return rcSub;
+    if (isPro) {
+      return {
+        kind: 'pro',
+        sandbox: true,
+        expiresAt: user?.pro_until ?? undefined,
+      };
+    }
+    return rcSub;
+  }, [isPro, rcSub, user?.pro_until]);
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
   const subLabel = useMemo(() => {
@@ -282,52 +250,8 @@ const Settings: React.FC = () => {
     alert(`Deletion completed with issues:\n\n${result.errors.join('\n')}`);
   }
 
-  async function doPurchase(): Promise<void> {
-    if (busyBuy) return;
-    setPurchaseError(null);
-    setBusyBuy(true);
-
-    try {
-      await purchaseById();
-      const active = await waitForPro(15000);
-      if (!active) {
-        setPurchaseError(
-          'Purchase completed but Pro access is not active yet. Try "Restore Purchases".',
-        );
-        return;
-      }
-      await refreshUser?.();
-      alert('Thanks for upgrading! Pro is now active.');
-    } catch (e) {
-      const msg = toMessage(e);
-      dlog.error('purchase failed', { msg });
-      setPurchaseError(msg);
-    } finally {
-      setBusyBuy(false);
-    }
-  }
-
-  async function doRestore(): Promise<void> {
-    if (busyRestore) return;
-    setPurchaseError(null);
-    setBusyRestore(true);
-
-    try {
-      await rcRestorePurchases();
-      const active = await waitForPro(10000);
-      if (!active) {
-        setPurchaseError('No active subscription found to restore for this account.');
-        return;
-      }
-      await refreshUser?.();
-      alert('Purchases restored. Pro is active.');
-    } catch (e) {
-      const msg = toMessage(e);
-      dlog.error('restore failed', { msg });
-      setPurchaseError(msg);
-    } finally {
-      setBusyRestore(false);
-    }
+  function openPaywall(): void {
+    history.push('/paywall?returnTo=/settings');
   }
 
   const handleThemeToggle = async (): Promise<void> => {
@@ -404,29 +328,25 @@ const Settings: React.FC = () => {
                   <IonButton
                     expand="block"
                     fill="outline"
-                    onClick={() => void doPurchase()}
-                    disabled={busyBuy}
+                    onClick={openPaywall}
                   >
-                    {busyBuy ? 'Processing…' : 'Renew / Change Plan'}
+                    Renew / Change Plan
                   </IonButton>
                 </>
               ) : (
-                <IonButton expand="block" onClick={() => void doPurchase()} disabled={busyBuy}>
-                  {busyBuy ? 'Processing…' : 'Go Pro'}
+                <IonButton expand="block" onClick={openPaywall}>
+                  Go Pro
                 </IonButton>
               )}
 
               <IonButton
                 expand="block"
                 fill="outline"
-                onClick={() => void doRestore()}
-                disabled={busyRestore}
+                onClick={openPaywall}
               >
-                {busyRestore ? 'Restoring…' : 'Restore Purchases'}
+                Restore Purchases
               </IonButton>
             </div>
-
-            {purchaseError && <div className={styles.errorBox}>{purchaseError}</div>}
           </div>
 
           {/* Notifications */}
@@ -523,9 +443,6 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-
-
-
 
 
 

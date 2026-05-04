@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   ClipboardList,
   Pause,
+  PlayCircle,
   Plus,
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 import TopNav from '../context/TopNav';
@@ -17,6 +19,7 @@ import BottomNav from '../context/BottomNav';
 import { useAuth } from '../context/useAuth';
 import {
   createProtocol,
+  deleteProtocol,
   initProtocolTables,
   listProtocolEventsForDay,
   listProtocols,
@@ -88,6 +91,10 @@ const Protocols: React.FC = () => {
     () => protocols.filter((protocol) => protocol.is_active),
     [protocols]
   );
+  const pausedProtocols = useMemo(
+    () => protocols.filter((protocol) => !protocol.is_active),
+    [protocols]
+  );
 
   const loadProtocols = useCallback(async () => {
     if (!user?.id) return;
@@ -142,6 +149,7 @@ const Protocols: React.FC = () => {
       });
       setDraft(draftFromPreset(draft.presetId));
       setMessage('Protocol added.');
+      window.dispatchEvent(new Event('protocols:changed'));
       await loadProtocols();
     } catch (error) {
       logger.warn('[Protocols] add failed', {
@@ -160,6 +168,7 @@ const Protocols: React.FC = () => {
     try {
       await logProtocolEvent(protocol);
       setMessage(`${protocol.name} logged for today.`);
+      window.dispatchEvent(new Event('protocols:changed'));
       await loadProtocols();
     } catch (error) {
       logger.warn('[Protocols] log failed', {
@@ -178,6 +187,7 @@ const Protocols: React.FC = () => {
     try {
       await setProtocolActive(protocol.id, false);
       setMessage(`${protocol.name} paused.`);
+      window.dispatchEvent(new Event('protocols:changed'));
       await loadProtocols();
     } catch (error) {
       logger.warn('[Protocols] pause failed', {
@@ -189,9 +199,133 @@ const Protocols: React.FC = () => {
     }
   };
 
+  const handleResume = async (protocol: Protocol): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      await setProtocolActive(protocol.id, true);
+      setMessage(`${protocol.name} resumed.`);
+      window.dispatchEvent(new Event('protocols:changed'));
+      await loadProtocols();
+    } catch (error) {
+      logger.warn('[Protocols] resume failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setMessage('Could not resume that protocol yet.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = async (protocol: Protocol): Promise<void> => {
+    if (busy) return;
+    const ok = window.confirm(
+      `Remove ${protocol.name}? This will also remove its protocol logs.`
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    setMessage('');
+    try {
+      await deleteProtocol(protocol.id);
+      setMessage(`${protocol.name} removed.`);
+      window.dispatchEvent(new Event('protocols:changed'));
+      await loadProtocols();
+    } catch (error) {
+      logger.warn('[Protocols] remove failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setMessage('Could not remove that protocol yet.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const loggedProtocolIds = useMemo(
     () => new Set(eventsToday.map((event) => event.protocol_id)),
     [eventsToday]
+  );
+
+  const renderProtocolCard = (protocol: Protocol): React.ReactNode => (
+    <article
+      className={`${styles.protocolCard} ${protocol.is_active ? '' : styles.pausedProtocolCard}`}
+      key={protocol.id}
+    >
+      <div className={styles.protocolTop}>
+        <span>{PROTOCOL_KIND_LABELS[protocol.kind] ?? 'Protocol'}</span>
+        {protocol.is_active ? (
+          loggedProtocolIds.has(protocol.id) && (
+            <small>
+              <CheckCircle2 size={14} />
+              Logged today
+            </small>
+          )
+        ) : (
+          <small className={styles.pausedBadge}>
+            <Pause size={14} />
+            Paused
+          </small>
+        )}
+      </div>
+      <h3>{protocol.name}</h3>
+      <div className={styles.metaGrid}>
+        <div>
+          <span>Dose</span>
+          <strong>{protocol.dose_label || 'As directed'}</strong>
+        </div>
+        <div>
+          <span>Cadence</span>
+          <strong>{protocol.cadence_label || 'As directed'}</strong>
+        </div>
+        <div>
+          <span>Route</span>
+          <strong>{protocol.route_label || 'As directed'}</strong>
+        </div>
+      </div>
+
+      {protocol.tracking_focus.length > 0 && (
+        <div className={styles.focusList}>
+          {protocol.tracking_focus.slice(0, 6).map((focus) => (
+            <span key={focus}>{focus}</span>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.cardActions}>
+        {protocol.is_active ? (
+          <>
+            <button type="button" onClick={() => void handleLog(protocol)} disabled={busy}>
+              <Activity size={16} />
+              Log today
+            </button>
+            <button type="button" onClick={() => void handlePause(protocol)} disabled={busy}>
+              <Pause size={16} />
+              Pause
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className={styles.resumeAction}
+            onClick={() => void handleResume(protocol)}
+            disabled={busy}
+          >
+            <PlayCircle size={16} />
+            Resume
+          </button>
+        )}
+        <button
+          type="button"
+          className={styles.dangerAction}
+          onClick={() => void handleRemove(protocol)}
+          disabled={busy}
+        >
+          <Trash2 size={16} />
+          Remove
+        </button>
+      </div>
+    </article>
   );
 
   return (
@@ -311,7 +445,11 @@ const Protocols: React.FC = () => {
             <div className={styles.sectionHeader}>
               <div>
                 <h2>Active protocols</h2>
-                <p>{activeProtocols.length ? `${activeProtocols.length} active` : 'No active protocol yet'}</p>
+                <p>
+                  {activeProtocols.length || pausedProtocols.length
+                    ? `${activeProtocols.length} active · ${pausedProtocols.length} paused`
+                    : 'No protocol yet'}
+                </p>
               </div>
               {loadState === 'loading' && <RefreshCw className={styles.spin} size={18} />}
             </div>
@@ -320,7 +458,7 @@ const Protocols: React.FC = () => {
               <div className={styles.notice}>Could not load protocols yet.</div>
             )}
 
-            {loadState !== 'error' && activeProtocols.length === 0 && (
+            {loadState !== 'error' && protocols.length === 0 && (
               <div className={styles.emptyState}>
                 <Sparkles size={24} />
                 <strong>Start with GLP-1 or add copper peptide as a second routine.</strong>
@@ -328,55 +466,25 @@ const Protocols: React.FC = () => {
               </div>
             )}
 
+            {loadState !== 'error' && protocols.length > 0 && activeProtocols.length === 0 && (
+              <div className={styles.notice}>No active protocols right now. Resume a paused protocol when it is back in use.</div>
+            )}
+
             <div className={styles.protocolGrid}>
-              {activeProtocols.map((protocol) => (
-                <article className={styles.protocolCard} key={protocol.id}>
-                  <div className={styles.protocolTop}>
-                    <span>{PROTOCOL_KIND_LABELS[protocol.kind] ?? 'Protocol'}</span>
-                    {loggedProtocolIds.has(protocol.id) && (
-                      <small>
-                        <CheckCircle2 size={14} />
-                        Logged today
-                      </small>
-                    )}
-                  </div>
-                  <h3>{protocol.name}</h3>
-                  <div className={styles.metaGrid}>
-                    <div>
-                      <span>Dose</span>
-                      <strong>{protocol.dose_label || 'As directed'}</strong>
-                    </div>
-                    <div>
-                      <span>Cadence</span>
-                      <strong>{protocol.cadence_label || 'As directed'}</strong>
-                    </div>
-                    <div>
-                      <span>Route</span>
-                      <strong>{protocol.route_label || 'As directed'}</strong>
-                    </div>
-                  </div>
-
-                  {protocol.tracking_focus.length > 0 && (
-                    <div className={styles.focusList}>
-                      {protocol.tracking_focus.slice(0, 6).map((focus) => (
-                        <span key={focus}>{focus}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className={styles.cardActions}>
-                    <button type="button" onClick={() => void handleLog(protocol)} disabled={busy}>
-                      <Activity size={16} />
-                      Log today
-                    </button>
-                    <button type="button" onClick={() => void handlePause(protocol)} disabled={busy}>
-                      <Pause size={16} />
-                      Pause
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {activeProtocols.map(renderProtocolCard)}
             </div>
+
+            {pausedProtocols.length > 0 && (
+              <>
+                <div className={styles.subsectionHeader}>
+                  <h3>Paused protocols</h3>
+                  <p>Kept here until you resume or remove them.</p>
+                </div>
+                <div className={styles.protocolGrid}>
+                  {pausedProtocols.map(renderProtocolCard)}
+                </div>
+              </>
+            )}
           </section>
 
           <section className={styles.timelinePanel}>

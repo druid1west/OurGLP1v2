@@ -41,6 +41,7 @@ export type ArchiveInsert = {
   bullets?: string[];
   injectionTakenAt?: string | null;
   fastingJson?: string | null;
+  snapshotJson?: string | null;
 };
 
 export type ArchiveRow = {
@@ -59,6 +60,7 @@ export type ArchiveRow = {
   summary_bullets_json: string | null;
   injection_taken_at: string | null;
   fasting_json: string | null;
+  snapshot_json: string | null;
   archived_at: string | null;
   created_at: string;
 };
@@ -173,6 +175,7 @@ async function initWeeklySummaryTables(db: DB): Promise<void> {
       sent_at TEXT,
       injection_taken_at TEXT,
       fasting_json TEXT,
+      snapshot_json TEXT,
       archived_at TEXT,             -- source of truth for archive time
       created_at TEXT NOT NULL
     )
@@ -199,8 +202,11 @@ async function initWeeklySummaryTables(db: DB): Promise<void> {
       await db.run(`
         UPDATE weekly_summary_archive
            SET archived_at = COALESCE(sent_at, created_at)
-         WHERE archived_at IS NULL
+        WHERE archived_at IS NULL
       `);
+    }
+    if (!cols.has('snapshot_json')) {
+      await db.run(`ALTER TABLE weekly_summary_archive ADD COLUMN snapshot_json TEXT`);
     }
   }
 
@@ -284,13 +290,13 @@ export async function insertArchive(a: ArchiveInsert): Promise<number> {
       (from_utc, to_utc, tz,
        anchor_type, anchor_used, anchor_taken_at, anchor_scheduled_at,
        summary_bullets_json,
-       injection_taken_at, fasting_json, archived_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+       injection_taken_at, fasting_json, snapshot_json, archived_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       a.fromUtc, a.toUtc, a.tz,
       an.type ?? null, an.used ?? null, an.takenAt ?? null, an.scheduledAt ?? null,
       bulletsJson,
-      a.injectionTakenAt ?? null, a.fastingJson ?? null,
+      a.injectionTakenAt ?? null, a.fastingJson ?? null, a.snapshotJson ?? null,
     ]
   );
 
@@ -361,8 +367,8 @@ export async function getChartsForArchive(archiveId: number): Promise<ChartRow[]
 
 export async function deleteArchive(id: number): Promise<void> {
   const db = await getDbInit();
+  await db.run('DELETE FROM weekly_summary_charts WHERE archive_id = ?', [id]);
   await db.run('DELETE FROM weekly_summary_archive WHERE id = ?', [id]);
-  // No need to manually delete charts if FK + ON DELETE CASCADE is in place.
 }
 // -----------------------------
 // Mood week series (AM / PM averages)

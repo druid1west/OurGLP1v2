@@ -316,6 +316,17 @@
   white-space: pre-line;
 }
 
+.testerBox {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 8px;
+  background: rgba(240, 253, 250, 0.82);
+  color: #0f766e;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
 .actions {
   display: grid;
   gap: 10px;
@@ -424,6 +435,13 @@
 :global(body[data-theme='dark']) .proColumn {
   background: rgba(42, 34, 28, 0.92);
   border-color: rgba(251, 146, 60, 0.24);
+}
+
+:global([data-theme='dark']) .testerBox,
+:global(body[data-theme='dark']) .testerBox {
+  background: rgba(15, 118, 110, 0.14);
+  border-color: rgba(45, 212, 191, 0.24);
+  color: #5eead4;
 }
 
 @media (max-width: 720px) {

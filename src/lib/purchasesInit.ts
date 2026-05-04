@@ -145,23 +145,14 @@ function pickDefaultProductId(): string | null {
   return null;
 }
 
-/** Handle both setLogLevel signatures (enum OR { level }) safely */
+/** RevenueCat Capacitor v11 expects the log level inside an options object. */
 async function setRCLogLevel(level: LOG_LEVEL): Promise<void> {
   try {
-    // Signature 1: enum
-    await (Purchases.setLogLevel as unknown as (lvl: LOG_LEVEL) => Promise<void>)(level);
+    await Purchases.setLogLevel({ level });
   } catch (e) {
-    // Signature 2: { level }
-    try {
-      await (Purchases.setLogLevel as unknown as (opts: { level: LOG_LEVEL }) => Promise<void>)({
-        level,
-      });
-    } catch (e2) {
-      rcLog.warn('setLogLevel failed for both signatures', {
-        m1: e instanceof Error ? e.message : String(e),
-        m2: e2 instanceof Error ? e2.message : String(e2),
-      });
-    }
+    rcLog.warn('setLogLevel failed', {
+      msg: e instanceof Error ? e.message : String(e),
+    });
   }
 }
 
@@ -375,5 +366,4 @@ export async function initAndGetAppUserId(appUserId?: string): Promise<string> {
     return '';
   }
 }
-
 

@@ -12,13 +12,15 @@
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		E2A1B0012E04050300000001 /* AppleHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B0002E04050300000001 /* AppleHealthPlugin.swift */; };
-		E2A1B0032E04050300000001 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2A1B0022E04050300000001 /* HealthKit.framework */; };
 		E12561C72EB9DBFA00B71BC7 /* Product.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E12561C62EB9DBFA00B71BC7 /* Product.storekit */; };
+		E13BEA172FA7CBE300115D31 /* OurGlp1v2.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E13BEA162FA7CBE300115D31 /* OurGlp1v2.storekit */; };
 		E16EEFE32E85CA2400D44AC7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E16EEFE22E85CA2400D44AC7 /* StoreKit.framework */; };
 		E172D6572E2A6E2B00AAAC44 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E172D6562E2A6E2B00AAAC44 /* AppDelegate.swift */; };
 		E17BC7F12E6F50E9005BAFFC /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = E17BC7F02E6F50E9005BAFFC /* GoogleService-Info.plist */; };
 		E1FD188F2E22D7940085D3E0 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FD188E2E22D7940085D3E0 /* SceneDelegate.swift */; };
+		E2A1B0012E04050300000001 /* AppleHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B0002E04050300000001 /* AppleHealthPlugin.swift */; };
+		E2A1B0032E04050300000001 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E2A1B0022E04050300000001 /* HealthKit.framework */; };
+		E2A1B0052E04050300000001 /* StoreKitTestPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A1B0042E04050300000001 /* StoreKitTestPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,15 +33,17 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50A69A17AA465F0F6D883292 /* Pods_OurGlp1.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_OurGlp1.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
-		E2A1B0002E04050300000001 /* AppleHealthPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppleHealthPlugin.swift; sourceTree = "<group>"; };
-		E2A1B0022E04050300000001 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		E0BCCB512F418166BD11584D /* Pods-OurGlp1.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OurGlp1.debug.xcconfig"; path = "Target Support Files/Pods-OurGlp1/Pods-OurGlp1.debug.xcconfig"; sourceTree = "<group>"; };
 		E12561C62EB9DBFA00B71BC7 /* Product.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Product.storekit; sourceTree = "<group>"; };
+		E13BEA162FA7CBE300115D31 /* OurGlp1v2.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = OurGlp1v2.storekit; sourceTree = "<group>"; };
 		E16EEFE22E85CA2400D44AC7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E172D6562E2A6E2B00AAAC44 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		E17BC7F02E6F50E9005BAFFC /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E1D7DF022E22C9350023F48D /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		E1FD188E2E22D7940085D3E0 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		E2A1B0002E04050300000001 /* AppleHealthPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppleHealthPlugin.swift; sourceTree = "<group>"; };
+		E2A1B0022E04050300000001 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		E2A1B0042E04050300000001 /* StoreKitTestPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StoreKitTestPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,7 @@
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
+				E13BEA162FA7CBE300115D31 /* OurGlp1v2.storekit */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
 				27E2DDA53C4D2A4D1A88CE4A /* Frameworks */,
@@ -92,6 +97,7 @@
 				E1D7DF022E22C9350023F48D /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				E2A1B0002E04050300000001 /* AppleHealthPlugin.swift */,
+				E2A1B0042E04050300000001 /* StoreKitTestPlugin.swift */,
 				E172D6562E2A6E2B00AAAC44 /* AppDelegate.swift */,
 				E17BC7F02E6F50E9005BAFFC /* GoogleService-Info.plist */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -178,6 +184,7 @@
 				E12561C72EB9DBFA00B71BC7 /* Product.storekit in Resources */,
 				E17BC7F12E6F50E9005BAFFC /* GoogleService-Info.plist in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
+				E13BEA172FA7CBE300115D31 /* OurGlp1v2.storekit in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -230,6 +237,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E2A1B0012E04050300000001 /* AppleHealthPlugin.swift in Sources */,
+				E2A1B0052E04050300000001 /* StoreKitTestPlugin.swift in Sources */,
 				E172D6572E2A6E2B00AAAC44 /* AppDelegate.swift in Sources */,
 				E1FD188F2E22D7940085D3E0 /* SceneDelegate.swift in Sources */,
 			);

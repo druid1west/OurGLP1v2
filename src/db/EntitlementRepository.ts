@@ -7,20 +7,58 @@ export type Entitlements = {
   subscription_tier: 'free' | 'pro' | null;
 };
 
+type QueryRow = Record<string, unknown>;
+type QueryResult = { values?: unknown[] } | null | undefined;
+
+function firstRow(result: QueryResult): QueryRow | null {
+  const values = result?.values;
+  if (!values || values.length === 0) return null;
+
+  if (Array.isArray(values[0]) && values.length >= 2 && Array.isArray(values[1])) {
+    const cols = values[0] as string[];
+    const rowValues = values[1] as unknown[];
+    const row: QueryRow = {};
+    cols.forEach((col, index) => {
+      row[col] = rowValues[index];
+    });
+    return row;
+  }
+
+  if (
+    typeof values[0] === 'object' &&
+    values[0] !== null &&
+    'ios_columns' in (values[0] as QueryRow)
+  ) {
+    const cols = (values[0] as { ios_columns: string[] }).ios_columns;
+    const rowObj = values[1];
+    if (!rowObj || typeof rowObj !== 'object' || Array.isArray(rowObj)) return null;
+    const source = rowObj as QueryRow;
+    const row: QueryRow = {};
+    cols.forEach((col) => {
+      row[col] = Object.prototype.hasOwnProperty.call(source, col) ? source[col] : undefined;
+    });
+    return row;
+  }
+
+  const row = values[0];
+  return row && typeof row === 'object' && !Array.isArray(row) ? (row as QueryRow) : null;
+}
+
 export async function getEntitlements(userId: string): Promise<Entitlements> {
   const db = await getDb();
   const res = await db.query(
     `SELECT has_pro, pro_until, subscription_tier FROM users WHERE id = ? LIMIT 1`,
     [userId]
   );
-  const row = (res.values ?? [])[0] as
-    | { has_pro?: number | null; pro_until?: string | null; subscription_tier?: string | null }
-    | undefined;
+  const row = firstRow(res);
 
   return {
-    has_pro: !!(row?.has_pro ?? 0),
-    pro_until: row?.pro_until ?? null,
-    subscription_tier: (row?.subscription_tier as Entitlements['subscription_tier']) ?? null,
+    has_pro: Number(row?.has_pro ?? 0) === 1,
+    pro_until: typeof row?.pro_until === 'string' ? row.pro_until : null,
+    subscription_tier:
+      row?.subscription_tier === 'free' || row?.subscription_tier === 'pro'
+        ? row.subscription_tier
+        : null,
   };
 }
 

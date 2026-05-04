@@ -13,8 +13,8 @@ import { getEntitlements, isProNow } from '../db/EntitlementRepository';
 declare global {
   interface Window {
     __AUTH?: { user: { id: string | null; email: string | null } | null };
-    __APP_USER?: { id?: string | null } | null;
-    __USER?: { id?: string | null } | null;
+    __APP_USER?: { id: string | null } | null;
+    __USER?: { id: string | null } | null;
   }
 }
 
@@ -212,7 +212,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
 
 
 

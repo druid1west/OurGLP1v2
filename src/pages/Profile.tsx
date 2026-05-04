@@ -94,9 +94,13 @@ type ProfileBody = Partial<{
 }>;
 
 const MEDICATION_OPTIONS = [
+  'Semaglutide / Ozempic / Wegovy',
+  'Tirzepatide / Mounjaro / Zepbound',
+  'Liraglutide / Saxenda',
   'Ozempic',
   'Wegovy',
   'Mounjaro',
+  'Zepbound',
   'Saxenda',
   'Copper peptide',
   'BPC-157',
@@ -105,15 +109,50 @@ const MEDICATION_OPTIONS = [
   'Other peptide',
 ] as const;
 
+type Glp1MedicationFamily = 'semaglutide' | 'tirzepatide' | 'liraglutide';
+
+function medicationFamily(name: string): Glp1MedicationFamily | null {
+  const normalized = name.trim().toLowerCase();
+
+  if (!normalized) return null;
+  if (
+    normalized.includes('semaglutide') ||
+    normalized.includes('ozempic') ||
+    normalized.includes('wegovy')
+  ) {
+    return 'semaglutide';
+  }
+  if (
+    normalized.includes('tirzepatide') ||
+    normalized.includes('mounjaro') ||
+    normalized.includes('zepbound')
+  ) {
+    return 'tirzepatide';
+  }
+  if (normalized.includes('liraglutide') || normalized.includes('saxenda')) {
+    return 'liraglutide';
+  }
+
+  return null;
+}
+
+function isGlp1Medication(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+
+  return (
+    medicationFamily(name) !== null ||
+    normalized.includes('glp-1') ||
+    normalized.includes('glp1')
+  );
+}
+
 function doseOptionsForMedication(name: string): string[] {
-  switch (name) {
-    case 'Ozempic':
-      return ['0.25 mg', '0.5 mg', '1 mg', '2 mg'];
-    case 'Wegovy':
-      return ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2.4 mg'];
-    case 'Mounjaro':
+  switch (medicationFamily(name)) {
+    case 'semaglutide':
+      return ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2 mg', '2.4 mg'];
+    case 'tirzepatide':
       return ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg'];
-    case 'Saxenda':
+    case 'liraglutide':
       return ['0.6 mg', '1.2 mg', '1.8 mg', '2.4 mg', '3 mg'];
     default:
       return [];
@@ -1141,7 +1180,8 @@ useEffect(() => {
     () => doseOptionsForMedication(form.medication_name),
     [form.medication_name]
   );
-  const showGlp1Effectiveness = medicationDoseOptions.length > 0;
+  const hasGlp1Medication = useMemo(() => isGlp1Medication(form.medication_name), [form.medication_name]);
+  const effectivenessMedicationName = form.medication_name || 'Weekly medication';
 
   // ---------- GLP-1 activity (derived, hook-safe) ----------
 
@@ -1423,49 +1463,73 @@ const mainUIView = (
   </button>
 </div>
 
-<div
-  className={`${styles.statCard} ${styles.clickableCard}`}
-  role="button"
-  tabIndex={0}
-  aria-label={showGlp1Effectiveness ? 'View detailed medication effectiveness' : 'Open protocol tracker'}
-  onClick={() => history.push(showGlp1Effectiveness ? '/effectiveness' : '/protocols')}
-  onKeyDown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      history.push(showGlp1Effectiveness ? '/effectiveness' : '/protocols');
-    }
-  }}
->
-  <div className={styles.statTitle}>
-    {showGlp1Effectiveness ? 'Medication Effectiveness' : 'Primary Protocol'}
-  </div>
-  <div className={styles.mutedSmall}>
-        {showGlp1Effectiveness ? 'Tap to view detailed effectiveness ->' : 'Tap to manage protocol tracking ->'}
-      </div>
-      <div aria-hidden className={styles.endSpacer} />
+<div className={styles.cardsGrid}>
+  <div
+    className={`${styles.statCard} ${styles.clickableCard}`}
+    role="button"
+    tabIndex={0}
+    aria-label="View detailed medication effectiveness"
+    onClick={() => history.push('/effectiveness')}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        history.push('/effectiveness');
+      }
+    }}
+  >
+    <div className={styles.statTitle}>Medication Effectiveness</div>
+    <div className={styles.mutedSmall}>Tap to view detailed effectiveness</div>
+    <div aria-hidden className={styles.endSpacer} />
 
-  <div className={styles.glp1Row}>
-    {showGlp1Effectiveness ? (
+    <div className={styles.glp1Row}>
       <Glp1EffectivenessRing
         percent={glp1Pct}
         ariaLabel={`Estimated medication effectiveness ${glp1Pct} percent`}
       />
-    ) : (
+
+      <div className={styles.glp1Text}>
+        <div>
+          <strong>{effectivenessMedicationName}</strong>
+        </div>
+
+        <div className={styles.muted}>
+          {hasGlp1Medication
+            ? 'Estimated GLP-1 activity since your last dose'
+            : 'Estimated weekly activity from your injection day and time'}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    className={`${styles.statCard} ${styles.clickableCard}`}
+    role="button"
+    tabIndex={0}
+    aria-label="Open protocol tracker"
+    onClick={() => history.push('/protocols')}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        history.push('/protocols');
+      }
+    }}
+  >
+    <div className={styles.statTitle}>Primary Protocol</div>
+    <div className={styles.mutedSmall}>Tap to manage protocol tracking</div>
+    <div aria-hidden className={styles.endSpacer} />
+
+    <div className={styles.glp1Row}>
       <div className={styles.protocolMiniBadge}>Track</div>
-    )}
 
-    <div className={styles.glp1Text}>
-      <div>
-        <strong>{form.medication_name || 'Weekly GLP-1'}</strong>
+      <div className={styles.glp1Text}>
+        <div>
+          <strong>{form.medication_name || 'Peptide and GLP-1 tracking'}</strong>
+        </div>
+
+        <div className={styles.muted}>
+          Record timing, dose labels, and observations in Protocols
+        </div>
       </div>
-
-      <div className={styles.muted}>
-        {showGlp1Effectiveness
-          ? 'Estimated effectiveness in your body since last dose'
-          : 'Record timing, dose labels, and observations in Protocols'}
-      </div>
-
-      
     </div>
   </div>
 </div>

@@ -38,10 +38,12 @@ import {
 listGlp1ExperienceRange,
 deleteGlp1ExperienceLog,
 type Glp1ExperienceLog,
+type Glp1GraphPoint,
 } from '../db/EffectivenessRepository';
 
 
 import { computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
+import Glp1TrendGraph from '../components/Glp1TrendGraph';
 
 // Today label for the week overview
 const todayName: WeekdayShort = new Date().toLocaleDateString('en-US', {
@@ -201,12 +203,16 @@ const WEEKDAY_FULL: Readonly<Record<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat
 // -----------------------------
 // GLP-1 Effectiveness Logs (last 7 days)
 // -----------------------------
-const Glp1EffectivenessBox: React.FC<{ userId: string; glp1Pct: number }> = ({
-userId,
-glp1Pct,
-}) => {
+const Glp1EffectivenessBox: React.FC<{
+  userId: string;
+  glp1Pct: number;
+  injectionDay?: string | null;
+  timezone: string;
+}> = ({ userId, glp1Pct, injectionDay, timezone }) => {
+  const router = useIonRouter();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Glp1ExperienceLog[]>([]);
+  const [graphPoints, setGraphPoints] = useState<Glp1GraphPoint[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -223,11 +229,22 @@ glp1Pct,
         const logs = await listGlp1ExperienceRange(userId, fromYmd, toYmd);
         if (!mounted) return;
 
-        logs.sort((a, b) => (a.recorded_at < b.recorded_at ? 1 : -1));
-        setRows(logs);
+        const newestFirst = [...logs].sort((a, b) => (a.recorded_at < b.recorded_at ? 1 : -1));
+        const oldestFirst = [...logs].sort((a, b) => (a.recorded_at > b.recorded_at ? 1 : -1));
+        setRows(newestFirst);
+        setGraphPoints(
+          oldestFirst.map((row) => ({
+            recordedAt: row.recorded_at,
+            hunger: row.hunger,
+            nausea: row.nausea,
+          }))
+        );
       } catch (e) {
         logger.error('[GLP1] load failed', e);
-        if (mounted) setRows([]);
+        if (mounted) {
+          setRows([]);
+          setGraphPoints([]);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -259,6 +276,10 @@ glp1Pct,
     if (!window.confirm('Delete this effectiveness entry?')) return;
     await deleteGlp1ExperienceLog(id);
     setRows((prev) => prev.filter((r) => r.id !== id));
+    setGraphPoints((prev) => prev.filter((point) => {
+      const deleted = rows.find((row) => row.id === id);
+      return deleted ? point.recordedAt !== deleted.recorded_at : true;
+    }));
     window.dispatchEvent(new Event('glp1:changed'));
   };
 
@@ -268,13 +289,36 @@ glp1Pct,
 
       {loading ? (
         <p className={personalStyles.muted}>Loading…</p>
-      ) : rows.length === 0 ? (
-        <p className={personalStyles.muted}>No effectiveness entries yet.</p>
       ) : (
-        rows.map((r) => {
-          
+        <>
+          <div className={personalStyles.rowBlock}>
+            <div className={personalStyles.rowTitle}>This injection week</div>
+            <div className={personalStyles.rowFlex}>
+              <div>
+                <strong>Estimated effectiveness:</strong> {glp1Pct}%
+              </div>
+            </div>
+            <Glp1TrendGraph
+              points={graphPoints}
+              injectionDay={injectionDay}
+              timezone={timezone}
+              compact
+            />
+            <div className={personalStyles.rowActions}>
+              <IonButton
+                size="small"
+                fill="outline"
+                onClick={() => router.push('/effectiveness', 'forward')}
+              >
+                Open full effectiveness graph
+              </IonButton>
+            </div>
+          </div>
 
-          return (
+          {rows.length === 0 ? (
+            <p className={personalStyles.muted}>No effectiveness entries yet.</p>
+          ) : (
+            rows.map((r) => (
             <div key={r.id} className={personalStyles.rowBlock}>
               <div className={personalStyles.rowTitle}>
                 {new Date(r.recorded_at).toLocaleString()}
@@ -300,8 +344,9 @@ glp1Pct,
                 </button>
               </div>
             </div>
-          );
-        })
+            ))
+          )}
+        </>
       )}
     </div>
   );
@@ -835,7 +880,12 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 
           <SleepLogsBox />
           <FastingDisplayBox />
-          <Glp1EffectivenessBox userId={userId} glp1Pct={glp1Pct} />
+          <Glp1EffectivenessBox
+            userId={userId}
+            glp1Pct={glp1Pct}
+            injectionDay={injDay}
+            timezone={Intl.DateTimeFormat().resolvedOptions().timeZone}
+          />
 
           <h2 className={personalStyles.subtitle}>Health Tracking</h2>
 
@@ -1091,7 +1141,6 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
 };
 
 export default PersonalPlan;
-
 
 
 

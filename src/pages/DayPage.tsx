@@ -443,7 +443,7 @@ const DayPage: React.FC = () => {
 
   useEffect(() => {
     const refreshFastingData = async () => {
-      logger.info('[DayPage] profile:saved received → reloading fasting settings');
+      logger.info('[DayPage] settings changed → reloading fasting and anchor settings');
       const s = await getSettings();
 
       let hoursPart = '';
@@ -465,6 +465,13 @@ const DayPage: React.FC = () => {
 
       setFastSchedule(hoursPart);
       setFastStartHHMM(toHHMM(startPart));
+      setTz(
+        s.timezone && s.timezone.trim()
+          ? s.timezone
+          : Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      );
+      setInjDay(toFullDay(s.injection_day) || '');
+      setInjHHMM(toHHMM(s.injection_time));
 
       logger.debug('[DayPage] Updated fastingSchedule', { hoursPart });
       logger.debug('[DayPage] Updated fastingStartHHMM', { startHHMM: toHHMM(startPart) });
@@ -472,7 +479,15 @@ const DayPage: React.FC = () => {
 
     refreshFastingData();
     window.addEventListener('profile:saved', refreshFastingData);
-    return () => window.removeEventListener('profile:saved', refreshFastingData);
+    window.addEventListener('settings:changed', refreshFastingData);
+    window.addEventListener('anchor:changed', refreshFastingData as EventListener);
+    window.addEventListener('fasting:changed', refreshFastingData);
+    return () => {
+      window.removeEventListener('profile:saved', refreshFastingData);
+      window.removeEventListener('settings:changed', refreshFastingData);
+      window.removeEventListener('anchor:changed', refreshFastingData as EventListener);
+      window.removeEventListener('fasting:changed', refreshFastingData);
+    };
   }, []);
 
   // Load last injection
@@ -515,7 +530,10 @@ const DayPage: React.FC = () => {
 
   // Build the 15-min blocks
   useEffect(() => {
-    if (!fastStartHHMM || !fastSchedule) return;
+    if (!fastStartHHMM || !fastSchedule) {
+      setTimeBlocks([]);
+      return;
+    }
 
     const fastingHours = parseInt(fastSchedule.split(':')[0], 10) || 0;
     const [startHour, startMinute] = fastStartHHMM.split(':').map((x) => parseInt(x || '0', 10));
@@ -966,5 +984,4 @@ const DayPage: React.FC = () => {
 };
 
 export default DayPage;
-
 

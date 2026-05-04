@@ -996,6 +996,46 @@ export async function getHealthDailySummaryByDay(
   };
 }
 
+export async function listHealthDailySummariesRange(
+  fromYmd: string,
+  toYmd: string,
+  source: HealthDailySummary['source'] = 'apple_health'
+): Promise<HealthDailySummary[]> {
+  const db = await getDb();
+  const q = await db.query(
+    `
+    SELECT day, source, data_json, synced_at
+    FROM health_daily_summaries
+    WHERE day >= ? AND day <= ? AND source = ?
+    ORDER BY day ASC
+    `,
+    [fromYmd, toYmd, source]
+  );
+
+  return mapRows(q).map((rec) => {
+    let data: HealthDailySummaryData = {};
+    try {
+      data = typeof rec.data_json === 'string'
+        ? JSON.parse(rec.data_json) as HealthDailySummaryData
+        : {};
+    } catch {
+      data = {};
+    }
+
+    return {
+      day: String(rec.day ?? ''),
+      source: (String(rec.source ?? source) as HealthDailySummary['source']),
+      steps: toNumberOrNull(data.steps),
+      activeEnergyKcal: toNumberOrNull(data.activeEnergyKcal),
+      exerciseMinutes: toNumberOrNull(data.exerciseMinutes),
+      sleepMinutes: toNumberOrNull(data.sleepMinutes),
+      restingHeartRate: toNumberOrNull(data.restingHeartRate),
+      workouts: toNumberOrNull(data.workouts),
+      synced_at: String(rec.synced_at ?? ''),
+    };
+  });
+}
+
 /**
  * Inserts exercise and emits change.
  */
