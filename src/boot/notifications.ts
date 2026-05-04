@@ -7,6 +7,7 @@ import {
 } from '@capacitor/local-notifications';
 import { getNotificationStatus, checkAndPersistPermission } from '../db/NotificationStatus';
 import { listReminders, type LocalReminder } from '../db/RemindersRepository';
+import { buildReminderNotificationText } from '../utils/reminderMessages';
 
 const isAndroid = (): boolean => Capacitor.getPlatform() === 'android';
 const REMINDER_CHANNEL_ID = 'reminders';
@@ -48,12 +49,16 @@ function computeFireTime(rem: LocalReminder): Date | null {
 /** Schedule a single reminder (cancel first to avoid duplicates). */
 async function scheduleOne(rem: LocalReminder): Promise<void> {
   const at = computeFireTime(rem);
-  if (!at || !rem.enabled) return;
+  if (!at || !rem.enabled || rem.acknowledged_at) return;
 
   // Avoid scheduling in the past
   if (at.getTime() <= Date.now()) return;
 
   const id = rem.id;
+  const text = buildReminderNotificationText({
+    title: rem.title,
+    reminderType: rem.reminder_type,
+  });
 
   try {
     // Cancel any existing scheduled notification with the same id
@@ -61,10 +66,11 @@ async function scheduleOne(rem: LocalReminder): Promise<void> {
 
     const base: LocalNotificationSchema = {
       id,
-      title: 'OurGLP1 Reminder',
-      body: rem.title,
-      schedule: { at },
-      sound: undefined, // iOS: set to a bundled sound name if you add custom ones
+      title: text.title,
+      body: text.body,
+      schedule: { at, allowWhileIdle: true },
+      sound: 'default',
+      extra: { type: rem.reminder_type ?? 'generic', rowId: rem.id, route: '/reminders' },
     };
 
     await LocalNotifications.schedule({
@@ -118,4 +124,3 @@ export async function initNotifications(opts?: { actionTypes?: ActionType[] }): 
   await ensureAndroidChannel();
   await rescheduleAllReminders();
 }
-

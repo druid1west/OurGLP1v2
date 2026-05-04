@@ -218,8 +218,12 @@ ON glp1_experience_logs(user_id, local_day)
     `,
     'reminders'
   );
+  await ensureColumns(conn, 'reminders', [
+    { name: 'acknowledged_at', sql: 'acknowledged_at TEXT' },
+  ]);
   await conn.execute(`CREATE INDEX IF NOT EXISTS reminders_datetime_idx ON reminders(datetime)`);
   await conn.execute(`CREATE INDEX IF NOT EXISTS reminders_dow_idx ON reminders(day_of_week)`);
+  await conn.execute(`CREATE INDEX IF NOT EXISTS reminders_acknowledged_idx ON reminders(acknowledged_at)`);
 
   // ─────────────────────────────────────────
   // settings
@@ -388,4 +392,3 @@ await conn.execute(`CREATE INDEX IF NOT EXISTS idx_glp1_archive_range ON glp1_gr
 
 
 }
-

@@ -1,140 +1,479 @@
 /* src/pages/RemindersPage.module.css */
 
-/* Let IonContent own scrolling + spacing around fixed navs */
-.contentPad { background: #f6f9f9; }
+.contentPad {
+  --background: var(--bg-primary);
+  background: var(--bg-primary);
+}
 
 .contentPad::part(scroll) {
-  padding-top: calc(var(--top-nav-height, 45px) + env(safe-area-inset-top) + 1px);
-  padding-bottom: calc(var(--bottom-nav-height, 70px) + env(safe-area-inset-bottom) + 45px);
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 18px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 44px);
   padding-left: 16px;
   padding-right: 16px;
 }
 
 .pageInner {
-  max-width: 700px;
   width: 100%;
+  max-width: 940px;
   margin: 0 auto;
+  color: var(--text-primary);
 }
 
 .pageInner * {
-  max-width: 100%;
   box-sizing: border-box;
 }
 
-/* Titles */
-.subtitle {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #174b4b;
-  margin: 0 0 1rem 0;
-  text-align: center;
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 20px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #174b4b, #2a9d8f);
+  color: #fff;
+}
+
+.kicker {
+  margin: 0 0 6px;
+  font-size: 0.77rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  opacity: 0.86;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  line-height: 1.08;
+  font-weight: 850;
+  letter-spacing: 0;
 }
 
 .bodyText {
-  margin: 0 0 1rem 0;
+  max-width: 620px;
+  margin: 10px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.45;
 }
 
-/* Fields */
+.counterPanel {
+  min-width: 106px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.counterValue {
+  display: block;
+  min-width: 56px;
+  height: 56px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #d9182e;
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 56px;
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(80, 0, 0, 0.22);
+}
+
+.counterLabel {
+  margin-top: 7px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.statusCard,
+.panel {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 10px 28px rgba(13, 43, 43, 0.08);
+}
+
+.statusCard {
+  min-height: 78px;
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.statusCard span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.statusCard strong {
+  min-width: 0;
+  color: var(--text-heading);
+  font-size: 0.96rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.statusCard strong[data-status='granted'] {
+  color: #047857;
+}
+
+.statusCard strong[data-status='denied'] {
+  color: var(--danger-color);
+}
+
+.notice {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(42, 157, 143, 0.35);
+  background: rgba(42, 157, 143, 0.1);
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.panel {
+  margin-top: 14px;
+  padding: 18px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.15rem;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.secondaryButton,
+.presetButton,
+.iconAction {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.secondaryButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(13, 43, 43, 0.16);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.presetButton {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(13, 43, 43, 0.12);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.presetButton svg {
+  color: var(--accent-primary);
+}
+
+.presetButton strong,
+.presetButton small {
+  display: block;
+  min-width: 0;
+}
+
+.presetButton strong {
+  color: var(--text-heading);
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.presetButton small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .fieldGroup {
-  margin: 0 0 1rem 0;
+  min-width: 0;
 }
 
 .label {
-  font-weight: 600;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
+  color: var(--text-secondary);
+  font-weight: 800;
 }
 
-/* Shared “inputStyle” moved here */
 .input {
   width: 100%;
-  padding: 12px;
+  min-height: 46px;
+  padding: 11px 12px;
   border-radius: 8px;
-  border: 2px solid #0d2b2b;
-  background-color: #f8f5f5;
-  color: #0a0a0a;
-  font-size: 1rem;
-  box-sizing: border-box;
-}
-
-/* time/date input normalization */
-.inputField {
-  -webkit-appearance: none;
-  appearance: none;
-  box-sizing: border-box;
-
-  width: 100%;
-  height: 44px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 2px solid #0d2b2b;
-  background-color: #f8f5f5;
-  color: #0a0a0a;
+  border: 1px solid rgba(13, 43, 43, 0.24);
+  background: var(--bg-input);
+  color: var(--text-primary);
   font-size: 1rem;
 }
 
-.helperText {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-top: 6px;
+.input:focus {
+  outline: 2px solid rgba(42, 157, 143, 0.32);
+  outline-offset: 2px;
 }
 
-/* Spacing helpers */
-.mt12 { margin-top: 12px; }
-
-.hr {
-  margin: 2rem 0;
-  border: 0;
-  height: 1px;
-  background: rgba(0,0,0,0.12);
+.saveButton {
+  margin-top: 16px;
 }
 
-.savedTitle {
-  margin: 0 0 12px 0;
-}
-
-.muted {
-  color: rgba(10,10,10,0.7);
-}
-
-/* Reminders list */
 .reminderList {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: grid;
+  gap: 10px;
 }
 
 .reminderItem {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
+  padding: 13px;
+  border-radius: 8px;
+  border: 1px solid rgba(13, 43, 43, 0.11);
+  background: var(--bg-primary);
+}
+
+.reminderItem[data-state='open'] {
+  border-color: rgba(217, 24, 46, 0.28);
+}
+
+.reminderItem[data-state='paused'] {
+  opacity: 0.76;
+}
+
+.reminderItem[data-state='done'] {
+  background: rgba(42, 157, 143, 0.08);
 }
 
 .reminderMain {
-  flex: 1;
   min-width: 0;
 }
 
-/* Delete button (no inline styles) */
-.deleteBtn {
-  padding: 6px 10px;
-  background: #c0392b;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  white-space: nowrap;
+.reminderTopLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.deleteBtn:hover {
-  filter: brightness(0.95);
+.reminderTopLine strong {
+  color: var(--text-heading);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.typePill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--badge-active-bg);
+  border: 1px solid var(--badge-active-border);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.reminderMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.reminderMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.doneLine {
+  margin-top: 7px;
+  color: #047857;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.itemActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.iconAction {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(13, 43, 43, 0.14);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.iconAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deleteAction {
+  color: var(--danger-color);
+  background: var(--danger-bg);
+}
+
+.emptyText {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 .bottomSpacer {
-  height: max(24px, calc(var(--bottom-nav-height, 96px) * 0.4));
+  height: max(24px, calc(var(--bottom-nav-height, 88px) * 0.35));
 }
 
+:global([data-theme='dark']) .hero,
+:global(body[data-theme='dark']) .hero {
+  background: linear-gradient(135deg, #12312f, #1f6f66);
+}
+
+:global([data-theme='dark']) .statusCard,
+:global([data-theme='dark']) .panel,
+:global(body[data-theme='dark']) .statusCard,
+:global(body[data-theme='dark']) .panel {
+  box-shadow: none;
+}
+
+:global([data-theme='dark']) .secondaryButton,
+:global([data-theme='dark']) .presetButton,
+:global([data-theme='dark']) .reminderItem,
+:global([data-theme='dark']) .iconAction,
+:global(body[data-theme='dark']) .secondaryButton,
+:global(body[data-theme='dark']) .presetButton,
+:global(body[data-theme='dark']) .reminderItem,
+:global(body[data-theme='dark']) .iconAction {
+  border-color: var(--border-light);
+}
+
+@media (max-width: 760px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .counterPanel {
+    width: 100%;
+    min-width: 0;
+    aspect-ratio: auto;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .counterLabel {
+    margin-top: 0;
+  }
+
+  .statusGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .presetGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectionHeader {
+    display: grid;
+  }
+
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .reminderItem {
+    grid-template-columns: 1fr;
+  }
+
+  .itemActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 430px) {
+  .presetGrid {
+    grid-template-columns: 1fr;
+  }
+}

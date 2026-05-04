@@ -3,6 +3,7 @@ import { getDb } from '../db/sqlite';
 import { scheduleSleepReminderIfSet, cancelSleepReminder } from '../notifications/sleepReminder'; // ⬅ ADD THIS
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { getNotificationSoundId } from '../db/SettingsRepository';
+import { buildReminderNotificationText } from '../utils/reminderMessages';
 
 export type LocalReminder = {
   id: number;
@@ -13,6 +14,7 @@ export type LocalReminder = {
   enabled: 0 | 1;
   reminder_type: string | null;
   day_of_week: string | null;
+  acknowledged_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -26,18 +28,27 @@ type ReminderRow = Readonly<{
   enabled: number | string | null;
   reminder_type: string | null;
   day_of_week: string | null;
+  acknowledged_at: string | null;
   created_at: string | null;
   updated_at: string | null;
 }>;
 
 type QueryResult<T> = Readonly<{ values?: readonly T[] }>;
+type ReminderCreateInput = Omit<LocalReminder, 'id' | 'created_at' | 'updated_at' | 'acknowledged_at'> & {
+  acknowledged_at?: string | null;
+};
+type IOSColumnsHeader = Readonly<{ ios_columns: readonly string[] }>;
+
+function isIOSColumnsHeader(row: unknown): row is IOSColumnsHeader {
+  return Boolean(row && typeof row === 'object' && 'ios_columns' in row);
+}
 
 type SoundId = 'default' | 'beep' | 'chime';
 
 function resolveSound(soundId: SoundId): { iosSound?: string; androidChannelId: string } {
   if (soundId === 'beep') return { iosSound: 'beep.caf', androidChannelId: 'reminders_beep' };
   if (soundId === 'chime') return { iosSound: 'chime.caf', androidChannelId: 'reminders_chime' };
-  return { iosSound: undefined, androidChannelId: 'reminders_default' };
+  return { iosSound: 'default', androidChannelId: 'reminders_default' };
 }
 
 async function ensureAndroidChannel(channelId: string, soundId: SoundId): Promise<void> {
@@ -79,18 +90,22 @@ async function rescheduleDbReminders(): Promise<void> {
 
   // Build fresh notifications
   const notifications = rows
-    .filter(r => r.enabled === 1 && !!r.datetime)
+    .filter(r => r.enabled === 1 && !r.acknowledged_at && !!r.datetime)
     .map(r => {
       const at = buildAtFromIsoWithAdvance(r.datetime as string, r.advance_minutes);
       if (!at) return null;
+      const text = buildReminderNotificationText({
+        title: r.title,
+        reminderType: r.reminder_type,
+      });
       return {
         id: r.id,                                  // keep id == row id
-        title: 'OurGLP1 Reminder',
-        body: r.title,
-        schedule: { at },                          // one-time
+        title: text.title,
+        body: text.body,
+        schedule: { at, allowWhileIdle: true },     // one-time
         sound: iosSound,                           // iOS
         channelId: androidChannelId,               // Android
-        extra: { type: r.reminder_type ?? 'generic', rowId: r.id },
+        extra: { type: r.reminder_type ?? 'generic', rowId: r.id, route: '/reminders' },
       };
     })
     .filter((n): n is NonNullable<typeof n> => !!n);
@@ -133,6 +148,7 @@ function rowToReminder(row: ReminderRow): LocalReminder {
     enabled: (asInt(row.enabled, 1) ? 1 : 0) as 0 | 1,
     reminder_type: asStr(row.reminder_type, null),
     day_of_week: asStr(row.day_of_week, null),
+    acknowledged_at: asStr(row.acknowledged_at, null),
     created_at: asStr(row.created_at, new Date().toISOString())!,
     updated_at: asStr(row.updated_at, new Date().toISOString())!,
   };
@@ -143,7 +159,7 @@ export async function listReminders(): Promise<LocalReminder[]> {
   const res = (await db.query(
     `
     SELECT id, title, datetime, method, advance_minutes, enabled, reminder_type,
-           day_of_week, created_at, updated_at
+           day_of_week, acknowledged_at, created_at, updated_at
     FROM reminders
     ORDER BY CASE WHEN datetime IS NULL THEN 1 ELSE 0 END,
              datetime(datetime) ASC
@@ -151,20 +167,18 @@ export async function listReminders(): Promise<LocalReminder[]> {
   )) as QueryResult<ReminderRow>;
 
   const rows = res.values ?? [];
-  return rows.map(rowToReminder);
+  return rows.filter((row) => !isIOSColumnsHeader(row)).map(rowToReminder);
 }
 
-export async function createReminder(
-  input: Omit<LocalReminder, 'id' | 'created_at' | 'updated_at'>
-): Promise<number> {
+export async function createReminder(input: ReminderCreateInput): Promise<number> {
   const db = await getDb();
   const now = new Date().toISOString();
   const methodJson = JSON.stringify(input.method ?? []);
 
   await db.run(
     `INSERT INTO reminders
-      (title, datetime, method, advance_minutes, enabled, reminder_type, day_of_week, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (title, datetime, method, advance_minutes, enabled, reminder_type, day_of_week, acknowledged_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.title,
       input.datetime,
@@ -173,6 +187,7 @@ export async function createReminder(
       input.enabled ?? 1,
       input.reminder_type ?? null,
       input.day_of_week ?? null,
+      input.acknowledged_at ?? null,
       now,
       now,
     ]
@@ -191,6 +206,48 @@ export async function createReminder(
 export async function deleteReminder(id: number): Promise<void> {
   const db = await getDb();
   await db.run(`DELETE FROM reminders WHERE id = ?`, [id]);
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id }] });
+  } catch (e) {
+    console.warn('[Reminders] cancel after delete failed', e);
+  }
+}
+
+export async function acknowledgeReminder(id: number): Promise<void> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  await db.run(
+    `UPDATE reminders
+     SET acknowledged_at = ?, updated_at = ?
+     WHERE id = ?`,
+    [now, now, id]
+  );
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id }] });
+  } catch (e) {
+    console.warn('[Reminders] cancel after acknowledge failed', e);
+  }
+}
+
+export async function setReminderEnabled(id: number, enabled: boolean): Promise<void> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  await db.run(
+    `UPDATE reminders
+     SET enabled = ?,
+         acknowledged_at = CASE WHEN ? = 1 THEN NULL ELSE acknowledged_at END,
+         updated_at = ?
+     WHERE id = ?`,
+    [enabled ? 1 : 0, enabled ? 1 : 0, now, id]
+  );
+
+  if (!enabled) {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id }] });
+    } catch (e) {
+      console.warn('[Reminders] cancel after pause failed', e);
+    }
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -208,5 +265,3 @@ export async function rescheduleAllReminders(): Promise<void> {
   await rescheduleDbReminders();     // ← weekly/one-off reminders from RemindersPage
   await scheduleSleepReminderIfSet(); // ← daily bedtime reminder
 }
-
-

@@ -6,21 +6,12 @@ import { setAppBadge } from '../utils/appBadge';
 import { emitReminderAbsolute } from '../utils/reminderEvents';
 import { listReminders } from '../db/RemindersRepository';
 
-/** Count as active when enabled=1 and datetime is in the future (considering advance minutes).
- *  Null datetime is treated as active (always shows in the counter).
- */
-function isActive(
+/** Count reminders that still need user acknowledgement. */
+function needsAcknowledgement(
   enabled: 0 | 1,
-  iso: string | null,
-  nowMs: number,
-  advanceMin: number
+  acknowledgedAt: string | null
 ): boolean {
-  if (!enabled) return false;
-  if (!iso) return true; // treat null as active
-  const at = Date.parse(iso);
-  if (!Number.isFinite(at)) return false;
-  const fireAt = at - (advanceMin || 0) * 60_000;
-  return fireAt >= nowMs;
+  return Boolean(enabled && !acknowledgedAt);
 }
 
 const clampNonNegative = (n: number) =>
@@ -53,11 +44,10 @@ const ReminderBadgeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     inflight.current = (async () => {
       try {
         const rows = await listReminders();
-        const nowMs = Date.now();
 
         const next = clampNonNegative(
           rows.reduce<number>((acc, r) => {
-            return acc + (isActive(r.enabled, r.datetime, nowMs, r.advance_minutes) ? 1 : 0);
+            return acc + (needsAcknowledgement(r.enabled, r.acknowledged_at) ? 1 : 0);
           }, 0)
         );
 
@@ -176,8 +166,6 @@ const ReminderBadgeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 };
 
 export default ReminderBadgeProvider;
-
-
 
 
 

@@ -389,6 +389,35 @@ const App: React.FC = () => {
     };
   }, [dbReady, isNative, isAndroid]);
 
+  // Tapping a local reminder should land users where they can acknowledge it.
+  useEffect(() => {
+    if (!dbReady || !isNative) return;
+
+    let mounted = true;
+    let handle: { remove: () => Promise<void> } | null = null;
+
+    void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+      const extra = action.notification.extra as { route?: unknown } | undefined;
+      const route = typeof extra?.route === 'string' ? extra.route : '/reminders';
+      history.push(route);
+    }).then((listener) => {
+      if (mounted) {
+        handle = listener;
+      } else {
+        void listener.remove();
+      }
+    }).catch((e) => {
+      logger.warn('[App] local notification tap listener failed', {
+        msg: e instanceof Error ? e.message : String(e),
+      });
+    });
+
+    return () => {
+      mounted = false;
+      if (handle) void handle.remove();
+    };
+  }, [dbReady, history, isNative]);
+
   // Telemetry boot (Sentry + Analytics) after DB is ready
   useEffect(() => {
     if (!dbReady || telemetryBootedRef.current) return;
@@ -557,5 +586,4 @@ const App: React.FC = () => {
 };
 
 export default App;
-
 

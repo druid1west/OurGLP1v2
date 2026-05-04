@@ -1,7 +1,6 @@
 // TopNav.tsx
 import React from 'react';
-import { Link, useHistory } from 'react-router-dom';
-import { useIonRouter, type RouterDirection } from '@ionic/react';
+import { Link } from 'react-router-dom';
 import { useReminderBadge } from './ReminderBadgeContext';
 import { useAuth } from '../context/useAuth';
 
@@ -36,7 +35,7 @@ const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '16px',
+  gap: '14px',
   width: '100%',
   marginTop: 0, // no extra nudge needed once we pad above
   whiteSpace: 'nowrap',
@@ -44,19 +43,11 @@ const rowStyle: React.CSSProperties = {
 
 
 const linkStyle: React.CSSProperties = {
-  fontSize: '14px',
+  fontSize: '13px',
   color: 'white',
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
-};
-
-const btnStyle: React.CSSProperties = {
-  ...linkStyle,
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  padding: 0,
 };
 
 const badgeStyle: React.CSSProperties = {
@@ -72,10 +63,8 @@ const badgeStyle: React.CSSProperties = {
 };
 
 const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { count, refreshCount } = useReminderBadge();
-  const ion = useIonRouter();
-  const history = useHistory();
 
   React.useEffect(() => {
     void refreshCount();
@@ -87,33 +76,6 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [refreshCount]);
-
-  type NavDirection = Extract<RouterDirection, 'forward' | 'back' | 'root' | 'none'>;
-
-  const navigateTo = React.useCallback(
-    (path: string, replace = false): void => {
-      const dir: NavDirection = replace ? 'root' : 'forward';
-      // Reset Ionic stack (dir === 'root' clears history inside the Ionic nav stack)
-      ion.push(path, dir);
-      // Keep the browser URL/history consistent as well
-      if (replace) {
-        history.replace(path);
-      } else {
-        history.push(path);
-      }
-    },
-    [ion, history]
-  );
-
-  const handleLogout = async (): Promise<void> => {
-    try {
-      if (logout) {
-        await logout();
-      }
-    } finally {
-      navigateTo('/login', true);
-    }
-  };
 
   return (
     <nav id="topNav" className="top-nav" style={barStyle} role="navigation" aria-label="Top navigation">
@@ -133,23 +95,15 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
               Reminders
               {count > 0 && <span style={badgeStyle}>{count}</span>}
             </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Log out"
-              style={btnStyle}
-            >
-              Logout
-            </button>
           </>
         ) : (
           showWhenAnon && (
             <>
-              <Link to="/welcome" style={{ ...linkStyle, fontSize: '15px' }}>Welcome</Link>
-              <Link to="/home" style={{ ...linkStyle, fontSize: '15px' }}>Home</Link>
-              <Link to="/login" style={{ ...linkStyle, fontSize: '15px' }}>Login</Link>
-              <Link to="/register" style={{ ...linkStyle, fontSize: '15px' }}>Register</Link>
-              <Link to="/information" style={{ ...linkStyle, fontSize: '15px' }}>Info</Link>
+              <Link to="/welcome" style={linkStyle}>Welcome</Link>
+              <Link to="/home" style={linkStyle}>Home</Link>
+              <Link to="/login" style={linkStyle}>Login</Link>
+              <Link to="/register" style={linkStyle}>Register</Link>
+              <Link to="/information" style={linkStyle}>Info</Link>
               
             </>
           )
@@ -160,5 +114,4 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
 };
 
 export default TopNav;
-
 
