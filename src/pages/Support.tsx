@@ -108,7 +108,7 @@ const Support: React.FC = () => {
   const sub = useSubscriptionStatus();
 
   const subLabel = useMemo(() => {
-    if (sub.kind === 'pro') return sub.sandbox ? 'Pro — Sandbox (Test)' : 'Pro — Active';
+    if (sub.kind === 'pro') return 'Pro — Active';
     if (sub.kind === 'free') return 'Not Subscribed';
     return 'Checking…';
   }, [sub]);
@@ -158,10 +158,24 @@ const Support: React.FC = () => {
                 Restore Purchases
               </IonButton>
             </div>
+          </section>
 
-            <p className={`${styles.body} ${styles.note}`}>
-              Testers: if you’re using a sandbox/test account, the status will show{' '}
-              <em>“Pro — Sandbox (Test)”</em>.
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Subscription Plans</h3>
+            <p className={styles.body}>
+              OurGLP1 Pro is available as a monthly subscription at $4.99/month or a yearly
+              subscription at $39.99/year, with local App Store pricing shown before purchase.
+              You can manage or cancel subscriptions from your Apple ID subscription settings.
+            </p>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Apple Health Sync</h3>
+            <p className={styles.body}>
+              With permission, OurGLP1 can read Apple Health steps, active calories, exercise
+              minutes, sleep, heart rate, and workouts. This may include Apple Watch activity that
+              appears in Apple Health. You can change Apple Health permissions in the Health app at
+              any time.
             </p>
           </section>
 
@@ -204,8 +218,6 @@ const Support: React.FC = () => {
 };
 
 export default Support;
-
-
 
 
 

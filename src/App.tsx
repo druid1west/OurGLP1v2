@@ -39,6 +39,7 @@ import Paywall from './pages/Paywall';
 import HealthTracker from './pages/HealthTracker';
 import Today from './pages/Today';
 import Protocols from './pages/Protocols';
+import Coach from './pages/Coach';
 import PersonalPlan from './pages/personalPlan';
 import Support from './pages/Support';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -556,6 +557,7 @@ const App: React.FC = () => {
                   {/* Private routes */}
                   <PrivateRoute exact path="/settings" component={Settings} />
                   <PrivateRoute exact path="/today" component={Today} />
+                  <PrivateRoute exact path="/coach" component={Coach} />
                   <PrivateRoute exact path="/protocols" component={Protocols} />
                   <PrivateRoute exact path="/profile" component={Profile} />
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />
@@ -586,4 +588,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

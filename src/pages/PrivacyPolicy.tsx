@@ -54,6 +54,17 @@ const PrivacyPolicy: React.FC = () => {
             </p>
           </section>
 
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Apple Health Sync</h3>
+            <p className={styles.body}>
+              Apple Health sync is optional. If you grant permission, OurGLP1 can read supported
+              health and activity data such as steps, active calories, exercise minutes, sleep,
+              heart rate, and workouts. This may include data recorded by Apple Watch through Apple
+              Health. Apple Health data is used to show your activity and wellness patterns inside
+              the app and is stored locally on your device.
+            </p>
+          </section>
+
           {/* Data we collect automatically */}
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>Diagnostics & Analytics</h3>
@@ -97,6 +108,7 @@ const PrivacyPolicy: React.FC = () => {
             <h3 className={styles.sectionHeading}>How We Use Data</h3>
             <ul className={styles.list}>
               <li>To operate the app (save and display your local entries).</li>
+              <li>To display Apple Health activity and wellness data when you grant permission.</li>
               <li>To send push reminders and alerts you request.</li>
               <li>To improve reliability and performance through anonymized analytics.</li>
               <li>To communicate with you when you contact support.</li>
@@ -197,6 +209,5 @@ const PrivacyPolicy: React.FC = () => {
 };
 
 export default PrivacyPolicy;
-
 
 

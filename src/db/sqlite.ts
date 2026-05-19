@@ -108,7 +108,23 @@ export async function initDbOnce(): Promise<void> {
         updated_at TEXT,
         created_at TEXT,
         synced_at INTEGER,
-        has_pro INTEGER NOT NULL DEFAULT 0
+        has_pro INTEGER NOT NULL DEFAULT 0,
+        date_of_birth TEXT,
+        address1 TEXT,
+        address2 TEXT,
+        city TEXT,
+        country TEXT,
+        postcode TEXT,
+        start_weight REAL,
+        weight_unit TEXT NOT NULL DEFAULT 'kg',
+        height_unit TEXT NOT NULL DEFAULT 'cm',
+        glp1_status TEXT,
+        glp1_start_date TEXT,
+        main_reason TEXT,
+        biggest_challenge TEXT,
+        main_concerns_json TEXT,
+        coach_onboarding_completed_at TEXT,
+        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'
       );
 
       CREATE TABLE IF NOT EXISTS sync_state (
@@ -164,7 +180,18 @@ export async function initDbOnce(): Promise<void> {
         email_verified_at TEXT,
         email_verify_token TEXT,
         email_verify_expiry TEXT,
-        apple_private_relay INTEGER NOT NULL DEFAULT 0
+        apple_private_relay INTEGER NOT NULL DEFAULT 0,
+        date_of_birth TEXT,
+        start_weight REAL,
+        weight_unit TEXT NOT NULL DEFAULT 'kg',
+        height_unit TEXT NOT NULL DEFAULT 'cm',
+        glp1_status TEXT,
+        glp1_start_date TEXT,
+        main_reason TEXT,
+        biggest_challenge TEXT,
+        main_concerns_json TEXT,
+        coach_onboarding_completed_at TEXT,
+        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'
       );
 
       CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique
@@ -235,4 +262,3 @@ export async function getDb(): Promise<SQLiteDBConnection> {
 }
 
 export { db };
-

@@ -26,6 +26,7 @@ import { useAuth } from '../context/useAuth';
 import {
   getHealthDailySummaryByDay,
   getLastInjectionLocal,
+  importAppleHealthWorkoutsAndEmit,
   initHealthTables,
   listExercises,
   listHealthLogsRange,
@@ -483,6 +484,7 @@ const Today: React.FC = () => {
 
       await AppleHealth.requestAuthorization();
       const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day: today });
+      const workoutResult = await AppleHealth.getWorkouts({ day: today });
 
       await upsertHealthDailySummary({
         day: summary.day,
@@ -494,9 +496,14 @@ const Today: React.FC = () => {
         restingHeartRate: summary.restingHeartRate,
         workouts: summary.workouts,
       });
+      const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
 
       setSyncState('synced');
-      setSyncMessage('Apple Health is up to date for today.');
+      setSyncMessage(
+        imported.inserted > 0
+          ? `Apple Health is up to date. Added ${imported.inserted} workout${imported.inserted === 1 ? '' : 's'}.`
+          : 'Apple Health is up to date for today.'
+      );
       await loadToday();
     } catch (error) {
       logger.warn('[Today] Apple Health sync failed', {

@@ -58,6 +58,15 @@ export type ExerciseEntry = {
   created_at?: string;
 };
 
+export type AppleHealthWorkoutImport = {
+  id?: string;
+  workoutType: string;
+  startDate: string;
+  endDate: string;
+  durationMinutes?: number | null;
+  caloriesKcal?: number | null;
+};
+
 export type HealthDailySummaryData = {
   steps?: number | null;
   activeEnergyKcal?: number | null;
@@ -94,6 +103,30 @@ function toNumberOrNull(value: unknown): number | null {
   if (value == null) return null;
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function localYmdFromIso(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function localTimeFromIso(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+function localDayShortFromIso(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] ?? null;
 }
 
 // Round a Date to the nearest 15-min block (by floor to block start).
@@ -893,6 +926,65 @@ export async function deleteExerciseById(id: number | string): Promise<void> {
   const n = typeof id === 'number' ? id : Number(id);
   if (!Number.isFinite(n)) return;
   await db.run(`DELETE FROM exercises WHERE id = ?`, [n]);
+}
+
+export async function importAppleHealthWorkouts(
+  workouts: AppleHealthWorkoutImport[]
+): Promise<{ inserted: number; skipped: number }> {
+  const db = await getDb();
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const workout of workouts) {
+    const exerciseDate = localYmdFromIso(workout.startDate);
+    const dayOfWeek = localDayShortFromIso(workout.startDate);
+    const startTime = localTimeFromIso(workout.startDate);
+    const endTime = localTimeFromIso(workout.endDate);
+    const exerciseType = workout.workoutType?.trim() || 'Apple Watch Workout';
+    const calories = toNumberOrNull(workout.caloriesKcal);
+
+    if (!exerciseDate || !dayOfWeek || !startTime || !endTime) {
+      skipped += 1;
+      continue;
+    }
+
+    const existing = await db.query(
+      `
+      SELECT id
+      FROM exercises
+      WHERE exercise_date = ?
+        AND start_time = ?
+        AND end_time = ?
+        AND exercise_type = ?
+      LIMIT 1
+      `,
+      [exerciseDate, startTime, endTime, exerciseType]
+    );
+
+    if (mapSingleRow(existing)) {
+      skipped += 1;
+      continue;
+    }
+
+    await db.run(
+      `INSERT INTO exercises (exercise_date, day_of_week, start_time, end_time, exercise_type, calories_burned)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [exerciseDate, dayOfWeek, startTime, endTime, exerciseType, calories]
+    );
+    inserted += 1;
+  }
+
+  return { inserted, skipped };
+}
+
+export async function importAppleHealthWorkoutsAndEmit(
+  workouts: AppleHealthWorkoutImport[]
+): Promise<{ inserted: number; skipped: number }> {
+  const result = await importAppleHealthWorkouts(workouts);
+  if (result.inserted > 0) {
+    emitHealthChanged('exercise');
+  }
+  return result;
 }
 
 /**

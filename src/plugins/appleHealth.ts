@@ -10,10 +10,20 @@ export type AppleHealthDailySummary = {
   workouts: number;
 };
 
+export type AppleHealthWorkout = {
+  id: string;
+  workoutType: string;
+  startDate: string;
+  endDate: string;
+  durationMinutes: number;
+  caloriesKcal: number | null;
+};
+
 type AppleHealthPlugin = {
   isAvailable(): Promise<{ available: boolean }>;
   requestAuthorization(): Promise<{ granted: boolean }>;
   getDailySummary(options: { day: string }): Promise<AppleHealthDailySummary>;
+  getWorkouts(options: { day: string }): Promise<{ workouts: AppleHealthWorkout[] }>;
 };
 
 export const AppleHealth = registerPlugin<AppleHealthPlugin>('AppleHealth');

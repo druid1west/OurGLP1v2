@@ -34,9 +34,12 @@ const Terms: React.FC = () => {
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>Subscription Summary (Apple-required)</h3>
             <ul className={styles.list}>
-              <li><strong>Title:</strong> Pro</li>
+              <li><strong>Title:</strong> OurGLP1 Pro Monthly</li>
               <li><strong>Length:</strong> 1 month (auto-renewable)</li>
-              <li><strong>Price:</strong> £9.99 GBP / month (or local equivalent)</li>
+              <li><strong>Price:</strong> $4.99 USD / month (or local equivalent)</li>
+              <li><strong>Title:</strong> OurGLP1 Pro Yearly</li>
+              <li><strong>Length:</strong> 1 year (auto-renewable)</li>
+              <li><strong>Price:</strong> $39.99 USD / year (or local equivalent)</li>
               <li>
                 <strong>Links:</strong> {link('/privacy', 'Privacy Policy')} ·{' '}
                 {link('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/', 'Apple Standard EULA')}
@@ -69,8 +72,9 @@ const Terms: React.FC = () => {
             <h3 className={styles.sectionHeading}>3) Subscriptions & Billing</h3>
             <ul className={styles.list}>
               <li>
-                OurGLP1 offers an auto-renewing subscription (“Pro”) available for purchase in the App.
-                See the Subscription Summary above for the title, length, and price.
+                OurGLP1 offers auto-renewing monthly and yearly subscriptions (“Pro”) available for
+                purchase in the App. See the Subscription Summary above for the titles, lengths, and
+                prices.
               </li>
               <li>
                 Payment is charged to your Apple ID account upon confirmation of purchase. Your
@@ -126,6 +130,16 @@ const Terms: React.FC = () => {
             </p>
           </section>
 
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Apple Health</h3>
+            <p className={styles.body}>
+              If you grant permission, OurGLP1 can read supported Apple Health data such as steps,
+              active calories, exercise minutes, sleep, heart rate, and workouts. This may include
+              data recorded by Apple Watch through Apple Health. Apple Health sync is optional and
+              can be controlled in iOS Health permissions.
+            </p>
+          </section>
+
           {/* Privacy */}
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>7) Privacy</h3>
@@ -149,8 +163,9 @@ const Terms: React.FC = () => {
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>9) Third-Party Services</h3>
             <p className={styles.body}>
-              The App may integrate with third-party services (e.g., Apple Push Notification service).
-              Your use of such services may be subject to their terms and policies.
+              The App may integrate with third-party services, including Apple Push Notification
+              service, Apple Health, StoreKit, and RevenueCat for purchase status. Your use of such
+              services may be subject to their terms and policies.
             </p>
           </section>
 
@@ -220,4 +235,3 @@ const Terms: React.FC = () => {
 };
 
 export default Terms;
-

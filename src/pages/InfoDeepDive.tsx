@@ -126,6 +126,12 @@ const InfoDeepDive: React.FC = () => {
                   <li>Sufficient calories to lose weight safely, not suddenly</li>
                 </ul>
               </div>
+
+              <div className={styles.card}>
+                OurGLP1 can also use optional Apple Health sync to bring in steps,
+                activity, sleep, heart rate, and workouts. If you use Apple Watch,
+                that activity can appear in the app through Apple Health.
+              </div>
             </div>
             </div>
           </SwiperSlide>
@@ -416,4 +422,3 @@ const InfoDeepDive: React.FC = () => {
 };
 
 export default InfoDeepDive;
-

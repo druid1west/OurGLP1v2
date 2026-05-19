@@ -18,6 +18,22 @@
   margin-bottom: 1.5rem;
 }
 
+.helperText {
+  margin: -0.75rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.termsText {
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .nativeInput {
   background-color: var(--background-secondary);
   color: var(--text-primary);
@@ -67,4 +83,3 @@
   padding-left: 16px;
   padding-right: 16px;
 }
-

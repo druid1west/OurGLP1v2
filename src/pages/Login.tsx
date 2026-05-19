@@ -178,7 +178,7 @@ const Login: React.FC = () => {
       await markUserAsLoggedIn(userId);
       await refreshUser();
       window.dispatchEvent(new Event('auth:changed'));
-      history.replace('/today');
+      history.replace('/coach');
     },
     [ensureUsersRowForLocalAccount, history, refreshUser, show],
   );
@@ -285,6 +285,10 @@ const Login: React.FC = () => {
         <div className={styles.pageBg}>
           <div className={styles.container}>
             <h2 className={styles.title}>Welcome back</h2>
+            <p className={styles.helperText}>
+              Your account is stored on this device. Optional Apple Health sync can add steps,
+              activity, sleep, heart rate, and workouts after you grant permission.
+            </p>
 
             {bioBound && (
   <IonButton
@@ -389,7 +393,7 @@ const Login: React.FC = () => {
               </>
             ) : (
               <>
-                <p className={styles.noAcct}>No local account yet.</p>
+                <p className={styles.noAcct}>No local account yet. Create one on this device to begin.</p>
                 <IonButton
                   expand="block"
                   className="custom-button"
@@ -428,8 +432,6 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-
-
 
 
 

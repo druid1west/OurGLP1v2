@@ -131,7 +131,7 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      router.push('/today', 'root');
+      router.push('/coach', 'root');
     }
   }, [router, user]);
 
@@ -155,7 +155,7 @@ const Home: React.FC = () => {
     }
 
     trackEvent('biometric_login_success', { platform });
-    router.push('/today', 'forward');
+    router.push('/coach', 'forward');
   };
 
   // Biometric path: verify only (no credentials saved/fetched)
@@ -241,7 +241,9 @@ GLP-1 Health Tracker
 </h1>
 
 
-<p className={styles.subtitle}>Login Options:</p>
+<p className={styles.subtitle}>
+Track GLP-1 routines with optional Apple Health sync, including Apple Watch activity.
+</p>
 </div>
 
 
@@ -290,6 +292,3 @@ Go Pro
 };
 
 export default Home;
-
-
-

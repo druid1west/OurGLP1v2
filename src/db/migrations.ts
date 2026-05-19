@@ -57,6 +57,22 @@ export async function runMigrations(conn: SQLiteDBConnection): Promise<void> {
   await ensureColumns(conn, 'user_profile', [
     { name: 'has_pro',  sql: 'has_pro INTEGER NOT NULL DEFAULT 0' },
     { name: 'synced_at', sql: 'synced_at INTEGER' },
+    { name: 'date_of_birth', sql: 'date_of_birth TEXT' },
+    { name: 'address1', sql: 'address1 TEXT' },
+    { name: 'address2', sql: 'address2 TEXT' },
+    { name: 'city', sql: 'city TEXT' },
+    { name: 'country', sql: 'country TEXT' },
+    { name: 'postcode', sql: 'postcode TEXT' },
+    { name: 'start_weight', sql: 'start_weight REAL' },
+    { name: 'weight_unit', sql: "weight_unit TEXT NOT NULL DEFAULT 'kg'" },
+    { name: 'height_unit', sql: "height_unit TEXT NOT NULL DEFAULT 'cm'" },
+    { name: 'glp1_status', sql: 'glp1_status TEXT' },
+    { name: 'glp1_start_date', sql: 'glp1_start_date TEXT' },
+    { name: 'main_reason', sql: 'main_reason TEXT' },
+    { name: 'biggest_challenge', sql: 'biggest_challenge TEXT' },
+    { name: 'main_concerns_json', sql: 'main_concerns_json TEXT' },
+    { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
+    { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
   ]);
 
   // ─────────────────────────────────────────
@@ -98,6 +114,22 @@ export async function runMigrations(conn: SQLiteDBConnection): Promise<void> {
     { name: 'auth_provider',     sql: "auth_provider TEXT NOT NULL DEFAULT 'email'" },
     { name: 'provider_sub',      sql: 'provider_sub TEXT' },
     { name: 'apple_private_relay', sql: 'apple_private_relay INTEGER NOT NULL DEFAULT 0' },
+    { name: 'date_of_birth',       sql: 'date_of_birth TEXT' },
+    { name: 'address1',            sql: 'address1 TEXT' },
+    { name: 'address2',            sql: 'address2 TEXT' },
+    { name: 'city',                sql: 'city TEXT' },
+    { name: 'country',             sql: 'country TEXT' },
+    { name: 'postcode',            sql: 'postcode TEXT' },
+    { name: 'start_weight',        sql: 'start_weight REAL' },
+    { name: 'weight_unit',         sql: "weight_unit TEXT NOT NULL DEFAULT 'kg'" },
+    { name: 'height_unit',         sql: "height_unit TEXT NOT NULL DEFAULT 'cm'" },
+    { name: 'glp1_status',         sql: 'glp1_status TEXT' },
+    { name: 'glp1_start_date',     sql: 'glp1_start_date TEXT' },
+    { name: 'main_reason',         sql: 'main_reason TEXT' },
+    { name: 'biggest_challenge',   sql: 'biggest_challenge TEXT' },
+    { name: 'main_concerns_json',  sql: 'main_concerns_json TEXT' },
+    { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
+    { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
   ]);
   await conn.execute(`CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(email_lower)`);
 
@@ -284,7 +316,49 @@ ON glp1_experience_logs(user_id, local_day)
   await ensureColumns(conn, 'user_profile', [
     { name: 'has_pro',  sql: 'has_pro INTEGER NOT NULL DEFAULT 0' },
     { name: 'synced_at', sql: 'synced_at INTEGER' },
+    { name: 'date_of_birth', sql: 'date_of_birth TEXT' },
+    { name: 'address1', sql: 'address1 TEXT' },
+    { name: 'address2', sql: 'address2 TEXT' },
+    { name: 'city', sql: 'city TEXT' },
+    { name: 'country', sql: 'country TEXT' },
+    { name: 'postcode', sql: 'postcode TEXT' },
+    { name: 'start_weight', sql: 'start_weight REAL' },
+    { name: 'weight_unit', sql: "weight_unit TEXT NOT NULL DEFAULT 'kg'" },
+    { name: 'height_unit', sql: "height_unit TEXT NOT NULL DEFAULT 'cm'" },
+    { name: 'glp1_status', sql: 'glp1_status TEXT' },
+    { name: 'glp1_start_date', sql: 'glp1_start_date TEXT' },
+    { name: 'main_reason', sql: 'main_reason TEXT' },
+    { name: 'biggest_challenge', sql: 'biggest_challenge TEXT' },
+    { name: 'main_concerns_json', sql: 'main_concerns_json TEXT' },
+    { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
+    { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
   ]);
+
+  await ensureTable(
+    conn,
+    `
+    CREATE TABLE IF NOT EXISTS coach_checkins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      local_day TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'coach',
+      mood_score INTEGER CHECK (mood_score BETWEEN 1 AND 5),
+      energy_score INTEGER CHECK (energy_score BETWEEN 1 AND 5),
+      appetite_score INTEGER CHECK (appetite_score BETWEEN 1 AND 5),
+      nausea_score INTEGER CHECK (nausea_score BETWEEN 0 AND 5),
+      hydration_status TEXT,
+      protein_status TEXT,
+      bowel_status TEXT,
+      cravings_status TEXT,
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    `,
+    'coach_checkins'
+  );
+  await conn.execute(`CREATE INDEX IF NOT EXISTS idx_coach_checkins_user_time ON coach_checkins(user_id, recorded_at)`);
+  await conn.execute(`CREATE INDEX IF NOT EXISTS idx_coach_checkins_user_day ON coach_checkins(user_id, local_day)`);
 
   // ─────────────────────────────────────────
   // Weekly Summary (prefs, archive, charts)

@@ -17,6 +17,7 @@ import {
   listHealthLogsRange,
   getHealthDailySummaryByDay,
   upsertHealthDailySummary,
+  importAppleHealthWorkoutsAndEmit,
   upsertDailyProtein,
   upsertDailyHydration,
   type HealthDailySummary,
@@ -552,6 +553,7 @@ const HealthTracker: React.FC = () => {
       }
       await AppleHealth.requestAuthorization();
       const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day: exDate });
+      const workoutResult = await AppleHealth.getWorkouts({ day: exDate });
       await upsertHealthDailySummary({
         day: summary.day,
         source: 'apple_health',
@@ -562,7 +564,12 @@ const HealthTracker: React.FC = () => {
         restingHeartRate: summary.restingHeartRate,
         workouts: summary.workouts,
       });
-      setExerciseHealthMessage('Apple Health activity synced.');
+      const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
+      setExerciseHealthMessage(
+        imported.inserted > 0
+          ? `Apple Health activity synced. Added ${imported.inserted} workout${imported.inserted === 1 ? '' : 's'}.`
+          : 'Apple Health activity synced. No new workouts to add.'
+      );
       await loadExerciseHealthSummary();
     } catch (err) {
       logger.warn('[HealthTracker] Apple Health activity sync failed', {
@@ -1793,6 +1800,5 @@ alert('Error saving health data.');
 };
 
 export default HealthTracker;
-
 
 

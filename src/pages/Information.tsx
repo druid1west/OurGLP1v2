@@ -294,6 +294,28 @@ className={styles.swiper}
           <SwiperSlide>
             <div className={styles.slideScroll}>
             <div className={styles.container}>
+              <div className={styles.eyebrow}>Sync</div>
+              <h2 className={styles.h2}>Apple Health &amp; Apple Watch Activity</h2>
+
+              <div className={styles.card}>
+                OurGLP1 can optionally read supported Apple Health data with your permission,
+                including steps, active calories, exercise minutes, sleep, heart rate, and
+                workouts. If you use Apple Watch, activity recorded there can appear in
+                OurGLP1 through Apple Health.
+              </div>
+
+              <div className={styles.card}>
+                Health sync is for tracking and review only. OurGLP1 does not diagnose,
+                prescribe, recommend dosing, or replace professional medical advice.
+              </div>
+            </div>
+            </div>
+          </SwiperSlide>
+
+          {/* Slide 10: Quick actions / links */}
+          <SwiperSlide>
+            <div className={styles.slideScroll}>
+            <div className={styles.container}>
               <div className={styles.center}>
                 <img
                   src="/assets/info/overview.png"
@@ -388,5 +410,4 @@ className={styles.swiper}
 };
 
 export default Info;
-
 

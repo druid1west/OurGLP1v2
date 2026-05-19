@@ -11,6 +11,7 @@ import {
   IonIcon,
   useIonRouter,
 } from '@ionic/react';
+import { useLocation } from 'react-router-dom';
 import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import styles from './Register.module.css';
 import '../theme/variables.css';
@@ -43,6 +44,7 @@ type Form = {
 
 const Register: React.FC = () => {
   const router = useIonRouter();
+  const { search } = useLocation();
   const { refreshUser } = useAuth();
 
   const hasRandomUUID = (c: unknown): c is { randomUUID: () => string } =>
@@ -80,6 +82,11 @@ const Register: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+
+  const returnTo = React.useMemo(() => {
+    const p = new URLSearchParams(search).get('returnTo');
+    return p && p.startsWith('/') ? p : '/coach';
+  }, [search]);
 
   const onChange =
     (field: keyof Form) =>
@@ -175,7 +182,7 @@ const Register: React.FC = () => {
         confirm_passphrase: '',
       });
 
-      router.push('/today', 'root', 'replace');
+      router.push(returnTo, 'root', 'replace');
     } catch (e) {
       logger.error('[Register] error', e);
       alert('Registration failed. Please try again.');
@@ -192,6 +199,10 @@ const Register: React.FC = () => {
         <div className="pageScroll">
           <div className={styles.container}>
             <h2 className={styles.title}>Create Account</h2>
+            <p className={styles.helperText}>
+              Accounts are local to this device. You can connect Apple Health later to include
+              steps, activity, sleep, heart rate, and workouts.
+            </p>
 
             {/* First Name */}
             <IonItem lines="none" className="custom-input-item" style={{ marginBottom: '1rem' }}>
@@ -357,5 +368,3 @@ const Register: React.FC = () => {
 };
 
 export default Register;
-
-

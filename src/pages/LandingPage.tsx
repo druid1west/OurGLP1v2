@@ -122,6 +122,13 @@ const LandingPage: React.FC = () => {
                       </span>
                     </li>
                     <li className={styles.featureItem}>
+                      <span className={styles.featureIcon}>♡</span>
+                      <span>
+                        Apple Health Sync — bring in steps, activity, sleep,
+                        heart rate, and workouts with permission
+                      </span>
+                    </li>
+                    <li className={styles.featureItem}>
                       <span className={styles.featureIcon}>💧</span>
                       <span>
                         Hydration &amp; Electrolytes — stay ahead of dryness &amp;
@@ -168,9 +175,18 @@ const LandingPage: React.FC = () => {
                   <br />
                   • Choose your injection day/time to anchor your week.
                   <br />
-                  • Enable push/email reminders so nothing slips.
+                  • Enable reminders so nothing slips.
                   <br />
-                  • Set goals for fasting, hydration, and protein.
+                  • Connect Apple Health if you want steps, activity, sleep,
+                  heart rate, and workouts included in your daily view.
+                </p>
+
+                <p className={styles.card}>
+                  <strong>Apple Health Sync</strong>
+                  <br />
+                  <br />
+                  With your permission, OurGLP1 can read supported Apple Health data.
+                  That can include activity recorded by Apple Watch through Apple Health.
                 </p>
 
                 <div className={styles.card}>
@@ -218,7 +234,8 @@ const LandingPage: React.FC = () => {
                   <strong>Set Up Your Profile</strong>
                   <br />
                   <br />
-                  Add your medication, dose, height/weight, and reminder preferences.
+                  Add your medication, dose, height/weight, reminder preferences, and
+                  choose whether to connect Apple Health.
                   <br />
                   <br />
                   <IonButton
@@ -234,7 +251,7 @@ const LandingPage: React.FC = () => {
                   <strong>Plan &amp; Reminders</strong>
                   <br />
                   <br />
-                  Review your weekly plan and enable notifications to stay consistent.
+                  Review your weekly plan, Apple Health activity, and notifications to stay consistent.
                   <br />
                   <br />
                   <IonButton
@@ -250,7 +267,8 @@ const LandingPage: React.FC = () => {
                   <strong>Subscribe</strong>
                   <br />
                   <br />
-                  Explore login options, set reminders, or browse features.
+                  OurGLP1 Pro is available for $4.99/month or $39.99/year, with final
+                  local App Store pricing shown before purchase.
                   <br />
                   <br />
                   <IonButton
@@ -298,6 +316,11 @@ const LandingPage: React.FC = () => {
                   </p>
 
                   <p className={styles.cardP}>
+                    Apple Health sync is optional. You can change Health permissions
+                    from the Health app at any time.
+                  </p>
+
+                  <p className={styles.cardP}>
                     To delete your account at any time, go to{' '}
                     <em>Settings → Delete Account</em> and confirm. This action
                     cannot be undone.
@@ -338,8 +361,6 @@ const LandingPage: React.FC = () => {
 };
 
 export default LandingPage;
-
-
 
 
 

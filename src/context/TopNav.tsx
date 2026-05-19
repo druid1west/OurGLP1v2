@@ -83,6 +83,7 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
         {user ? (
           <>
             <Link to="/today" style={linkStyle}>Today</Link>
+            <Link to="/coach" style={linkStyle}>Coach</Link>
             <Link to="/profile" style={linkStyle}>Profile</Link>
             <Link to="/protocols" style={linkStyle}>Protocols</Link>
             <Link to="/personalplan" style={linkStyle}>Plan</Link>
@@ -114,4 +115,3 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
 };
 
 export default TopNav;
-

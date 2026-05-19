@@ -10,6 +10,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDailySummary", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getWorkouts", returnType: CAPPluginReturnPromise),
     ]
 
     private let healthStore = HKHealthStore()
@@ -111,6 +112,57 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
             call.resolve(result)
         }
+    }
+
+    @objc func getWorkouts(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("Apple Health is not available on this device.")
+            return
+        }
+
+        guard let day = call.getString("day"), let bounds = dayBounds(day) else {
+            call.reject("A valid day in YYYY-MM-DD format is required.")
+            return
+        }
+
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        let query = HKSampleQuery(
+            sampleType: HKObjectType.workoutType(),
+            predicate: predicate(start: bounds.start, end: bounds.end),
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [sort]
+        ) { _, samples, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    call.reject(error.localizedDescription)
+                }
+                return
+            }
+
+            let workouts = (samples as? [HKWorkout] ?? []).map { workout -> [String: Any] in
+                var row: [String: Any] = [
+                    "id": workout.uuid.uuidString,
+                    "workoutType": self.workoutTypeLabel(workout.workoutActivityType),
+                    "startDate": self.isoString(workout.startDate),
+                    "endDate": self.isoString(workout.endDate),
+                    "durationMinutes": Int((workout.duration / 60).rounded()),
+                ]
+
+                if let kcal = workout.totalEnergyBurned?.doubleValue(for: HKUnit.kilocalorie()) {
+                    row["caloriesKcal"] = Int(kcal.rounded())
+                } else {
+                    row["caloriesKcal"] = NSNull()
+                }
+
+                return row
+            }
+
+            DispatchQueue.main.async {
+                call.resolve(["workouts": workouts])
+            }
+        }
+
+        healthStore.execute(query)
     }
 
     private func readTypes() -> Set<HKObjectType> {
@@ -260,5 +312,78 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         healthStore.execute(query)
+    }
+
+    private func isoString(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+
+    private func workoutTypeLabel(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .americanFootball: return "American Football"
+        case .archery: return "Archery"
+        case .australianFootball: return "Australian Football"
+        case .badminton: return "Badminton"
+        case .baseball: return "Baseball"
+        case .basketball: return "Basketball"
+        case .bowling: return "Bowling"
+        case .boxing: return "Boxing"
+        case .climbing: return "Climbing"
+        case .cricket: return "Cricket"
+        case .crossTraining: return "Cross Training"
+        case .curling: return "Curling"
+        case .cycling: return "Cycling"
+        case .dance: return "Dance"
+        case .elliptical: return "Elliptical"
+        case .equestrianSports: return "Equestrian Sports"
+        case .fencing: return "Fencing"
+        case .fishing: return "Fishing"
+        case .functionalStrengthTraining: return "Functional Strength Training"
+        case .golf: return "Golf"
+        case .gymnastics: return "Gymnastics"
+        case .handball: return "Handball"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .hiking: return "Hiking"
+        case .hockey: return "Hockey"
+        case .hunting: return "Hunting"
+        case .lacrosse: return "Lacrosse"
+        case .martialArts: return "Martial Arts"
+        case .mindAndBody: return "Mind and Body"
+        case .mixedCardio: return "Mixed Cardio"
+        case .other: return "Workout"
+        case .play: return "Play"
+        case .preparationAndRecovery: return "Preparation and Recovery"
+        case .racquetball: return "Racquetball"
+        case .rowing: return "Rowing"
+        case .rugby: return "Rugby"
+        case .running: return "Running"
+        case .sailing: return "Sailing"
+        case .skatingSports: return "Skating"
+        case .snowSports: return "Snow Sports"
+        case .soccer: return "Soccer"
+        case .socialDance: return "Social Dance"
+        case .softball: return "Softball"
+        case .squash: return "Squash"
+        case .stairClimbing: return "Stair Climbing"
+        case .stairs: return "Stairs"
+        case .stepTraining: return "Step Training"
+        case .surfingSports: return "Surfing"
+        case .swimming: return "Swimming"
+        case .tableTennis: return "Table Tennis"
+        case .taiChi: return "Tai Chi"
+        case .tennis: return "Tennis"
+        case .trackAndField: return "Track and Field"
+        case .traditionalStrengthTraining: return "Strength Training"
+        case .volleyball: return "Volleyball"
+        case .walking: return "Walking"
+        case .waterFitness: return "Water Fitness"
+        case .waterPolo: return "Water Polo"
+        case .waterSports: return "Water Sports"
+        case .wrestling: return "Wrestling"
+        case .yoga: return "Yoga"
+        default: return "Workout"
+        }
     }
 }
