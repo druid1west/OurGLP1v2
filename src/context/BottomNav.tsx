@@ -97,9 +97,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
 
         {user && (
           <>
-            <Link to="/today" style={linkStyle} aria-label="Today">Today</Link>
-            <Link to="/coach" style={linkStyle} aria-label="GLP-1 Coach">Coach</Link>
-            <Link to="/protocols" style={linkStyle} aria-label="Protocols">Protocols</Link>
             <Link to="/settings" style={linkStyle} aria-label="Settings">Settings</Link>
             <Link to="/weeklysummary" style={linkStyle} aria-label="Weekly Summary">Summary</Link>
             {!isPro && (

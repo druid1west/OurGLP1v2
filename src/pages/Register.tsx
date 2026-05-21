@@ -85,7 +85,7 @@ const Register: React.FC = () => {
 
   const returnTo = React.useMemo(() => {
     const p = new URLSearchParams(search).get('returnTo');
-    return p && p.startsWith('/') ? p : '/coach';
+    return p && p.startsWith('/') && p !== '/coach' ? p : '/today';
   }, [search]);
 
   const onChange =

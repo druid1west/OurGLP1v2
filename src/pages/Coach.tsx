@@ -31,6 +31,10 @@ import {
   type HeightUnit,
   type WeightUnit,
 } from '@/db/CoachRepository';
+import { upsertLocalAccount } from '@/db/LocalAccountRepository';
+import { setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
+import { markUserAsLoggedIn, registerLocalUser } from '@/services/localAuth';
+import { hashPassword } from '@/utils/password';
 import styles from './Coach.module.css';
 
 type ChatMessage = Readonly<{
@@ -53,6 +57,7 @@ const starterQuestions = [
 
 const setupSteps = [
   'first_name',
+  'account',
   'units',
   'height',
   'current_weight',
@@ -60,11 +65,14 @@ const setupSteps = [
   'goal_weight',
   'glp1_status',
   'medication_name',
+  'fasting_schedule',
+  'injection_schedule',
   'main_reason',
   'biggest_challenge',
   'dob',
   'address',
   'checkin_frequency',
+  'monthly_anchor',
   'finish',
 ] as const;
 
@@ -97,6 +105,49 @@ const checkinFrequencyOptions: Array<{ value: CoachCheckinFrequency; label: stri
   { value: 'flexible', label: 'Flexible reminders' },
   { value: 'off', label: 'Not now' },
 ];
+
+const medicationOptions = [
+  'Semaglutide / Ozempic / Wegovy',
+  'Tirzepatide / Mounjaro / Zepbound',
+  'Liraglutide / Saxenda',
+  'Ozempic',
+  'Wegovy',
+  'Mounjaro',
+  'Zepbound',
+  'Saxenda',
+  'Other peptide',
+] as const;
+
+const weekdayOptions: WeekdayFull[] = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liraglutide' | null {
+  const normalized = name.trim().toLowerCase();
+  if (normalized.includes('semaglutide') || normalized.includes('ozempic') || normalized.includes('wegovy')) return 'semaglutide';
+  if (normalized.includes('tirzepatide') || normalized.includes('mounjaro') || normalized.includes('zepbound')) return 'tirzepatide';
+  if (normalized.includes('liraglutide') || normalized.includes('saxenda')) return 'liraglutide';
+  return null;
+}
+
+function doseOptionsForMedication(name: string): string[] {
+  switch (medicationFamily(name)) {
+    case 'semaglutide':
+      return ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2 mg', '2.4 mg'];
+    case 'tirzepatide':
+      return ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg'];
+    case 'liraglutide':
+      return ['0.6 mg', '1.2 mg', '1.8 mg', '2.4 mg', '3 mg'];
+    default:
+      return [];
+  }
+}
 
 const stopWords = new Set([
   'a',
@@ -186,6 +237,17 @@ function createCoachMessage(entry: CoachEntry, related: readonly CoachEntry[] = 
   };
 }
 
+function createLocalId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0;
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const introMessage: ChatMessage = {
   id: 'coach-intro',
   role: 'coach',
@@ -195,13 +257,14 @@ const introMessage: ChatMessage = {
 
 const Coach: React.FC = () => {
   const router = useIonRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isPro } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([introMessage]);
   const [draft, setDraft] = useState('');
   const [activeCategory, setActiveCategory] = useState<CoachCategory | 'All'>('All');
   const [isResponding, setIsResponding] = useState(false);
   const [coachProfile, setCoachProfile] = useState<CoachProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [coachUserId, setCoachUserId] = useState<string | null>(null);
   const [setupIndex, setSetupIndex] = useState(0);
   const [setupDraft, setSetupDraft] = useState('');
   const [setupAuxDraft, setSetupAuxDraft] = useState('');
@@ -242,10 +305,12 @@ const Coach: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     if (!user?.id) {
+      setCoachUserId(null);
       setProfileLoading(false);
       return;
     }
 
+    setCoachUserId(user.id);
     setProfileLoading(true);
     void getCoachProfile(user.id)
       .then((profile) => {
@@ -337,9 +402,31 @@ const Coach: React.FC = () => {
     });
   };
 
+  const ensureCoachUser = async (firstName?: string | null): Promise<string> => {
+    if (user?.id) return user.id;
+    if (coachUserId) return coachUserId;
+
+    const id = createLocalId();
+    const email = `coach-${id}@local.ourglp1`;
+    const tz =
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+
+    await registerLocalUser({
+      id,
+      email,
+      first_name: firstName?.trim() || 'Friend',
+      last_name: null,
+      timezone: tz,
+    });
+    await markUserAsLoggedIn(id);
+    setCoachUserId(id);
+    await refreshUser();
+    return id;
+  };
+
   const saveProfilePatch = async (patch: Parameters<typeof patchCoachProfile>[1]): Promise<void> => {
-    if (!user?.id) return;
-    const next = await patchCoachProfile(user.id, patch);
+    const userId = await ensureCoachUser(patch.first_name ?? coachProfile?.first_name ?? null);
+    const next = await patchCoachProfile(userId, patch);
     setCoachProfile(next);
     setWeightUnit(next.weight_unit);
     setHeightUnit(next.height_unit);
@@ -350,6 +437,26 @@ const Coach: React.FC = () => {
     setSetupDraft('');
     setSetupAuxDraft('');
     setSetupIndex((prev) => Math.min(prev + 1, setupSteps.length - 1));
+  };
+
+  const saveAccountLogin = async (): Promise<void> => {
+    const email = setupDraft.trim().toLowerCase();
+    const passphrase = setupAuxDraft;
+    if (!/\S+@\S+\.\S+/.test(email) || passphrase.length < 8) return;
+
+    const userId = await ensureCoachUser(coachProfile?.first_name ?? null);
+    const passwordHash = await hashPassword(passphrase);
+    await upsertLocalAccount({
+      id: userId,
+      email,
+      first_name: coachProfile?.first_name ?? null,
+      last_name: coachProfile?.last_name ?? null,
+      password_hash: passwordHash,
+      last_login_at: new Date().toISOString(),
+    });
+    await markUserAsLoggedIn(userId);
+    await refreshUser();
+    nextSetupStep();
   };
 
   const saveSetupText = async (field: 'first_name' | 'medication_name' | 'main_reason' | 'date_of_birth'): Promise<void> => {
@@ -404,14 +511,16 @@ const Coach: React.FC = () => {
   const completeSetup = async (): Promise<void> => {
     await saveProfilePatch({ coach_onboarding_completed_at: new Date().toISOString() });
     setSetupIndex(setupSteps.length - 1);
+    router.push('/profile', 'forward');
   };
 
   const saveCheckin = async (): Promise<void> => {
-    if (!user?.id || checkinMood == null || checkinEnergy == null || checkinAppetite == null) return;
+    if (checkinMood == null || checkinEnergy == null || checkinAppetite == null) return;
     setCheckinSaving(true);
     try {
+      const userId = await ensureCoachUser(coachProfile?.first_name ?? null);
       await insertCoachCheckin({
-        user_id: user.id,
+        user_id: userId,
         mood_score: checkinMood,
         energy_score: checkinEnergy,
         appetite_score: checkinAppetite,
@@ -427,6 +536,7 @@ const Coach: React.FC = () => {
           text: 'Check-in saved. Tiny details like this help build a clearer picture for you and, if you choose, your clinic review later.',
         },
       ]);
+      router.push('/profile', 'forward');
     } finally {
       setCheckinSaving(false);
     }
@@ -482,6 +592,46 @@ const Coach: React.FC = () => {
             </article>
           </section>
 
+          {!isPro && (
+            <section className={styles.freeIntroShell} aria-label="Free intro and Pro guidance">
+              <div className={styles.freeIntroCopy}>
+                <div className={styles.eyebrowDark}>Free intro</div>
+                <h2>Start with Coach before deciding on Pro.</h2>
+                <p>
+                  The beginning is free: set up your support profile, use the guided Coach,
+                  try quick check-ins, and learn what the app can help with. Pro is for the
+                  deeper tracking, longer reviews, saved plans, and clinic-ready progress tools.
+                </p>
+              </div>
+              <div className={styles.freeIntroGrid}>
+                <div>
+                  <strong>Free</strong>
+                  <span>Coach setup, common GLP-1 guidance, quick mood check-ins, and reminder explanations.</span>
+                </div>
+                <div>
+                  <strong>Pro</strong>
+                  <span>Detailed tracking, personal plan, weekly summaries, archives, and deeper clinic review preparation.</span>
+                </div>
+              </div>
+              <div className={styles.actionRow}>
+                <IonButton
+                  className={styles.primarySetupAction}
+                  onClick={() => router.push('/paywall?returnTo=/coach', 'forward')}
+                >
+                  See Pro options
+                </IonButton>
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  onClick={() => sendQuestion('What can I use for free?')}
+                  disabled={isResponding}
+                >
+                  Ask Coach what I need
+                </button>
+              </div>
+            </section>
+          )}
+
           {!profileLoading && !setupComplete && (
             <section className={styles.setupShell} aria-label="Coach-led setup">
               <div className={styles.setupHeader}>
@@ -505,6 +655,33 @@ const Coach: React.FC = () => {
                   />
                   <IonButton className={styles.primarySetupAction} onClick={() => void saveSetupText('first_name')}>
                     Save name
+                  </IonButton>
+                </div>
+              )}
+
+              {activeSetupStep === 'account' && (
+                <div className={styles.setupCard}>
+                  <h3>Create your local app login</h3>
+                  <p>This stays on this phone and lets you use the normal login screen later.</p>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    value={setupDraft}
+                    placeholder="Email / username"
+                    onChange={(event) => setSetupDraft(event.target.value)}
+                  />
+                  <input
+                    type="password"
+                    value={setupAuxDraft}
+                    placeholder="Password, 8+ characters"
+                    onChange={(event) => setSetupAuxDraft(event.target.value)}
+                  />
+                  <IonButton
+                    className={styles.primarySetupAction}
+                    onClick={() => void saveAccountLogin()}
+                    disabled={!/\S+@\S+\.\S+/.test(setupDraft.trim()) || setupAuxDraft.length < 8}
+                  >
+                    Save login
                   </IonButton>
                 </div>
               )}
@@ -649,15 +826,114 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'medication_name' && (
                 <div className={styles.setupCard}>
                   <h3>Which GLP-1 medication are you using?</h3>
-                  <p>Optional. This can help your clinic-ready summary later.</p>
-                  <input
+                  <p>This matches the medication options in Profile.</p>
+                  <select
                     value={setupDraft}
-                    placeholder="Medication name"
                     onChange={(event) => setSetupDraft(event.target.value)}
+                  >
+                    <option value="">Select medication</option>
+                    {medicationOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                  {doseOptionsForMedication(setupDraft).length > 0 ? (
+                    <select
+                      value={setupAuxDraft}
+                      onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    >
+                      <option value="">Select dose</option>
+                      {doseOptionsForMedication(setupDraft).map((dose) => (
+                        <option key={dose} value={dose}>{dose}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={setupAuxDraft}
+                      placeholder="Dose label, optional"
+                      onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    />
+                  )}
+                  <div className={styles.actionRow}>
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => {
+                        void saveProfilePatch({
+                          medication_name: setupDraft.trim() || null,
+                          medication_dose: setupAuxDraft.trim() || null,
+                        }).then(nextSetupStep);
+                      }}
+                    >
+                      Save medication
+                    </IonButton>
+                    <button type="button" className={styles.textButton} onClick={nextSetupStep}>Add later</button>
+                  </div>
+                </div>
+              )}
+
+              {activeSetupStep === 'fasting_schedule' && (
+                <div className={styles.setupCard}>
+                  <h3>Fasting schedule</h3>
+                  <p>This will be saved to Profile and Today’s rhythm.</p>
+                  <select value={setupDraft} onChange={(event) => setSetupDraft(event.target.value)}>
+                    <option value="">Select fasting window</option>
+                    <option value="12:12">12:12</option>
+                    <option value="14:10">14:10</option>
+                    <option value="16:8">16:8</option>
+                    <option value="18:6">18:6</option>
+                    <option value="none">No fasting schedule</option>
+                  </select>
+                  <input
+                    type="time"
+                    value={setupAuxDraft}
+                    onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    aria-label="Fasting start time"
                   />
                   <div className={styles.actionRow}>
-                    <IonButton className={styles.primarySetupAction} onClick={() => void saveSetupText('medication_name')}>
-                      Save medication
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => {
+                        const schedule = setupDraft || 'none';
+                        const start = setupAuxDraft || '20:00';
+                        void setFastingPlan(schedule, start)
+                          .then(() => saveProfilePatch({ fasting_schedule: schedule, fasting_start: start }))
+                          .then(nextSetupStep);
+                      }}
+                    >
+                      Save fasting
+                    </IonButton>
+                    <button type="button" className={styles.textButton} onClick={nextSetupStep}>Add later</button>
+                  </div>
+                </div>
+              )}
+
+              {activeSetupStep === 'injection_schedule' && (
+                <div className={styles.setupCard}>
+                  <h3>Injection day and time</h3>
+                  <p>This keeps the weekly anchor and Profile in sync.</p>
+                  <select value={setupDraft} onChange={(event) => setSetupDraft(event.target.value)}>
+                    <option value="">Select day</option>
+                    {weekdayOptions.map((day) => (
+                      <option key={day} value={day}>{day}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="time"
+                    value={setupAuxDraft}
+                    onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    aria-label="Injection time"
+                  />
+                  <div className={styles.actionRow}>
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => {
+                        const day = (setupDraft || 'Monday') as WeekdayFull;
+                        const time = setupAuxDraft || '08:00';
+                        void setInjectionSchedule(day, time)
+                          .then(() => saveProfilePatch({ injection_day: day, injection_time: time }))
+                          .then(nextSetupStep);
+                      }}
+                    >
+                      Save injection anchor
                     </IonButton>
                     <button type="button" className={styles.textButton} onClick={nextSetupStep}>Add later</button>
                   </div>
@@ -752,12 +1028,48 @@ const Coach: React.FC = () => {
                         key={option.value}
                         type="button"
                         onClick={() => {
-                          void saveProfilePatch({ coach_checkin_frequency: option.value }).then(() => void completeSetup());
+                          void saveProfilePatch({ coach_checkin_frequency: option.value }).then(nextSetupStep);
                         }}
                       >
                         {option.label}
                       </button>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {activeSetupStep === 'monthly_anchor' && (
+                <div className={styles.setupCard}>
+                  <h3>Monthly medication anchor</h3>
+                  <p>
+                    GLP-1 medication is often supplied monthly with 4 doses. Which day of the month
+                    would you like to use for your prescription/review reminder?
+                  </p>
+                  <input
+                    inputMode="numeric"
+                    value={setupDraft}
+                    placeholder="Day of month, e.g. 1"
+                    onChange={(event) => setSetupDraft(event.target.value)}
+                  />
+                  <div className={styles.actionRow}>
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => {
+                        const day = Math.max(1, Math.min(28, Math.round(Number(setupDraft) || 1)));
+                        void saveProfilePatch({ monthly_anchor_day: day, monthly_dose_count: 4 }).then(() => void completeSetup());
+                      }}
+                    >
+                      Save monthly anchor
+                    </IonButton>
+                    <button
+                      type="button"
+                      className={styles.textButton}
+                      onClick={() => {
+                        void saveProfilePatch({ monthly_dose_count: 4 }).then(() => void completeSetup());
+                      }}
+                    >
+                      Use default
+                    </button>
                   </div>
                 </div>
               )}

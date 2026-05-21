@@ -553,11 +553,11 @@ const App: React.FC = () => {
                   <Route exact path="/privacy" component={PrivacyPolicy} />
                   <Route exact path="/resetpassword" component={ResetPassword} />
                   <Route exact path="/terms" component={Terms} />
+                  <Route exact path="/coach" component={Coach} />
 
                   {/* Private routes */}
                   <PrivateRoute exact path="/settings" component={Settings} />
                   <PrivateRoute exact path="/today" component={Today} />
-                  <PrivateRoute exact path="/coach" component={Coach} />
                   <PrivateRoute exact path="/protocols" component={Protocols} />
                   <PrivateRoute exact path="/profile" component={Profile} />
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />

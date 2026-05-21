@@ -14,8 +14,8 @@ const barStyle: React.CSSProperties = {
   right: 0,
   top: 0,
   backgroundColor: '#174b4b',
-  paddingLeft: 20,
-  paddingRight: 20,
+  paddingLeft: 10,
+  paddingRight: 10,
 
   // ⬇️ Push content below the notch/status bar
   paddingTop: 'calc(env(safe-area-inset-top, 0px) + 52px)',
@@ -34,31 +34,36 @@ const barStyle: React.CSSProperties = {
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: '14px',
+  justifyContent: 'flex-start',
+  gap: '10px',
   width: '100%',
   marginTop: 0, // no extra nudge needed once we pad above
   whiteSpace: 'nowrap',
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
 };
 
 
 const linkStyle: React.CSSProperties = {
-  fontSize: '13px',
+  fontSize: '12px',
   color: 'white',
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
+  flex: '0 0 auto',
 };
 
 const badgeStyle: React.CSSProperties = {
   marginLeft: '0.35rem',
   backgroundColor: 'red',
   color: 'white',
-  borderRadius: '11px',
-  padding: '0 6px',
-  fontSize: '0.85rem',
-  lineHeight: 1.6,
-  minWidth: 18,
+  borderRadius: '9px',
+  padding: '0 5px',
+  fontSize: '0.7rem',
+  lineHeight: 1.45,
+  minWidth: 16,
   textAlign: 'center',
 };
 
@@ -82,8 +87,8 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
       <div style={rowStyle}>
         {user ? (
           <>
-            <Link to="/today" style={linkStyle}>Today</Link>
             <Link to="/coach" style={linkStyle}>Coach</Link>
+            <Link to="/today" style={linkStyle}>Today</Link>
             <Link to="/profile" style={linkStyle}>Profile</Link>
             <Link to="/protocols" style={linkStyle}>Protocols</Link>
             <Link to="/personalplan" style={linkStyle}>Plan</Link>

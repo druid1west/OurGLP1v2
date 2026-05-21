@@ -131,7 +131,7 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      router.push('/coach', 'root');
+      router.push('/today', 'root');
     }
   }, [router, user]);
 
@@ -155,7 +155,7 @@ const Home: React.FC = () => {
     }
 
     trackEvent('biometric_login_success', { platform });
-    router.push('/coach', 'forward');
+    router.push('/today', 'forward');
   };
 
   // Biometric path: verify only (no credentials saved/fetched)

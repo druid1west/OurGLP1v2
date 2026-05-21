@@ -178,7 +178,7 @@ const Login: React.FC = () => {
       await markUserAsLoggedIn(userId);
       await refreshUser();
       window.dispatchEvent(new Event('auth:changed'));
-      history.replace('/coach');
+      history.replace('/today');
     },
     [ensureUsersRowForLocalAccount, history, refreshUser, show],
   );
@@ -432,7 +432,6 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-
 
 
 

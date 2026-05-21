@@ -196,7 +196,7 @@ export default function Paywall(): JSX.Element {
 
   const returnTo = useMemo(() => {
     const p = new URLSearchParams(search).get('returnTo');
-    return p && p.startsWith('/') ? p : '/today';
+    return p && p.startsWith('/') ? p : '/coach';
   }, [search]);
 
   // Get selected package
@@ -567,7 +567,7 @@ export default function Paywall(): JSX.Element {
   }, [isIOS, isAndroid]);
 
   const handleLater = useCallback(() => {
-    router.push(user?.id ? '/today' : '/home', 'back');
+    router.push(user?.id ? '/coach' : '/home', 'back');
   }, [router, user?.id]);
 
   if (loading) {

@@ -28,11 +28,16 @@ export type CoachProfile = {
   medication_name: string | null;
   medication_dose: string | null;
   injection_day: string | null;
+  injection_time: string | null;
+  fasting_schedule: string | null;
+  fasting_start: string | null;
   main_reason: string | null;
   biggest_challenge: string | null;
   main_concerns_json: string | null;
   coach_onboarding_completed_at: string | null;
   coach_checkin_frequency: CoachCheckinFrequency;
+  monthly_anchor_day: number | null;
+  monthly_dose_count: number;
 };
 
 export type CoachProfilePatch = Partial<Omit<CoachProfile, 'user_id'>>;
@@ -125,11 +130,16 @@ function mapProfile(row: Row, userId: string): CoachProfile {
     medication_name: stringOrNull(row.medication_name),
     medication_dose: stringOrNull(row.medication_dose),
     injection_day: stringOrNull(row.injection_day),
+    injection_time: stringOrNull(row.injection_time),
+    fasting_schedule: stringOrNull(row.fasting_schedule),
+    fasting_start: stringOrNull(row.fasting_start),
     main_reason: stringOrNull(row.main_reason),
     biggest_challenge: stringOrNull(row.biggest_challenge),
     main_concerns_json: stringOrNull(row.main_concerns_json),
     coach_onboarding_completed_at: stringOrNull(row.coach_onboarding_completed_at),
     coach_checkin_frequency: normalizeCheckinFrequency(row.coach_checkin_frequency),
+    monthly_anchor_day: numberOrNull(row.monthly_anchor_day),
+    monthly_dose_count: numberOrNull(row.monthly_dose_count) ?? 4,
   };
 }
 
@@ -167,8 +177,10 @@ export async function getCoachProfile(userId: string): Promise<CoachProfile> {
     SELECT first_name, last_name, date_of_birth, address1, address2, city, country, postcode,
            height, weight, start_weight, goal_weight, bmi, weight_unit, height_unit,
            glp1_status, glp1_start_date, medication_name, medication_dose, injection_day,
+           injection_time, fasting_schedule, fasting_start,
            main_reason, biggest_challenge, main_concerns_json,
-           coach_onboarding_completed_at, coach_checkin_frequency
+           coach_onboarding_completed_at, coach_checkin_frequency,
+           monthly_anchor_day, monthly_dose_count
       FROM user_profile
      WHERE id = 1
      LIMIT 1
@@ -210,11 +222,16 @@ export async function patchCoachProfile(userId: string, patch: CoachProfilePatch
     merged.medication_name,
     merged.medication_dose,
     merged.injection_day,
+    merged.injection_time,
+    merged.fasting_schedule,
+    merged.fasting_start,
     merged.main_reason,
     merged.biggest_challenge,
     merged.main_concerns_json,
     merged.coach_onboarding_completed_at,
     merged.coach_checkin_frequency,
+    merged.monthly_anchor_day,
+    merged.monthly_dose_count,
   ];
 
   await db.run(
@@ -224,8 +241,10 @@ export async function patchCoachProfile(userId: string, patch: CoachProfilePatch
            city = ?, country = ?, postcode = ?, height = ?, weight = ?, start_weight = ?,
            goal_weight = ?, bmi = ?, weight_unit = ?, height_unit = ?, glp1_status = ?,
            glp1_start_date = ?, medication_name = ?, medication_dose = ?, injection_day = ?,
+           injection_time = ?, fasting_schedule = ?, fasting_start = ?,
            main_reason = ?, biggest_challenge = ?, main_concerns_json = ?,
            coach_onboarding_completed_at = ?, coach_checkin_frequency = ?,
+           monthly_anchor_day = ?, monthly_dose_count = ?,
            updated_at = datetime('now')
      WHERE id = 1
     `,
@@ -255,11 +274,16 @@ export async function patchCoachProfile(userId: string, patch: CoachProfilePatch
            medication_name = COALESCE(?, medication_name),
            medication_dose = COALESCE(?, medication_dose),
            injection_day = COALESCE(?, injection_day),
+           injection_time = COALESCE(?, injection_time),
+           fasting_schedule = COALESCE(?, fasting_schedule),
+           fasting_start = COALESCE(?, fasting_start),
            main_reason = COALESCE(?, main_reason),
            biggest_challenge = COALESCE(?, biggest_challenge),
            main_concerns_json = COALESCE(?, main_concerns_json),
            coach_onboarding_completed_at = COALESCE(?, coach_onboarding_completed_at),
            coach_checkin_frequency = COALESCE(?, coach_checkin_frequency),
+           monthly_anchor_day = COALESCE(?, monthly_anchor_day),
+           monthly_dose_count = COALESCE(?, monthly_dose_count),
            updated_at = datetime('now')
      WHERE id = ?
     `,

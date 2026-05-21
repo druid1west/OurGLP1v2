@@ -124,7 +124,9 @@ export async function initDbOnce(): Promise<void> {
         biggest_challenge TEXT,
         main_concerns_json TEXT,
         coach_onboarding_completed_at TEXT,
-        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'
+        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening',
+        monthly_anchor_day INTEGER,
+        monthly_dose_count INTEGER NOT NULL DEFAULT 4
       );
 
       CREATE TABLE IF NOT EXISTS sync_state (
@@ -191,7 +193,9 @@ export async function initDbOnce(): Promise<void> {
         biggest_challenge TEXT,
         main_concerns_json TEXT,
         coach_onboarding_completed_at TEXT,
-        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'
+        coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening',
+        monthly_anchor_day INTEGER,
+        monthly_dose_count INTEGER NOT NULL DEFAULT 4
       );
 
       CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique

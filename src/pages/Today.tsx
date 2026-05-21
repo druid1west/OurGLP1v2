@@ -51,6 +51,7 @@ import {
 import { getSettings, type Settings as StoredSettings } from '../db/SettingsRepository';
 import { rotateShortFromFull, type WeekdayFull, type WeekdayShort } from '../lib/time';
 import { logger } from '../utils/logger';
+import { getCoachProfile } from '../db/CoachRepository';
 import styles from './Today.module.css';
 
 type TodayStats = {
@@ -375,6 +376,7 @@ const Today: React.FC = () => {
   const [rhythm, setRhythm] = useState<TodayRhythm | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
+  const [setupComplete, setSetupComplete] = useState(false);
 
   const today = useMemo(() => localYmd(), []);
 
@@ -393,6 +395,7 @@ const Today: React.FC = () => {
         protocolRows,
         protocolEventRows,
         settings,
+        coachProfile,
       ] = await Promise.all([
         listHealthLogsRange(start, end),
         listExercises(),
@@ -402,6 +405,7 @@ const Today: React.FC = () => {
         user?.id ? listProtocols(user.id) : Promise.resolve([]),
         user?.id ? listProtocolEventsForDay(user.id, today) : Promise.resolve([]),
         getSettings(),
+        user?.id ? getCoachProfile(user.id).catch(() => null) : Promise.resolve(null),
       ]);
 
       const logSummary = summarizeLogs(logs);
@@ -419,6 +423,7 @@ const Today: React.FC = () => {
       setProtocols(protocolRows);
       setProtocolEvents(protocolEventRows);
       setRhythm(buildTodayRhythm(settings));
+      setSetupComplete(Boolean(coachProfile?.coach_onboarding_completed_at));
       setStats({
         ...logSummary,
         manualExerciseMinutes,
@@ -600,6 +605,40 @@ const Today: React.FC = () => {
             </article>
           </section>
 
+          {!isPro && (
+            <section className={styles.freeJourneyBand}>
+              <div>
+                <div className={styles.proKicker}>
+                  <Sparkles size={16} />
+                  <span>Free start</span>
+                </div>
+                <h2>Your first goal is simple: prove the app is useful.</h2>
+                <p>
+                  Use Coach setup, daily check-ins, and the Today rhythm to see how your GLP-1
+                  routine is coming together. Pro adds the deeper reports, archives, and
+                  clinic-ready review tools when you are ready.
+                </p>
+              </div>
+              <div className={styles.freeJourneyActions}>
+                {!setupComplete && (
+                  <IonButton className={styles.primaryAction} onClick={() => router.push('/coach', 'forward')}>
+                    Continue setup
+                    <ArrowRight size={17} />
+                  </IonButton>
+                )}
+                {setupComplete && (
+                  <IonButton className={styles.primaryAction} onClick={() => router.push('/profile', 'forward')}>
+                    Review profile
+                    <ArrowRight size={17} />
+                  </IonButton>
+                )}
+                <IonButton className={styles.secondaryAction} fill="outline" onClick={() => router.push('/paywall?returnTo=/today', 'forward')}>
+                  See what Pro adds
+                </IonButton>
+              </div>
+            </section>
+          )}
+
           <section className={styles.rhythmBand}>
             <div className={styles.sectionHeader}>
               <div>
@@ -613,8 +652,8 @@ const Today: React.FC = () => {
               <IonButton
                 className={styles.iconButton}
                 fill="clear"
-                onClick={() => router.push(`/plan/day/${(rhythm?.todayShort ?? 'Mon').toLowerCase()}`, 'forward')}
-                aria-label="Open today's plan"
+                onClick={() => router.push(isPro ? `/plan/day/${(rhythm?.todayShort ?? 'Mon').toLowerCase()}` : '/coach', 'forward')}
+                aria-label={isPro ? "Open today's plan" : 'Open coach setup'}
               >
                 <CalendarDays size={20} />
               </IonButton>
@@ -630,8 +669,8 @@ const Today: React.FC = () => {
                     index === 0 ? styles.anchorStart : '',
                     day === rhythm?.todayShort ? styles.anchorToday : '',
                   ].join(' ')}
-                  onClick={() => router.push(`/plan/day/${day.toLowerCase()}`, 'forward')}
-                  aria-label={`Open ${day} plan`}
+                  onClick={() => router.push(isPro ? `/plan/day/${day.toLowerCase()}` : '/coach', 'forward')}
+                  aria-label={isPro ? `Open ${day} plan` : `Review ${day} with Coach`}
                 >
                   <span>{day}</span>
                   {index === 0 && <strong>Anchor</strong>}
@@ -678,6 +717,27 @@ const Today: React.FC = () => {
             ) : (
               <p className={styles.rhythmEmpty}>
                 Fasting and injection schedule not set yet.
+              </p>
+            )}
+          </section>
+
+          <section className={styles.monthlyBand}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Monthly anchor</h2>
+                <p>Most GLP-1 supplies run as 4 weekly doses. This becomes your review and reorder rhythm.</p>
+              </div>
+              <CalendarDays size={22} />
+            </div>
+            <div className={styles.monthlySteps}>
+              <div><span>1</span><strong>Dose week</strong></div>
+              <div><span>2</span><strong>Check side effects</strong></div>
+              <div><span>3</span><strong>Spot patterns</strong></div>
+              <div><span>4</span><strong>Prepare review</strong></div>
+            </div>
+            {!isPro && (
+              <p className={styles.monthlyHint}>
+                Free users can set the anchor in Coach. Pro will turn it into a fuller clinic-ready monthly report.
               </p>
             )}
           </section>

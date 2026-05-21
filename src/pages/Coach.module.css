@@ -82,7 +82,8 @@
 .chatShell,
 .librarySection,
 .setupShell,
-.checkinShell {
+.checkinShell,
+.freeIntroShell {
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid rgba(18, 49, 49, 0.1);
@@ -131,7 +132,8 @@
 .chatShell,
 .librarySection,
 .setupShell,
-.checkinShell {
+.checkinShell,
+.freeIntroShell {
   margin-top: 12px;
   padding: 16px;
 }
@@ -144,6 +146,63 @@
   color: #607470;
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.freeIntroShell {
+  display: grid;
+  gap: 14px;
+}
+
+.eyebrowDark {
+  color: #c05621;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.freeIntroCopy h2 {
+  margin: 5px 0 0;
+  color: #112f2f;
+  font-size: 1.18rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.freeIntroCopy p {
+  margin: 8px 0 0;
+  color: #526b65;
+  line-height: 1.48;
+}
+
+.freeIntroGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.freeIntroGrid div {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fbfa;
+  border: 1px solid rgba(18, 49, 49, 0.08);
+}
+
+.freeIntroGrid strong,
+.freeIntroGrid span {
+  display: block;
+}
+
+.freeIntroGrid strong {
+  color: #174b4b;
+  font-size: 0.92rem;
+}
+
+.freeIntroGrid span {
+  margin-top: 5px;
+  color: #526b65;
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .setupHeader {
@@ -188,6 +247,7 @@
 }
 
 .setupCard input,
+.setupCard select,
 .setupCard textarea {
   width: 100%;
   min-height: 46px;
@@ -207,6 +267,7 @@
 }
 
 .setupCard input:focus,
+.setupCard select:focus,
 .setupCard textarea:focus {
   border-color: rgba(23, 75, 75, 0.58);
   box-shadow: 0 0 0 3px rgba(23, 75, 75, 0.12);
@@ -684,7 +745,8 @@
   .questionList,
   .choiceGrid,
   .inlineFields,
-  .scaleRow {
+  .scaleRow,
+  .freeIntroGrid {
     grid-template-columns: 1fr;
   }
 

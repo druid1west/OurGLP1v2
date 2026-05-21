@@ -152,9 +152,89 @@
 
 .healthBand,
 .rhythmBand,
-.protocolBand {
+.protocolBand,
+.freeJourneyBand,
+.monthlyBand {
   margin-top: 12px;
   padding: 16px;
+}
+
+.freeJourneyBand,
+.monthlyBand {
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(18, 49, 49, 0.1);
+  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+}
+
+.freeJourneyBand {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.freeJourneyBand h2,
+.monthlyBand h2 {
+  margin: 0;
+  color: #112f2f;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.freeJourneyBand p,
+.monthlyHint {
+  margin: 8px 0 0;
+  color: #526b65;
+  line-height: 1.48;
+}
+
+.freeJourneyActions {
+  min-width: 190px;
+  display: grid;
+  gap: 8px;
+}
+
+.monthlyBand {
+  display: grid;
+  gap: 14px;
+}
+
+.monthlySteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.monthlySteps div {
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f7f5;
+  border: 1px solid rgba(18, 49, 49, 0.08);
+  text-align: center;
+}
+
+.monthlySteps span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #174b4b;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.monthlySteps strong {
+  color: #174b4b;
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
 
 .rhythmBand {
@@ -662,12 +742,18 @@
     grid-template-columns: 1fr;
   }
 
-  .proPreview {
+  .proPreview,
+  .freeJourneyBand {
     grid-template-columns: 1fr;
   }
 
-  .proAction {
+  .proAction,
+  .freeJourneyActions {
     width: 100%;
+  }
+
+  .monthlySteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .actionBand {
@@ -677,7 +763,8 @@
 
 @media (max-width: 390px) {
   .metricsGrid,
-  .insightGrid {
+  .insightGrid,
+  .monthlySteps {
     grid-template-columns: 1fr;
   }
 }

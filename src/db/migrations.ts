@@ -73,6 +73,8 @@ export async function runMigrations(conn: SQLiteDBConnection): Promise<void> {
     { name: 'main_concerns_json', sql: 'main_concerns_json TEXT' },
     { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
     { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
+    { name: 'monthly_anchor_day', sql: 'monthly_anchor_day INTEGER' },
+    { name: 'monthly_dose_count', sql: 'monthly_dose_count INTEGER NOT NULL DEFAULT 4' },
   ]);
 
   // ─────────────────────────────────────────
@@ -130,6 +132,8 @@ export async function runMigrations(conn: SQLiteDBConnection): Promise<void> {
     { name: 'main_concerns_json',  sql: 'main_concerns_json TEXT' },
     { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
     { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
+    { name: 'monthly_anchor_day', sql: 'monthly_anchor_day INTEGER' },
+    { name: 'monthly_dose_count', sql: 'monthly_dose_count INTEGER NOT NULL DEFAULT 4' },
   ]);
   await conn.execute(`CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(email_lower)`);
 
@@ -332,6 +336,8 @@ ON glp1_experience_logs(user_id, local_day)
     { name: 'main_concerns_json', sql: 'main_concerns_json TEXT' },
     { name: 'coach_onboarding_completed_at', sql: 'coach_onboarding_completed_at TEXT' },
     { name: 'coach_checkin_frequency', sql: "coach_checkin_frequency TEXT NOT NULL DEFAULT 'morning_evening'" },
+    { name: 'monthly_anchor_day', sql: 'monthly_anchor_day INTEGER' },
+    { name: 'monthly_dose_count', sql: 'monthly_dose_count INTEGER NOT NULL DEFAULT 4' },
   ]);
 
   await ensureTable(

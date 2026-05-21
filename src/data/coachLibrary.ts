@@ -155,6 +155,7 @@ const seeds: Record<CoachCategory, readonly Seed[]> = {
     { q: 'How can the coach help with trends?', k: ['trend', 'pattern', 'weight chart'], a: 'The coach can help summarize local tracking patterns and suggest what to review, while leaving medication decisions to your clinician.' },
   ],
   'Reminders & Habits': [
+    { q: 'What can I use for free?', k: ['free', 'pro', 'pay', 'cost', 'options'], a: 'You can start with the free Coach setup, common GLP-1 guidance, quick mood check-ins, and support around what to track. Pro is for deeper tracking, personal plans, saved summaries, archives, and clinic-ready review tools. Start free, see what helps, then upgrade only if the deeper tracking is useful for you.' },
     { q: 'Can the coach create reminders?', k: ['create reminder', 'set reminder'], a: 'The coach can draft reminder details, but you stay in control. It should show the title, timing, and type first, then save only after you confirm.' },
     { q: 'What reminders are useful for GLP-1s?', k: ['useful reminders', 'glp1 reminders'], a: 'Common reminders include injection day, hydration, protein, bowel tracking, movement, weekly review, refill planning, and clinician questions.' },
     { q: 'How many reminders should I use?', k: ['too many reminders', 'notification'], a: 'Use the fewest reminders that reduce friction. Too many alerts become background noise. Start with one or two high-value cues.' },
