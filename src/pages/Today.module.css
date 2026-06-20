@@ -11,7 +11,7 @@
   width: min(100%, 920px);
   margin: 0 auto;
   padding: 16px;
-  color: #123131;
+  color: #172033;
 }
 
 .heroBand {
@@ -23,7 +23,7 @@
   padding: 22px;
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(23, 75, 75, 0.94), rgba(19, 96, 86, 0.88)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(15, 118, 110, 0.88)),
     url('/assets/bg-pattern.jpg');
   background-size: cover;
   background-position: center;
@@ -99,8 +99,8 @@
 .insightCard {
   border-radius: 8px;
   background: #ffffff;
-  border: 1px solid rgba(18, 49, 49, 0.1);
-  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .metricCard {
@@ -126,7 +126,7 @@
 .metricCard strong {
   display: block;
   margin-top: 4px;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.35rem;
   line-height: 1;
 }
@@ -163,8 +163,8 @@
 .monthlyBand {
   border-radius: 8px;
   background: #ffffff;
-  border: 1px solid rgba(18, 49, 49, 0.1);
-  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .freeJourneyBand {
@@ -177,7 +177,7 @@
 .freeJourneyBand h2,
 .monthlyBand h2 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.12rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -216,7 +216,7 @@
   padding: 10px;
   border-radius: 8px;
   background: #f3f7f5;
-  border: 1px solid rgba(18, 49, 49, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.1);
   text-align: center;
 }
 
@@ -226,13 +226,13 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #174b4b;
+  background: #2563eb;
   color: #ffffff;
   font-weight: 900;
 }
 
 .monthlySteps strong {
-  color: #174b4b;
+  color: #2563eb;
   font-size: 0.8rem;
   line-height: 1.2;
 }
@@ -250,10 +250,10 @@
 
 .anchorDay {
   min-height: 52px;
-  border: 1px solid rgba(18, 49, 49, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-radius: 8px;
   background: #f3f7f5;
-  color: #174b4b;
+  color: #2563eb;
   display: grid;
   place-items: center;
   align-content: center;
@@ -280,7 +280,7 @@
 }
 
 .anchorToday {
-  outline: 2px solid #174b4b;
+  outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
 
@@ -311,7 +311,7 @@
 
 .rhythmMeta strong {
   margin-top: 5px;
-  color: #112f2f;
+  color: #172033;
   font-size: 0.92rem;
   line-height: 1.25;
 }
@@ -347,7 +347,7 @@
 }
 
 .rhythmCurrent {
-  box-shadow: 0 0 0 2px #174b4b;
+  box-shadow: 0 0 0 2px #2563eb;
 }
 
 .rhythmInjection {
@@ -392,7 +392,7 @@
 
 .sectionHeader h2 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.1rem;
 }
 
@@ -407,7 +407,7 @@
   width: 44px;
   height: 44px;
   --border-radius: 999px;
-  --color: #174b4b;
+  --color: #2563eb;
   --background: #e9f3f0;
 }
 
@@ -426,7 +426,7 @@
   padding: 10px;
   border-radius: 8px;
   background: #f3f7f5;
-  color: #174b4b;
+  color: #2563eb;
   font-weight: 800;
 }
 
@@ -451,7 +451,7 @@
   border-radius: 8px;
   border: 1px solid rgba(192, 86, 33, 0.24);
   background: linear-gradient(135deg, #fff7ed, #ffffff);
-  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .proKicker {
@@ -466,7 +466,7 @@
 
 .proPreview h2 {
   margin: 6px 0 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.08rem;
 }
 
@@ -518,7 +518,7 @@
 }
 
 .protocolPill span {
-  color: #112f2f;
+  color: #172033;
   font-size: 0.9rem;
   font-weight: 850;
   overflow-wrap: anywhere;
@@ -543,11 +543,11 @@
   padding: 14px;
   display: grid;
   align-content: space-between;
-  color: #174b4b;
+  color: #2563eb;
 }
 
 .insightCard strong {
-  color: #112f2f;
+  color: #172033;
   font-size: 1rem;
   line-height: 1.25;
 }
@@ -567,7 +567,7 @@
 }
 
 .primaryAction {
-  --background: #174b4b;
+  --background: #2563eb;
   --color: #ffffff;
 }
 
@@ -577,8 +577,8 @@
 }
 
 .secondaryAction {
-  --border-color: #174b4b;
-  --color: #174b4b;
+  --border-color: #2563eb;
+  --color: #2563eb;
 }
 
 .spin {

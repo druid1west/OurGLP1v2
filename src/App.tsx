@@ -25,6 +25,7 @@ import { initDbOnce } from './db/sqlite';
 import { ensurePushTokensTable } from './db/SettingsRepository';
 import PrivateRoute from './pages/PrivateRoute';
 import { RequirePro } from './components/RequirePro';
+import FloatingCoach from './components/FloatingCoach';
 
 // Pages
 import Home from './pages/Home';
@@ -578,6 +579,7 @@ const App: React.FC = () => {
 
                   <Route render={() => <Redirect to="/home" />} />
                 </IonRouterOutlet>
+                <FloatingCoach />
               </ReminderBadgeProvider>
             </AuthProvider>
           </IonReactRouter>

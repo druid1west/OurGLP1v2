@@ -1,5 +1,5 @@
 .content {
-  --background: #f6f8f7;
+  --background: #f7fafc;
 }
 
 .content::part(scroll) {
@@ -11,7 +11,7 @@
   width: min(100%, 940px);
   margin: 0 auto;
   padding: 16px;
-  color: #123131;
+  color: #172033;
 }
 
 .heroBand {
@@ -23,7 +23,7 @@
   padding: 22px;
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(23, 75, 75, 0.95), rgba(38, 111, 94, 0.9)),
+    linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(15, 118, 110, 0.88)),
     url('/assets/bg-pattern.jpg');
   background-size: cover;
   background-position: center;
@@ -86,8 +86,8 @@
 .freeIntroShell {
   border-radius: 8px;
   background: #ffffff;
-  border: 1px solid rgba(18, 49, 49, 0.1);
-  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .infoPanel {
@@ -105,14 +105,14 @@
 
 .panelHeader {
   justify-content: flex-start;
-  color: #174b4b;
+  color: #0f766e;
 }
 
 .panelHeader h2,
 .sectionHeader h2,
 .chatHeader h2 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.05rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -121,7 +121,7 @@
 .infoPanel ul {
   margin: 12px 0 0;
   padding-left: 19px;
-  color: #415d57;
+  color: #475569;
   line-height: 1.48;
 }
 
@@ -163,7 +163,7 @@
 
 .freeIntroCopy h2 {
   margin: 5px 0 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.18rem;
   line-height: 1.2;
   letter-spacing: 0;
@@ -171,7 +171,7 @@
 
 .freeIntroCopy p {
   margin: 8px 0 0;
-  color: #526b65;
+  color: #475569;
   line-height: 1.48;
 }
 
@@ -184,8 +184,8 @@
 .freeIntroGrid div {
   padding: 12px;
   border-radius: 8px;
-  background: #f8fbfa;
-  border: 1px solid rgba(18, 49, 49, 0.08);
+  background: #f8fbff;
+  border: 1px solid rgba(37, 99, 235, 0.1);
 }
 
 .freeIntroGrid strong,
@@ -194,13 +194,13 @@
 }
 
 .freeIntroGrid strong {
-  color: #174b4b;
+  color: #2563eb;
   font-size: 0.92rem;
 }
 
 .freeIntroGrid span {
   margin-top: 5px;
-  color: #526b65;
+  color: #475569;
   font-size: 0.9rem;
   line-height: 1.35;
 }
@@ -215,7 +215,7 @@
 .setupHeader h2,
 .setupCard h3 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   letter-spacing: 0;
 }
 
@@ -227,8 +227,8 @@
   flex: 0 0 auto;
   padding: 6px 9px;
   border-radius: 999px;
-  background: #eef4f1;
-  color: #174b4b;
+  background: #eaf2ff;
+  color: #2563eb;
   font-size: 0.82rem;
   font-weight: 900;
 }
@@ -237,8 +237,8 @@
   margin-top: 14px;
   padding: 14px;
   border-radius: 8px;
-  background: #f8fbfa;
-  border: 1px solid rgba(18, 49, 49, 0.08);
+  background: #f8fbff;
+  border: 1px solid rgba(37, 99, 235, 0.1);
 }
 
 .setupCard h3 {
@@ -253,10 +253,10 @@
   min-height: 46px;
   margin-top: 12px;
   padding: 11px 12px;
-  border: 1px solid rgba(18, 49, 49, 0.16);
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
   background: #ffffff;
-  color: #112f2f;
+  color: #172033;
   font: inherit;
   outline: none;
 }
@@ -269,8 +269,8 @@
 .setupCard input:focus,
 .setupCard select:focus,
 .setupCard textarea:focus {
-  border-color: rgba(23, 75, 75, 0.58);
-  box-shadow: 0 0 0 3px rgba(23, 75, 75, 0.12);
+  border-color: rgba(37, 99, 235, 0.58);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .inlineFields {
@@ -289,14 +289,14 @@
 .choiceGrid button,
 .textButton,
 .scaleRow button {
-  border: 1px solid rgba(18, 49, 49, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-radius: 8px;
-  background: #f3f7f5;
-  color: #174b4b;
+  background: #eaf2ff;
+  color: #2563eb;
   cursor: pointer;
   font: inherit;
   font-weight: 850;
-  box-shadow: 0 3px 0 rgba(18, 49, 49, 0.14);
+  box-shadow: 0 3px 0 rgba(37, 99, 235, 0.14);
   transform: translateY(0);
   transition:
     background-color 140ms ease,
@@ -314,7 +314,7 @@
 .choiceGrid button:active,
 .textButton:active,
 .scaleRow button:active {
-  box-shadow: 0 1px 0 rgba(18, 49, 49, 0.18);
+  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.18);
   transform: translateY(2px);
 }
 
@@ -327,8 +327,8 @@
 }
 
 .primarySetupAction {
-  --background: #174b4b;
-  --background-hover: #123b3b;
+  --background: #2563eb;
+  --background-hover: #1d4ed8;
   --border-radius: 8px;
   font-weight: 850;
 }
@@ -352,12 +352,12 @@
   gap: 12px;
   padding: 10px;
   border-radius: 8px;
-  background: #f8fbfa;
-  border: 1px solid rgba(18, 49, 49, 0.08);
+  background: #f8fbff;
+  border: 1px solid rgba(37, 99, 235, 0.1);
 }
 
 .scaleRow span {
-  color: #284a45;
+  color: #334155;
   font-size: 0.92rem;
   font-weight: 800;
   line-height: 1.25;
@@ -381,8 +381,8 @@
 }
 
 .secondaryAction {
-  --border-color: #174b4b;
-  --color: #174b4b;
+  --border-color: #2563eb;
+  --color: #2563eb;
   --border-radius: 8px;
   min-width: 140px;
   font-weight: 800;
@@ -404,13 +404,13 @@
 .relatedQuestions button,
 .categoryScroller button,
 .questionList button {
-  border: 1px solid rgba(18, 49, 49, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-radius: 8px;
-  background: #f3f7f5;
-  color: #174b4b;
+  background: #eaf2ff;
+  color: #2563eb;
   cursor: pointer;
   font: inherit;
-  box-shadow: 0 3px 0 rgba(18, 49, 49, 0.14);
+  box-shadow: 0 3px 0 rgba(37, 99, 235, 0.14);
   transform: translateY(0);
   transition:
     background-color 140ms ease,
@@ -423,15 +423,15 @@
 .relatedQuestions button:hover,
 .categoryScroller button:hover,
 .questionList button:hover {
-  border-color: rgba(23, 75, 75, 0.28);
-  background: #eaf3ef;
+  border-color: rgba(37, 99, 235, 0.28);
+  background: #dbeafe;
 }
 
 .starterGrid button:active,
 .relatedQuestions button:active,
 .categoryScroller button:active,
 .questionList button:active {
-  box-shadow: 0 1px 0 rgba(18, 49, 49, 0.18);
+  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.18);
   transform: translateY(2px);
 }
 
@@ -460,7 +460,7 @@
   margin-top: 14px;
   padding: 14px;
   border-radius: 8px;
-  background: #eef4f1;
+  background: #eaf2ff;
   max-height: 620px;
   overflow-y: auto;
 }
@@ -469,8 +469,8 @@
   width: min(100%, 720px);
   padding: 13px;
   border-radius: 8px;
-  border: 1px solid rgba(18, 49, 49, 0.1);
-  box-shadow: 0 8px 18px rgba(18, 49, 49, 0.05);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
 }
 
 .coachMessage {
@@ -480,7 +480,7 @@
 
 .userMessage {
   justify-self: end;
-  background: #174b4b;
+  background: #2563eb;
   color: #ffffff;
 }
 
@@ -608,23 +608,23 @@
   max-height: 130px;
   resize: vertical;
   padding: 12px;
-  border: 1px solid rgba(18, 49, 49, 0.16);
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
   background: #ffffff;
-  color: #112f2f;
+  color: #172033;
   font: inherit;
   line-height: 1.35;
   outline: none;
 }
 
 .composer textarea:focus {
-  border-color: rgba(23, 75, 75, 0.58);
-  box-shadow: 0 0 0 3px rgba(23, 75, 75, 0.12);
+  border-color: rgba(37, 99, 235, 0.58);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .sendButton {
-  --background: #174b4b;
-  --background-hover: #123b3b;
+  --background: #2563eb;
+  --background-hover: #1d4ed8;
   --border-radius: 8px;
   height: 52px;
   margin: 0;
@@ -645,7 +645,7 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: #174b4b;
+  background: #2563eb;
   animation: coachTyping 900ms ease-in-out infinite;
 }
 

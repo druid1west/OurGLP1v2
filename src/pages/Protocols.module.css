@@ -11,7 +11,7 @@
   width: min(100%, 980px);
   margin: 0 auto;
   padding: 16px;
-  color: #123131;
+  color: #172033;
 }
 
 .hero {
@@ -22,7 +22,7 @@
   min-height: 186px;
   padding: 22px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #174b4b, #2a9d8f);
+  background: linear-gradient(135deg, #2563eb, #0f766e);
   color: #fff;
 }
 
@@ -74,10 +74,10 @@
 .timelinePanel {
   margin-top: 12px;
   padding: 16px;
-  border: 1px solid rgba(18, 49, 49, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 10px 24px rgba(18, 49, 49, 0.06);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .sectionHeader {
@@ -90,7 +90,7 @@
 
 .sectionHeader h2 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.16rem;
 }
 
@@ -123,10 +123,10 @@
 .formGrid textarea {
   width: 100%;
   min-height: 44px;
-  border: 1px solid rgba(18, 49, 49, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.18);
   border-radius: 8px;
   background: #f8fbfa;
-  color: #112f2f;
+  color: #172033;
   font: inherit;
   padding: 10px 12px;
   box-sizing: border-box;
@@ -142,7 +142,7 @@
 
 .primaryButton {
   margin-top: 14px;
-  --background: #174b4b;
+  --background: #2563eb;
   --color: #fff;
   --border-radius: 8px;
   font-weight: 900;
@@ -163,7 +163,7 @@
   display: grid;
   gap: 14px;
   padding: 14px;
-  border: 1px solid rgba(18, 49, 49, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   border-radius: 8px;
   background: #f8fbfa;
 }
@@ -180,7 +180,7 @@
 
 .subsectionHeader h3 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1rem;
 }
 
@@ -218,7 +218,7 @@
 
 .protocolCard h3 {
   margin: 0;
-  color: #112f2f;
+  color: #172033;
   font-size: 1.18rem;
 }
 
@@ -249,7 +249,7 @@
 
 .metaGrid strong {
   margin-top: 4px;
-  color: #112f2f;
+  color: #172033;
   font-size: 0.84rem;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -279,10 +279,10 @@
 .cardActions button {
   min-height: 40px;
   gap: 7px;
-  border: 1px solid rgba(23, 75, 75, 0.22);
+  border: 1px solid rgba(37, 99, 235, 0.2);
   border-radius: 8px;
   background: #fff;
-  color: #174b4b;
+  color: #2563eb;
   cursor: pointer;
   font: inherit;
   font-size: 0.84rem;
@@ -321,7 +321,7 @@
 }
 
 .emptyState strong {
-  color: #112f2f;
+  color: #172033;
 }
 
 .eventList {
@@ -337,11 +337,11 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(18, 49, 49, 0.08);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.1);
 }
 
 .eventList strong {
-  color: #112f2f;
+  color: #172033;
 }
 
 .eventList span,
@@ -356,7 +356,7 @@
 }
 
 .spin {
-  color: #174b4b;
+  color: #2563eb;
   animation: spin 1s linear infinite;
 }
 

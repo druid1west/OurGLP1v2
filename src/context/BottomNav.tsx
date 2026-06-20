@@ -1,6 +1,6 @@
 // BottomNav.tsx
 import React from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useHistory, useLocation } from 'react-router-dom';
 import { useIonRouter, type RouterDirection } from '@ionic/react';
 import { useAuth } from '../context/useAuth';
 
@@ -14,7 +14,7 @@ const barStyle: React.CSSProperties = {
   right: 0,
   bottom: 0,
   minHeight: 'var(--bottom-nav-height, 88px)',
-  background: '#174b4b',
+  background: '#2563eb',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -53,6 +53,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
   const { user, isPro, logout } = useAuth();
   const ion = useIonRouter();
   const history = useHistory();
+  const location = useLocation();
 
   type NavDirection = Extract<RouterDirection, 'forward' | 'back' | 'root' | 'none'>;
 
@@ -77,6 +78,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
     }
   };
 
+  const paywallHref = React.useMemo(() => {
+    const current = `${location.pathname}${location.search || ''}`;
+    const returnTo = current.startsWith('/paywall') ? '/today' : current;
+    return `/paywall?returnTo=${encodeURIComponent(returnTo)}`;
+  }, [location.pathname, location.search]);
+
   return (
     <nav
       id="bottomNav"
@@ -97,13 +104,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
 
         {user && (
           <>
+            <Link to="/coach" style={linkStyle} aria-label="Coach">Coach</Link>
+            <Link to="/today" style={linkStyle} aria-label="Today">Today</Link>
+            <Link to="/profile" style={linkStyle} aria-label="Profile">Profile</Link>
             <Link to="/settings" style={linkStyle} aria-label="Settings">Settings</Link>
-            <Link to="/weeklysummary" style={linkStyle} aria-label="Weekly Summary">Summary</Link>
             {!isPro && (
-              <Link to="/paywall" style={linkStyle} aria-label="Subscribe to Pro">Go Pro</Link>
+              <Link to={paywallHref} style={linkStyle} aria-label="Subscribe to Pro">Go Pro</Link>
+            )}
+            {isPro && (
+              <Link to="/weeklysummary" style={linkStyle} aria-label="Weekly Summary">Summary</Link>
             )}
             <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
-            <Link to="/resetpassword" style={linkStyle} aria-label="Password Reset">Password<br /> Reset</Link>
             <button
               type="button"
               onClick={handleLogout}

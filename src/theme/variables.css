@@ -6,36 +6,36 @@
 
   /* ============= COLOR TOKENS (Light Mode - Default) ============= */
   /* Backgrounds */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f8f8;
-  --bg-tertiary: #f6f9f9;
-  --bg-input: #f8f5f5;
+  --bg-primary: #f7fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eaf2ff;
+  --bg-input: #ffffff;
   
   /* Text colors */
-  --text-primary: #0a0a0a;
-  --text-secondary: #0d2b2b;
-  --text-heading: #174b4b;
-  --text-muted: #173b3b;
+  --text-primary: #172033;
+  --text-secondary: #334155;
+  --text-heading: #172033;
+  --text-muted: #64748b;
   
   /* Borders */
-  --border-primary: #0d2b2b;
-  --border-light: rgba(0, 0, 0, 0.06);
+  --border-primary: #bfd3ef;
+  --border-light: rgba(37, 99, 235, 0.12);
   
   /* Accents */
-  --accent-primary: #2a9d8f;
-  --accent-button-bg: #0d2b2b;
+  --accent-primary: #0f766e;
+  --accent-button-bg: #2563eb;
   --accent-button-text: #fff;
   
   /* Status colors */
-  --badge-active-bg: #e6f0f0;
-  --badge-active-border: #0d2b2b;
+  --badge-active-bg: #eaf2ff;
+  --badge-active-border: #2563eb;
   --badge-inactive-bg: #ffffff;
-  --badge-inactive-border: rgba(13, 43, 43, 0.35);
+  --badge-inactive-border: rgba(37, 99, 235, 0.24);
   
   /* Danger/Error */
-  --danger-color: #8b0000;
-  --danger-bg: #fff6f6;
-  --danger-button: #e63946;
+  --danger-color: #b91c1c;
+  --danger-bg: #fff1f2;
+  --danger-button: #f97373;
 }
 
 /* ============= DARK MODE ============= */
@@ -51,23 +51,23 @@ html[data-theme='dark'] {
   /* Text colors */
   --text-primary: #e0e0e0 !important;
   --text-secondary: #b0b0b0 !important;
-  --text-heading: #4db8a8 !important;
-  --text-muted: #888888 !important;
+  --text-heading: #93c5fd !important;
+  --text-muted: #94a3b8 !important;
   
   /* Borders */
   --border-primary: #3a3a3a !important;
   --border-light: rgba(255, 255, 255, 0.1) !important;
   
   /* Accents */
-  --accent-primary: #3db5a3 !important;
-  --accent-button-bg: #2a7a6f !important;
+  --accent-primary: #2dd4bf !important;
+  --accent-button-bg: #3b82f6 !important;
   --accent-button-text: #ffffff !important;
   
   /* Status colors */
-  --badge-active-bg: #1e3a3a !important;
-  --badge-active-border: #3db5a3 !important;
+  --badge-active-bg: #172554 !important;
+  --badge-active-border: #60a5fa !important;
   --badge-inactive-bg: #2a2a2a !important;
-  --badge-inactive-border: rgba(61, 181, 163, 0.35) !important;
+  --badge-inactive-border: rgba(96, 165, 250, 0.35) !important;
   
   /* Danger/Error */
   --danger-color: #ff6b6b !important;

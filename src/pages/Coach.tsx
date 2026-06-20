@@ -252,7 +252,7 @@ const introMessage: ChatMessage = {
   id: 'coach-intro',
   role: 'coach',
   text:
-    'Hi, I am your GLP-1 Coach. I can answer common questions from a curated on-phone guidance library about routines, protein, hydration, side-effect tracking, missed routines, emotional eating, meal prep, eating out, and weekly reviews. I cannot diagnose, prescribe, or change medication dosing.',
+    'Hi, I’m your GLP-1 Coach. I’m here for the day-to-day bit: food ideas, gentle routines, side-effect tracking, missed days, eating out, emotional eating, and getting back on track without beating yourself up. I can’t diagnose, prescribe, or change your dose, but I can help you feel more prepared and less on your own.',
 };
 
 const Coach: React.FC = () => {
@@ -351,11 +351,11 @@ const Coach: React.FC = () => {
     const coachMessage: ChatMessage =
       matches[0]
         ? createCoachMessage(matches[0], matches.slice(1))
-        : {
+            : {
             id: `coach-fallback-${Date.now()}`,
             role: 'coach',
             text:
-              'I could not match that to a confident curated answer yet. Try one of the topic buttons below, or ask about nausea, constipation, protein, hydration, injection day, missed routines, weekly review, emotional eating, meal prep, eating out, or side-effect tracking.',
+              'I don’t have a confident answer for that one yet. Try asking about nausea, constipation, protein, hydration, injection day, missed routines, weekly reviews, emotional eating, meal prep, eating out, or side-effect tracking. If it feels medical, worrying, severe, or unusual for you, it’s one for your clinician.',
             related: coachLibrary.slice(0, 4),
           };
 
@@ -377,7 +377,7 @@ const Coach: React.FC = () => {
   };
 
   const showReminderPreview = (reminder: CoachReminderSuggestion): void => {
-    const reminderText = `Reminder draft: ${reminder.title}. ${reminder.detail} When reminder creation is wired in, this would open a confirmation card before anything is saved.`;
+    const reminderText = `I can draft that reminder for you: ${reminder.title}. ${reminder.detail} Before anything is saved, you’ll always get a chance to check it and confirm. You stay in control.`;
     if (responseLockRef.current) return;
     responseLockRef.current = true;
     setMessages((prev) => [
@@ -551,12 +551,13 @@ const Coach: React.FC = () => {
             <div className={styles.heroCopy}>
               <div className={styles.eyebrow}>
                 <MessageCircleHeart size={18} />
-                <span>Local GLP-1 Coach</span>
+                <span>Your GLP-1 Coach</span>
               </div>
-              <h1>Curated answers that feel conversational.</h1>
+              <h1>Small steps. Calm support. No lectures.</h1>
               <p>
-                This coach works on the phone from 160 built-in guidance answers.
-                It can suggest reminder drafts, but actions stay confirmation-first.
+                I’ll help you with the everyday moments that make weight loss feel hard:
+                what to eat, what to track, how to handle rough days, and when to ask your
+                clinic for advice.
               </p>
             </div>
             <div className={styles.heroBadge} aria-hidden="true">
@@ -568,26 +569,26 @@ const Coach: React.FC = () => {
             <article className={styles.infoPanel}>
               <div className={styles.panelHeader}>
                 <CheckCircle2 size={20} />
-                <h2>What It Can Do</h2>
+                <h2>How I Can Help</h2>
               </div>
               <ul>
-                <li>Answer common GLP-1 wellness and routine questions.</li>
-                <li>Match natural wording to curated coach guidance.</li>
-                <li>Suggest follow-up questions and next steps.</li>
-                <li>Draft reminders that require approval before saving.</li>
+                <li>Give practical support for common GLP-1 routines and side effects.</li>
+                <li>Help you plan protein, hydration, meals, check-ins, and reset days.</li>
+                <li>Suggest gentle next steps when motivation or appetite dips.</li>
+                <li>Draft reminders, but only save them after you confirm.</li>
               </ul>
             </article>
 
             <article className={styles.infoPanel}>
               <div className={styles.panelHeader}>
                 <ShieldAlert size={20} />
-                <h2>What It Cannot Do</h2>
+                <h2>When To Use Your Clinic</h2>
               </div>
               <ul>
-                <li>Diagnose symptoms or medical conditions.</li>
-                <li>Change, recommend, or interpret medication dosing.</li>
-                <li>Replace emergency care or your prescribing clinician.</li>
-                <li>Answer outside the built-in guidance library yet.</li>
+                <li>I can’t diagnose symptoms or medical conditions.</li>
+                <li>I can’t recommend, change, or interpret medication doses.</li>
+                <li>I’m not a replacement for emergency care or your prescriber.</li>
+                <li>If something feels severe, unusual, or worrying, contact your clinician.</li>
               </ul>
             </article>
           </section>
@@ -596,21 +597,21 @@ const Coach: React.FC = () => {
             <section className={styles.freeIntroShell} aria-label="Free intro and Pro guidance">
               <div className={styles.freeIntroCopy}>
                 <div className={styles.eyebrowDark}>Free intro</div>
-                <h2>Start with Coach before deciding on Pro.</h2>
+                <h2>Start gently. See if this support helps.</h2>
                 <p>
-                  The beginning is free: set up your support profile, use the guided Coach,
-                  try quick check-ins, and learn what the app can help with. Pro is for the
-                  deeper tracking, longer reviews, saved plans, and clinic-ready progress tools.
+                  You can set up your profile, ask common GLP-1 questions, and use quick
+                  check-ins before deciding on Pro. Pro is there when you want deeper tracking,
+                  longer reviews, saved plans, and clearer summaries for clinic appointments.
                 </p>
               </div>
               <div className={styles.freeIntroGrid}>
                 <div>
                   <strong>Free</strong>
-                  <span>Coach setup, common GLP-1 guidance, quick mood check-ins, and reminder explanations.</span>
+                  <span>Coach setup, everyday guidance, quick check-ins, and support with what to track.</span>
                 </div>
                 <div>
                   <strong>Pro</strong>
-                  <span>Detailed tracking, personal plan, weekly summaries, archives, and deeper clinic review preparation.</span>
+                  <span>Detailed tracking, personal plans, weekly summaries, archives, and clinic-ready reviews.</span>
                 </div>
               </div>
               <div className={styles.actionRow}>
@@ -626,7 +627,7 @@ const Coach: React.FC = () => {
                   onClick={() => sendQuestion('What can I use for free?')}
                   disabled={isResponding}
                 >
-                  Ask Coach what I need
+                  Help me choose
                 </button>
               </div>
             </section>
@@ -636,10 +637,10 @@ const Coach: React.FC = () => {
             <section className={styles.setupShell} aria-label="Coach-led setup">
               <div className={styles.setupHeader}>
                 <div>
-                  <h2>Let’s set up your support profile</h2>
+                  <h2>Let’s get you set up</h2>
                   <p>
-                    I’ll ask a few quick questions and save the answers locally. You can edit
-                    everything later in Profile.
+                    I’ll ask a few simple questions so the app can support you properly.
+                    Your answers stay on this phone, and you can change them later.
                   </p>
                 </div>
                 <span>{Math.min(setupIndex + 1, setupSteps.length)}/{setupSteps.length}</span>
@@ -661,8 +662,8 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'account' && (
                 <div className={styles.setupCard}>
-                  <h3>Create your local app login</h3>
-                  <p>This stays on this phone and lets you use the normal login screen later.</p>
+                  <h3>Choose your app login</h3>
+                  <p>This is just for this phone, so you can come back to your plan later.</p>
                   <input
                     type="email"
                     inputMode="email"
@@ -688,7 +689,7 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'units' && (
                 <div className={styles.setupCard}>
-                  <h3>Which units feel natural?</h3>
+                  <h3>Which measurements feel natural?</h3>
                   <div className={styles.choiceGrid}>
                     <button type="button" onClick={() => void saveUnits('kg', 'cm')}>kg + cm</button>
                     <button type="button" onClick={() => void saveUnits('st-lb', 'ft-in')}>stone/lb + ft/in</button>
@@ -698,7 +699,7 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'height' && (
                 <div className={styles.setupCard}>
-                  <h3>Your height helps calculate BMI.</h3>
+                  <h3>Your height helps me work out your BMI.</h3>
                   <div className={styles.inlineFields}>
                     <input
                       inputMode="decimal"
@@ -748,8 +749,8 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'start_weight' && (
                 <div className={styles.setupCard}>
-                  <h3>Do you know your GLP-1 start weight?</h3>
-                  <p>This helps with progress charts. You can add it later if you’re not sure.</p>
+                  <h3>Do you know your starting weight?</h3>
+                  <p>It helps show progress over time. If you’re not sure, we can leave it for now.</p>
                   <div className={styles.inlineFields}>
                     <input
                       inputMode="decimal"
@@ -778,7 +779,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'goal_weight' && (
                 <div className={styles.setupCard}>
                   <h3>Do you have a goal weight?</h3>
-                  <p>Optional. Healthy progress matters more than any single number.</p>
+                  <p>This is optional. Health, confidence, and consistency matter more than one number.</p>
                   <div className={styles.inlineFields}>
                     <input
                       inputMode="decimal"
@@ -806,7 +807,7 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'glp1_status' && (
                 <div className={styles.setupCard}>
-                  <h3>Where are you in your GLP-1 journey?</h3>
+                  <h3>Where are you right now?</h3>
                   <div className={styles.choiceGrid}>
                     {statusOptions.map((option) => (
                       <button
@@ -825,8 +826,8 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'medication_name' && (
                 <div className={styles.setupCard}>
-                  <h3>Which GLP-1 medication are you using?</h3>
-                  <p>This matches the medication options in Profile.</p>
+                  <h3>Which medication are you using?</h3>
+                  <p>This keeps your profile, reminders, and weekly rhythm lined up.</p>
                   <select
                     value={setupDraft}
                     onChange={(event) => setSetupDraft(event.target.value)}
@@ -873,7 +874,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'fasting_schedule' && (
                 <div className={styles.setupCard}>
                   <h3>Fasting schedule</h3>
-                  <p>This will be saved to Profile and Today’s rhythm.</p>
+                  <p>If you use a fasting window, I’ll add it to your daily rhythm.</p>
                   <select value={setupDraft} onChange={(event) => setSetupDraft(event.target.value)}>
                     <option value="">Select fasting window</option>
                     <option value="12:12">12:12</option>
@@ -909,7 +910,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'injection_schedule' && (
                 <div className={styles.setupCard}>
                   <h3>Injection day and time</h3>
-                  <p>This keeps the weekly anchor and Profile in sync.</p>
+                  <p>This helps the app understand your week and prepare better reminders.</p>
                   <select value={setupDraft} onChange={(event) => setSetupDraft(event.target.value)}>
                     <option value="">Select day</option>
                     {weekdayOptions.map((day) => (
@@ -942,10 +943,10 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'main_reason' && (
                 <div className={styles.setupCard}>
-                  <h3>What is your main reason for using GLP-1 support?</h3>
+                  <h3>What matters most to you right now?</h3>
                   <input
                     value={setupDraft}
-                    placeholder="Weight, health, appetite, confidence..."
+                    placeholder="Health, weight, appetite, confidence..."
                     onChange={(event) => setSetupDraft(event.target.value)}
                   />
                   <div className={styles.actionRow}>
@@ -959,7 +960,7 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'biggest_challenge' && (
                 <div className={styles.setupCard}>
-                  <h3>What feels like your biggest challenge right now?</h3>
+                  <h3>What feels hardest at the moment?</h3>
                   <div className={styles.choiceGrid}>
                     {challengeOptions.map((challenge) => (
                       <button
@@ -979,7 +980,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'dob' && (
                 <div className={styles.setupCard}>
                   <h3>Date of birth</h3>
-                  <p>Optional. This is only for reports you choose to share with a clinic.</p>
+                  <p>Optional. This is only used if you choose to prepare a clinic report.</p>
                   <input
                     type="date"
                     value={setupDraft}
@@ -997,7 +998,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'address' && (
                 <div className={styles.setupCard}>
                   <h3>Address for clinic reports</h3>
-                  <p>Optional. It stays on this device unless you export or share a report.</p>
+                  <p>Optional. It stays on this phone unless you choose to share a report.</p>
                   <textarea
                     value={setupDraft}
                     rows={3}
@@ -1020,8 +1021,8 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'checkin_frequency' && (
                 <div className={styles.setupCard}>
-                  <h3>Would you like Coach check-ins?</h3>
-                  <p>We’ll start by saving check-ins here. Scheduled notifications can be added next.</p>
+                  <h3>Would check-ins help?</h3>
+                  <p>A quick mood, energy, and appetite check can make your patterns clearer over time.</p>
                   <div className={styles.choiceGrid}>
                     {checkinFrequencyOptions.map((option) => (
                       <button
@@ -1042,8 +1043,8 @@ const Coach: React.FC = () => {
                 <div className={styles.setupCard}>
                   <h3>Monthly medication anchor</h3>
                   <p>
-                    GLP-1 medication is often supplied monthly with 4 doses. Which day of the month
-                    would you like to use for your prescription/review reminder?
+                    Many people manage GLP-1s in monthly packs. Pick a day for your refill,
+                    prescription, or review reminder.
                   </p>
                   <input
                     inputMode="numeric"
@@ -1077,7 +1078,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'finish' && (
                 <div className={styles.setupCard}>
                   <h3>You’re set up.</h3>
-                  <p>Now the Coach can help with quick check-ins, support questions, and clinic-ready summaries later.</p>
+                  <p>Lovely. Now we can keep things simple: small check-ins, steady support, and clearer notes if you need your clinic.</p>
                   <IonButton className={styles.primarySetupAction} onClick={() => void completeSetup()}>
                     Finish setup
                   </IonButton>
@@ -1090,8 +1091,8 @@ const Coach: React.FC = () => {
             <section className={styles.checkinShell} aria-label="Daily coach check-in">
               <div className={styles.sectionHeader}>
                 <div>
-                  <h2>Quick Coach Check-In</h2>
-                  <p>Three taps now can make your monthly review much clearer later.</p>
+                  <h2>Quick check-in</h2>
+                  <p>Three taps. No judgment. Just a clearer picture of how you’re doing.</p>
                 </div>
               </div>
               <div className={styles.scaleRows}>
@@ -1131,7 +1132,7 @@ const Coach: React.FC = () => {
             <div className={styles.chatHeader}>
               <div>
                 <h2>Ask the Coach</h2>
-                <p>{coachLibrary.length} built-in answers across {coachCategories.length} topics</p>
+                <p>Ask about food, side effects, routines, motivation, or getting back on track.</p>
               </div>
               <IonButton
                 className={styles.secondaryAction}
@@ -1230,7 +1231,7 @@ const Coach: React.FC = () => {
                 ref={inputRef}
                 value={draft}
                 rows={2}
-                placeholder="Ask about nausea, protein, missed routines, meal prep..."
+                placeholder="What do you need help with today?"
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
@@ -1254,8 +1255,8 @@ const Coach: React.FC = () => {
           <section className={styles.librarySection} aria-labelledby="coachLibraryTitle">
             <div className={styles.sectionHeader}>
               <div>
-                <h2 id="coachLibraryTitle">Browse the Library</h2>
-                <p>Use this when you want to see exactly what the local coach can answer.</p>
+                <h2 id="coachLibraryTitle">Helpful topics</h2>
+                <p>Not sure what to ask? Start with one of these.</p>
               </div>
             </div>
 

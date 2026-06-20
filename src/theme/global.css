@@ -12,16 +12,16 @@
    Base app background/text
    ========================= */
 html, body, ion-app {
-  background: #ffffff;
-  color: #0a0a0a;
+  background: #f7fafc;
+  color: #172033;
   margin: 0;
   padding: 0;
 }
 
 /* Default IonContent look for most pages */
 ion-content {
-  --background: #ffffff;
-  --color: #0a0a0a;
+  --background: #f7fafc;
+  --color: #172033;
 }
 
 /* =========================
@@ -61,8 +61,8 @@ ion-content {
    EXCEPT content marked as Home
    ========================= */
 ion-content:not(.viewportBetweenNavs):not(.homeContent) {
-  --background: #ffffff;
-  --color: #0a0a0a;
+  --background: #f7fafc;
+  --color: #172033;
 }
 
 /* =========================
@@ -92,7 +92,7 @@ ion-content#homeContent .pageScroll * {
    Buttons
    ========================= */
 ion-button.custom-button {
-  --background: #174b4b;
+  --background: #2563eb;
   --color: #ffffff;
   --border-radius: 10px;
   --padding-top: 12px;
@@ -105,9 +105,9 @@ ion-button.custom-button {
 
 ion-button.custom-outline {
   --background: transparent;
-  --color: #2a9d8f;
+  --color: #0f766e;
   --border-radius: 10px;
-  --border-color: #2a9d8f;
+  --border-color: #0f766e;
   --border-style: solid;
   --border-width: 2px;
   --padding-top: 12px;
@@ -134,21 +134,21 @@ ion-button.custom-danger {
    Inputs
    ========================= */
 ion-input.custom-input {
-  --background: #e5f6f4; /* soft teal */
-  --color: #0a0a0a;
-  --placeholder-color: #333;
-  --highlight-color-focused: #2a9d8f;
+  --background: #ffffff;
+  --color: #172033;
+  --placeholder-color: #64748b;
+  --highlight-color-focused: #2563eb;
   --padding-start: 12px;
   --padding-end: 12px;
   --border-radius: 8px;
-  --border-color: #2a9d8f;
+  --border-color: #bfd3ef;
   --border-width: 2px;
   --border-style: solid;
   font-size: 1rem;
 }
 
 ion-item.custom-input-item {
-  --background: #e5f6f4;
+  --background: #ffffff;
   --inner-padding-start: 0;
   --inner-padding-end: 0;
   --padding-start: 12px;
@@ -161,9 +161,9 @@ ion-input.custom-input input:-webkit-autofill,
 ion-input.custom-input input:-webkit-autofill:focus,
 ion-input.custom-input input:-webkit-autofill:hover,
 ion-input.custom-input input:-webkit-autofill:active {
--webkit-box-shadow: 0 0 0px 1000px #e5f6f4 inset !important;
-box-shadow: 0 0 0px 1000px #e5f6f4 inset !important;
--webkit-text-fill-color: #0a0a0a !important;
+-webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+box-shadow: 0 0 0px 1000px #ffffff inset !important;
+-webkit-text-fill-color: #172033 !important;
 transition: background-color 9999s ease-out, color 9999s ease-out;
 transition-delay: 9999s;
 }
@@ -173,4 +173,3 @@ html, body, #root {
   overflow: hidden;          /* the page’s own scroll stays on .container */
   overscroll-behavior: none; /* belt-and-braces for the outer doc */
 }
-

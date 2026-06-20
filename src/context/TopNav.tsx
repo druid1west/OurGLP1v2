@@ -13,7 +13,7 @@ const barStyle: React.CSSProperties = {
   left: 0,
   right: 0,
   top: 0,
-  backgroundColor: '#174b4b',
+  backgroundColor: '#2563eb',
   paddingLeft: 10,
   paddingRight: 10,
 
@@ -57,7 +57,7 @@ const linkStyle: React.CSSProperties = {
 
 const badgeStyle: React.CSSProperties = {
   marginLeft: '0.35rem',
-  backgroundColor: 'red',
+  backgroundColor: '#f97373',
   color: 'white',
   borderRadius: '9px',
   padding: '0 5px',
@@ -68,7 +68,7 @@ const badgeStyle: React.CSSProperties = {
 };
 
 const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
   const { count, refreshCount } = useReminderBadge();
 
   React.useEffect(() => {
@@ -90,9 +90,15 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
             <Link to="/coach" style={linkStyle}>Coach</Link>
             <Link to="/today" style={linkStyle}>Today</Link>
             <Link to="/profile" style={linkStyle}>Profile</Link>
-            <Link to="/protocols" style={linkStyle}>Protocols</Link>
-            <Link to="/personalplan" style={linkStyle}>Plan</Link>
             <Link to="/healthtracker" style={linkStyle}>Tracker</Link>
+            {isPro ? (
+              <>
+                <Link to="/protocols" style={linkStyle}>Protocols</Link>
+                <Link to="/personalplan" style={linkStyle}>Plan</Link>
+              </>
+            ) : (
+              <Link to="/paywall?returnTo=/today" style={linkStyle}>Go Pro</Link>
+            )}
             <Link
               to="/reminders"
               style={linkStyle}
