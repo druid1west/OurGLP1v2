@@ -320,19 +320,9 @@ const Settings: React.FC = () => {
 
             <div className={styles.subActions}>
               {sub.kind === 'pro' ? (
-                <>
-                  <IonButton expand="block" onClick={() => openManageSubscriptions()}>
-                    Manage Subscription
-                  </IonButton>
-
-                  <IonButton
-                    expand="block"
-                    fill="outline"
-                    onClick={openPaywall}
-                  >
-                    Renew / Change Plan
-                  </IonButton>
-                </>
+                <IonButton expand="block" onClick={() => openManageSubscriptions()}>
+                  Manage Subscription
+                </IonButton>
               ) : (
                 <IonButton expand="block" onClick={openPaywall}>
                   Go Pro
@@ -443,7 +433,6 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-
 
 
 

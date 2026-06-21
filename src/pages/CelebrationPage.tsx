@@ -1,10 +1,11 @@
 // src/pages/CelebrationPage.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IonPage, IonContent, IonButton } from '@ionic/react';
 import { useHistory, useLocation } from 'react-router-dom';
 
 import type { CelebrationContext } from '../types/celebration';
 import { getMetricConfig } from '../celebration/celebrationConfig';
+import { markCelebrated } from '../celebration/celebrationLogic';
 import { logger } from '../utils/logger';
 import styles from './CelebrationPage.module.css';
 
@@ -121,12 +122,37 @@ const CelebrationPage: React.FC = () => {
   // Play audio once we know we have a valid context
   useEffect(() => {
     if (!ctx) return;
+    markCelebrated(ctx.metric, ctx.kind, ctx.dateYmd);
+    try {
+      window.sessionStorage.removeItem(LAST_CELEBRATION_KEY);
+    } catch {
+      // Ignore storage errors; the route state still controls this visit.
+    }
     if (audioRef.current) {
       void audioRef.current.play().catch(() => {
         // ignore autoplay errors
       });
     }
   }, [ctx]);
+
+  const randomPhrase = useMemo(() => {
+    const phrases: string[] = [
+      ...(ctx?.metric === 'weight'
+        ? [
+            'That is a real win. Keep it steady.',
+            'Progress is progress, even when it is small.',
+            'You showed up for yourself today.',
+          ]
+        : []),
+      'Your future self says thanks 💙',
+      'Consistency beats intensity. Keep going!',
+      'Every small win stacks up 📈',
+      "You're building a stronger baseline for your health.",
+      'Tiny habits, big results. Nice work.',
+    ];
+    const idx = Math.floor(Math.random() * phrases.length);
+    return phrases[idx];
+  }, [ctx?.metric]);
 
   if (!ctx) {
     // While redirecting, render nothing
@@ -138,6 +164,10 @@ const CelebrationPage: React.FC = () => {
   const config = getMetricConfig(ctx.metric);
 
   const titleText = (() => {
+    if (ctx.metric === 'weight') {
+      return 'Progress logged!';
+    }
+
     switch (ctx.kind) {
       case 'single_entry':
         return 'Nice Hit!';
@@ -155,6 +185,11 @@ const CelebrationPage: React.FC = () => {
     const valueStr = ctx.value != null ? `${ctx.value}${unit}` : '';
     const goalStr = ctx.goal != null ? `${ctx.goal}${unit}` : '';
 
+    if (ctx.metric === 'weight' && ctx.value != null && ctx.goal != null) {
+      const change = Math.max(0, ctx.goal - ctx.value);
+      return `Your weight moved down by ${Number(change.toFixed(1))}${unit}. Small steady changes count.`;
+    }
+
     if (ctx.kind === 'adherence') {
       return `You stuck to your ${config.friendlyName.toLowerCase()} plan for ${ctx.dateYmd}.`;
     }
@@ -170,24 +205,13 @@ const CelebrationPage: React.FC = () => {
     return `You completed your ${config.friendlyName.toLowerCase()} goal for ${ctx.dateYmd}.`;
   })();
 
-  const randomPhrase = (() => {
-    const phrases: string[] = [
-      'Your future self says thanks 💙',
-      'Consistency beats intensity. Keep going!',
-      'Every small win stacks up 📈',
-      "You're building a stronger baseline for your health.",
-      'Tiny habits, big results. Nice work.',
-    ];
-    const idx = Math.floor(Math.random() * phrases.length);
-    return phrases[idx];
-  })();
-
   const handleBack = (): void => {
-    if (history.length > 1) {
-      history.goBack();
-    } else {
-      history.replace('/healthtracker');
+    try {
+      window.sessionStorage.removeItem(LAST_CELEBRATION_KEY);
+    } catch {
+      // Ignore storage errors; navigation is still safe.
     }
+    history.replace('/healthtracker');
   };
 
  return (
@@ -222,7 +246,4 @@ const CelebrationPage: React.FC = () => {
 };
 
 export default CelebrationPage;
-
-
-
 

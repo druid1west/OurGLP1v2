@@ -43,7 +43,10 @@ CREATE TABLE IF NOT EXISTS users (
   apple_private_relay INTEGER NOT NULL DEFAULT 0,
   has_pro INTEGER NOT NULL DEFAULT 0,
   pro_until TEXT,
-  subscription_tier TEXT DEFAULT 'free'
+  subscription_tier TEXT DEFAULT 'free',
+  subscription_product_id TEXT,
+  entitlement_source TEXT,
+  entitlement_synced_at TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique

@@ -91,6 +91,24 @@ function toUser(rec: SqliteRowObject | null): User | null {
         : null,
     pro_until:
       rec.pro_until === null ? null : typeof rec.pro_until === 'string' ? rec.pro_until : null,
+    subscription_product_id:
+      rec.subscription_product_id === null
+        ? null
+        : typeof rec.subscription_product_id === 'string'
+        ? rec.subscription_product_id
+        : null,
+    entitlement_source:
+      rec.entitlement_source === null
+        ? null
+        : typeof rec.entitlement_source === 'string'
+        ? rec.entitlement_source
+        : null,
+    entitlement_synced_at:
+      rec.entitlement_synced_at === null
+        ? null
+        : typeof rec.entitlement_synced_at === 'string'
+        ? rec.entitlement_synced_at
+        : null,
     email_verified_at:
       rec.email_verified_at === null
         ? null
@@ -127,7 +145,9 @@ export async function getLocalCurrentUser(): Promise<User | null> {
              medication_name, medication_dose,
              fasting_schedule, fasting_start, fasting_end,
              injection_day, injection_time, timezone,
-             has_pro, subscription_tier, pro_until, last_login_at,
+             has_pro, subscription_tier, pro_until,
+             subscription_product_id, entitlement_source, entitlement_synced_at,
+             last_login_at,
              email_verified_at
       FROM users
       WHERE id = ?
@@ -156,7 +176,9 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   const result = await db.query(
     `
     SELECT id, email, first_name, last_name, timezone,
-           has_pro, subscription_tier, pro_until, last_login_at
+           has_pro, subscription_tier, pro_until,
+           subscription_product_id, entitlement_source, entitlement_synced_at,
+           last_login_at
     FROM users
     WHERE email_lower = lower(?)             -- ← use the indexed column
     LIMIT 1
@@ -236,10 +258,13 @@ export async function upgradeLocalUserToPro(userId: string, months = 12): Promis
     UPDATE users
     SET has_pro = 1,
         subscription_tier = 'pro',
-        pro_until = ?
+        pro_until = ?,
+        subscription_product_id = NULL,
+        entitlement_source = 'local_test',
+        entitlement_synced_at = ?
     WHERE id = ?
     `,
-    [untilIso, userId]
+    [untilIso, new Date().toISOString(), userId]
   );
 }
 

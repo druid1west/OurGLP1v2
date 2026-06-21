@@ -183,11 +183,11 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   // Derive isPro from in-memory user as a fallback (kept for robustness)
   const derivedIsPro = useMemo(() => {
     if (!user) return false;
-    if (user.has_pro) return true;
-    if (user.subscription_tier === 'pro') return true;
     if (user.pro_until) {
       const until = Date.parse(user.pro_until);
-      if (!Number.isNaN(until) && until > Date.now()) return true;
+      if (!Number.isNaN(until) && until > Date.now()) {
+        return Boolean(user.has_pro || user.subscription_tier === 'pro');
+      }
     }
     return false;
   }, [user]);
@@ -212,7 +212,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
 
 
 

@@ -4,11 +4,12 @@
 // ============================================================================
 import { useHistory } from 'react-router-dom';
 import { logger } from '../utils/logger';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   IonPage,
   IonContent,
   IonSpinner,
+  IonButton,
   useIonViewDidEnter,
   useIonViewWillEnter,
   useIonViewWillLeave,
@@ -29,9 +30,21 @@ import { Camera, CameraResultType, CameraSource, type CameraPhoto } from '@capac
 
 import { updateLocalUserProfile, type UserProfilePatch } from '../services/localAuth';
 import { getSettings, setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
-import { upsertDailyProtein, listHealthLogsRange } from '../db/HealthRepository';
+import {
+  upsertDailyProtein,
+  listHealthLogsRange,
+  getHealthDailySummaryByDay,
+  upsertHealthDailySummary,
+  importAppleHealthWorkoutsAndEmit,
+  type HealthDailySummary,
+} from '../db/HealthRepository';
 import { listSleepLogsRange } from '../db/SleepRepository';
 import { computeProteinRange, computeHydrationRange, getSleepColor, SLEEP_RECOMMENDED } from '../lib/nutrition';
+import {
+  AppleHealth,
+  isAppleHealthSupportedPlatform,
+  type AppleHealthDailySummary,
+} from '../plugins/appleHealth';
 
 // Import navigation components
 import TopNav from '../context/TopNav';
@@ -63,6 +76,14 @@ const dlog = DEBUG_PROFILE
       warn: noop,
       error: noop,
     };
+
+const todayYmdLocal = (): string => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 
 
@@ -450,6 +471,9 @@ const Profile: React.FC = () => {
 
   const [sleepAvgHours7d, setSleepAvgHours7d] = useState<number>(0);
   const [sleepLoggedNights7d, setSleepLoggedNights7d] = useState<number>(0);
+  const [exerciseHealthSummary, setExerciseHealthSummary] = useState<HealthDailySummary | null>(null);
+  const [exerciseHealthSyncing, setExerciseHealthSyncing] = useState(false);
+  const [exerciseHealthMessage, setExerciseHealthMessage] = useState('');
 
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -727,6 +751,75 @@ useEffect(() => {
   window.addEventListener('sleep:changed', onChanged);
   return () => window.removeEventListener('sleep:changed', onChanged);
 }, []);
+
+const loadExerciseHealthSummary = useCallback(async (): Promise<void> => {
+  try {
+    const summary = await getHealthDailySummaryByDay(todayYmdLocal());
+    setExerciseHealthSummary(summary);
+  } catch (err) {
+    dlog.warn('loadExerciseHealthSummary failed', err);
+    setExerciseHealthSummary(null);
+  }
+}, []);
+
+useEffect(() => {
+  void loadExerciseHealthSummary();
+  const onChanged = () => void loadExerciseHealthSummary();
+  window.addEventListener('health:changed', onChanged);
+  window.addEventListener('exercise:changed', onChanged);
+  return () => {
+    window.removeEventListener('health:changed', onChanged);
+    window.removeEventListener('exercise:changed', onChanged);
+  };
+}, [loadExerciseHealthSummary]);
+
+const syncExerciseAppleHealth = useCallback(async (): Promise<void> => {
+  setExerciseHealthMessage('');
+
+  if (!isAppleHealthSupportedPlatform()) {
+    setExerciseHealthMessage('Apple Health is available on iPhone builds.');
+    return;
+  }
+
+  setExerciseHealthSyncing(true);
+  try {
+    const availability = await AppleHealth.isAvailable();
+    if (!availability.available) {
+      setExerciseHealthMessage('Apple Health is not available on this device.');
+      return;
+    }
+
+    const day = todayYmdLocal();
+    await AppleHealth.requestAuthorization();
+    const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day });
+    const workoutResult = await AppleHealth.getWorkouts({ day });
+
+    await upsertHealthDailySummary({
+      day: summary.day,
+      source: 'apple_health',
+      steps: summary.steps,
+      activeEnergyKcal: summary.activeEnergyKcal,
+      exerciseMinutes: summary.exerciseMinutes,
+      sleepMinutes: summary.sleepMinutes,
+      restingHeartRate: summary.restingHeartRate,
+      workouts: summary.workouts,
+    });
+
+    const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
+    setExerciseHealthMessage(
+      imported.inserted > 0
+        ? `Apple Health activity synced. Added ${imported.inserted} workout${imported.inserted === 1 ? '' : 's'}.`
+        : 'Apple Health activity synced. No new workouts to add.'
+    );
+    await loadExerciseHealthSummary();
+    window.dispatchEvent(new Event('exercise:changed'));
+  } catch (err) {
+    dlog.warn('syncExerciseAppleHealth failed', err);
+    setExerciseHealthMessage('Apple Health could not sync yet.');
+  } finally {
+    setExerciseHealthSyncing(false);
+  }
+}, [loadExerciseHealthSummary]);
 
   // Load today's protein from local DB
   useEffect(() => {
@@ -1610,6 +1703,43 @@ const mainUIView = (
     <div className={styles.mt6}>
       <strong>Logged nights:</strong> {sleepLoggedNights7d}/7
     </div>
+  </div>
+
+  {/* 🏃 Exercise */}
+  <div className={styles.statCard}>
+    <div className={styles.statTitle}>🏃 Exercise</div>
+    <div>
+      <strong>Steps today:</strong> {(exerciseHealthSummary?.steps ?? 0).toLocaleString()}
+    </div>
+    <div className={styles.mt6}>
+      <strong>Exercise:</strong> {Math.round(exerciseHealthSummary?.exerciseMinutes ?? 0)} min
+    </div>
+    <div className={styles.mt6}>
+      <strong>Move:</strong>{' '}
+      {Math.round(exerciseHealthSummary?.activeEnergyKcal ?? 0).toLocaleString()} kcal
+    </div>
+    {exerciseHealthSummary?.synced_at && (
+      <div className={`${styles.mt6} ${styles.mutedSmall}`}>
+        Last sync:{' '}
+        {new Date(exerciseHealthSummary.synced_at).toLocaleString([], {
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </div>
+    )}
+    <IonButton
+      className="custom-button"
+      expand="block"
+      onClick={() => void syncExerciseAppleHealth()}
+      disabled={exerciseHealthSyncing}
+    >
+      {exerciseHealthSyncing ? 'Syncing Apple Health...' : 'Sync Apple Health'}
+    </IonButton>
+    {exerciseHealthMessage && (
+      <div className={`${styles.mt6} ${styles.mutedSmall}`}>{exerciseHealthMessage}</div>
+    )}
   </div>
 </div>
 

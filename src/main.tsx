@@ -3,7 +3,11 @@ import './boot/globalErrors';
 import { logger } from './utils/logger';
 import { initRevenueCat } from './lib/purchasesInit';
 import { Purchases } from '@revenuecat/purchases-capacitor';
-import { writeRcCacheFromCustomerInfo } from './lib/rcSync';
+import {
+  refreshCurrentUserEntitlementFromRevenueCat,
+  syncCurrentUserEntitlementFromCustomerInfo,
+  writeRcCacheFromCustomerInfo,
+} from './lib/rcSync';
 import { initDbp } from './dev/dbp';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -14,6 +18,7 @@ import { Capacitor } from '@capacitor/core';
 import { initHealthTables } from './db/HealthRepository';
 import { initProtocolTables } from './db/ProtocolRepository';
 import { canUseStoreKitTestProducts } from './plugins/storeKitTest';
+import { App as CapacitorApp } from '@capacitor/app';
 
 // import '@/polyfills/crypto-subtle';
 
@@ -56,17 +61,29 @@ async function boot() {
       await initRevenueCat();
 
       Purchases.addCustomerInfoUpdateListener((info) => {
-        writeRcCacheFromCustomerInfo(info);
+        void syncCurrentUserEntitlementFromCustomerInfo(info);
         rcLog.info('customerInfo updated');
-        window.dispatchEvent(new Event('rc:customerInfoChanged'));
       });
 
       // ✅ Seed local cache once so Settings has data immediately
       try {
         const info = await Purchases.getCustomerInfo();
         writeRcCacheFromCustomerInfo(info);
+        await syncCurrentUserEntitlementFromCustomerInfo(info);
       } catch (e) {
         rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });
+      }
+
+      try {
+        CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) {
+            void refreshCurrentUserEntitlementFromRevenueCat();
+          }
+        });
+      } catch (e) {
+        rcLog.warn('appStateChange listener failed', {
+          msg: e instanceof Error ? e.message : String(e),
+        });
       }
     }
   }

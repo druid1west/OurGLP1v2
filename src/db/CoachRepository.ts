@@ -338,3 +338,19 @@ export async function insertCoachCheckin(input: CoachCheckinInput): Promise<void
   await logMood(mood, recordedAt);
   emitHealthChanged('mood');
 }
+
+export async function hasCoachCheckinForDay(userId: string, day: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.query(
+    `
+    SELECT id
+      FROM coach_checkins
+     WHERE user_id = ?
+       AND local_day = ?
+     LIMIT 1
+    `,
+    [userId, day]
+  );
+
+  return Boolean(firstRow(result.values));
+}

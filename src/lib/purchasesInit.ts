@@ -8,6 +8,7 @@ import {
   type PurchasesPackage,
 } from '@revenuecat/purchases-capacitor';
 import { logger } from '../utils/logger';
+import { deriveEntitlementFromCustomerInfo } from './rcSync';
 
 const rcLog = logger.child('RC');
 
@@ -309,7 +310,7 @@ export async function getCustomerInfo(): Promise<CustomerInfo> {
 
 /** Simple entitlement check: true if any active subscription exists */
 export function isProFromCustomerInfo(ci: CustomerInfo): boolean {
-  return Array.isArray(ci.activeSubscriptions) && ci.activeSubscriptions.length > 0;
+  return deriveEntitlementFromCustomerInfo(ci).active;
 }
 
 /** Return a localized price string for the default product (or null) using Offerings. */
@@ -366,4 +367,3 @@ export async function initAndGetAppUserId(appUserId?: string): Promise<string> {
     return '';
   }
 }
-

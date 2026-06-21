@@ -5,7 +5,8 @@ export type CelebrationMetric =
   | 'exercise'
   | 'sleep'
   | 'fasting'
-  | 'bowel';
+  | 'bowel'
+  | 'weight';
 
 
 export type CelebrationKind =

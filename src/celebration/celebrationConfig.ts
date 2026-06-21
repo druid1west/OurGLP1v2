@@ -97,6 +97,17 @@ const METRIC_GOAL_CONFIG: Record<CelebrationMetric, MetricGoalConfig> = {
     enableSingleEntry: true,
   },
 
+  weight: {
+    metric: 'weight',
+    friendlyName: 'Weight progress',
+    unitLabel: 'kg',
+    dailyGoalType: 'grams',
+    dailyGoalValue: null,
+    enableDailyTotal: false,
+    singleEntryThreshold: null,
+    enableSingleEntry: false,
+  },
+
 };
 
 export function getMetricConfig(metric: CelebrationMetric): MetricGoalConfig {

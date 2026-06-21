@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IonButton, IonContent, IonPage, useIonRouter, useIonViewWillLeave } from '@ionic/react';
+import { useHistory } from 'react-router-dom';
 import {
   BellPlus,
   CheckCircle2,
@@ -23,6 +24,7 @@ import {
 import {
   feetInchesToCm,
   getCoachProfile,
+  hasCoachCheckinForDay,
   insertCoachCheckin,
   patchCoachProfile,
   stonesPoundsToKg,
@@ -31,10 +33,12 @@ import {
   type HeightUnit,
   type WeightUnit,
 } from '@/db/CoachRepository';
+import { insertHealthLog } from '@/db/HealthRepository';
 import { upsertLocalAccount } from '@/db/LocalAccountRepository';
 import { setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
 import { markUserAsLoggedIn, registerLocalUser } from '@/services/localAuth';
 import { hashPassword } from '@/utils/password';
+import type { CelebrationContext } from '@/types/celebration';
 import styles from './Coach.module.css';
 
 type ChatMessage = Readonly<{
@@ -257,6 +261,7 @@ const introMessage: ChatMessage = {
 
 const Coach: React.FC = () => {
   const router = useIonRouter();
+  const history = useHistory();
   const { user, refreshUser, isPro } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([introMessage]);
   const [draft, setDraft] = useState('');
@@ -273,12 +278,56 @@ const Coach: React.FC = () => {
   const [checkinMood, setCheckinMood] = useState<number | null>(null);
   const [checkinEnergy, setCheckinEnergy] = useState<number | null>(null);
   const [checkinAppetite, setCheckinAppetite] = useState<number | null>(null);
+  const [checkinWeightDraft, setCheckinWeightDraft] = useState('');
+  const [checkinWeightAuxDraft, setCheckinWeightAuxDraft] = useState('');
   const [checkinSaving, setCheckinSaving] = useState(false);
+  const [checkedInToday, setCheckedInToday] = useState(false);
+  const [addingExtraCheckin, setAddingExtraCheckin] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const responseLockRef = useRef(false);
   const activeSetupStep: SetupStep = setupSteps[setupIndex] ?? 'finish';
   const setupComplete = Boolean(coachProfile?.coach_onboarding_completed_at);
+
+  const isSetupStepSatisfied = useCallback((step: SetupStep): boolean => {
+    if (!coachProfile && step !== 'account') return false;
+
+    switch (step) {
+      case 'first_name':
+        return Boolean(coachProfile?.first_name || user?.first_name);
+      case 'account':
+        return Boolean(user?.id || coachUserId);
+      case 'units':
+        return Boolean(coachProfile?.height || coachProfile?.weight);
+      case 'height':
+        return Boolean(coachProfile?.height);
+      case 'current_weight':
+        return Boolean(coachProfile?.weight);
+      case 'start_weight':
+      case 'goal_weight':
+      case 'main_reason':
+      case 'biggest_challenge':
+      case 'dob':
+      case 'address':
+        return true;
+      case 'glp1_status':
+        return Boolean(coachProfile?.glp1_status);
+      case 'medication_name':
+        return Boolean(coachProfile?.medication_name);
+      case 'fasting_schedule':
+        return Boolean(coachProfile?.fasting_schedule);
+      case 'injection_schedule':
+        return Boolean(coachProfile?.injection_day && coachProfile?.injection_time);
+      case 'checkin_frequency':
+        return Boolean(coachProfile?.coach_checkin_frequency);
+      case 'monthly_anchor':
+        return Boolean(coachProfile?.monthly_anchor_day);
+      case 'finish':
+        return false;
+      default:
+        return false;
+    }
+  }, [coachProfile, coachUserId, user?.first_name, user?.id]);
 
   const resetCoach = (): void => {
     if (replyTimerRef.current) {
@@ -328,6 +377,15 @@ const Coach: React.FC = () => {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    if (profileLoading || setupComplete || activeSetupStep === 'finish') return;
+    if (!isSetupStepSatisfied(activeSetupStep)) return;
+
+    setSetupDraft('');
+    setSetupAuxDraft('');
+    setSetupIndex((prev) => Math.min(prev + 1, setupSteps.length - 1));
+  }, [activeSetupStep, profileLoading, setupComplete, isSetupStepSatisfied]);
+
   const categoryEntries = useMemo(
     () =>
       activeCategory === 'All'
@@ -374,6 +432,28 @@ const Coach: React.FC = () => {
   const handleSubmit = (event: React.FormEvent): void => {
     event.preventDefault();
     sendQuestion(draft);
+  };
+
+  const explainProChoice = (): void => {
+    if (responseLockRef.current) return;
+    responseLockRef.current = true;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user-pro-choice-${Date.now()}`,
+        role: 'user',
+        text: 'Help me choose',
+      },
+      {
+        id: `coach-pro-choice-${Date.now()}`,
+        role: 'coach',
+        text:
+          'Of course. Start free if you mainly want gentle guidance, setup help, quick check-ins, and common GLP-1 support questions.\n\nWhat you miss without Pro is the deeper part: fuller tracking, personal plans, saved weekly summaries, archives, and clearer clinic-ready reviews. That matters most if you want to spot patterns, prepare for appointments, or show your prescriber what has been happening between visits.\n\nMy honest coach answer: use the free start to see if the app feels helpful. Go Pro when you want the app to become more of a progress record and clinic-support tool, not just a daily guide.',
+      },
+    ]);
+
+    responseLockRef.current = false;
   };
 
   const showReminderPreview = (reminder: CoachReminderSuggestion): void => {
@@ -490,6 +570,48 @@ const Coach: React.FC = () => {
     return stonesPoundsToKg(primary, Number.isFinite(secondary) ? secondary : 0);
   };
 
+  const weightFromValues = (primaryRaw: string, secondaryRaw: string): number | null => {
+    const primary = Number(primaryRaw);
+    const secondary = Number(secondaryRaw);
+    if (!Number.isFinite(primary) || primary <= 0) return null;
+    if (weightUnit === 'kg') return Number(primary.toFixed(1));
+    return stonesPoundsToKg(primary, Number.isFinite(secondary) ? secondary : 0);
+  };
+
+  const todayLocalYmd = (): string => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const refreshCheckedInToday = useCallback(async (userId: string): Promise<void> => {
+    const hasCheckin = await hasCoachCheckinForDay(userId, todayLocalYmd());
+    setCheckedInToday(hasCheckin);
+    if (!hasCheckin) setAddingExtraCheckin(false);
+  }, []);
+
+  useEffect(() => {
+    const userId = user?.id ?? coachUserId;
+    if (!userId || !setupComplete) {
+      setCheckedInToday(false);
+      setAddingExtraCheckin(false);
+      return;
+    }
+
+    void refreshCheckedInToday(userId);
+  }, [coachUserId, refreshCheckedInToday, setupComplete, user?.id]);
+
+  const navigateToCelebration = (ctx: CelebrationContext): void => {
+    try {
+      window.sessionStorage.setItem('lastCelebrationCtx', JSON.stringify(ctx));
+    } catch {
+      // Navigation still carries state when storage is unavailable.
+    }
+    history.push('/celebrate', ctx);
+  };
+
   const saveWeightField = async (field: 'weight' | 'start_weight' | 'goal_weight', optional = false): Promise<void> => {
     const kg = weightFromDraft();
     if (kg == null && !optional) return;
@@ -525,17 +647,48 @@ const Coach: React.FC = () => {
         energy_score: checkinEnergy,
         appetite_score: checkinAppetite,
       });
+      setCheckedInToday(true);
+      setAddingExtraCheckin(false);
+
+      const previousWeight = coachProfile?.weight ?? null;
+      const currentWeight = weightFromValues(checkinWeightDraft, checkinWeightAuxDraft);
+      if (currentWeight != null) {
+        const recordedAt = new Date().toISOString();
+        await insertHealthLog({
+          entry_type: 'weight',
+          recorded_at: recordedAt,
+          data_json: JSON.stringify({ kg: currentWeight, source: 'coach_checkin' }),
+        });
+        await saveProfilePatch({ weight: currentWeight });
+      }
+
       setCheckinMood(null);
       setCheckinEnergy(null);
       setCheckinAppetite(null);
+      setCheckinWeightDraft('');
+      setCheckinWeightAuxDraft('');
       setMessages((prev) => [
         ...prev,
         {
           id: `coach-checkin-${Date.now()}`,
           role: 'coach',
-          text: 'Check-in saved. Tiny details like this help build a clearer picture for you and, if you choose, your clinic review later.',
+          text: currentWeight != null
+            ? 'Check-in and weight saved. Tiny details like this help build a clearer picture for you and, if you choose, your clinic review later.'
+            : 'Check-in saved. Tiny details like this help build a clearer picture for you and, if you choose, your clinic review later.',
         },
       ]);
+
+      if (previousWeight != null && currentWeight != null && currentWeight < previousWeight) {
+        navigateToCelebration({
+          metric: 'weight',
+          kind: 'single_entry',
+          dateYmd: todayLocalYmd(),
+          value: currentWeight,
+          goal: previousWeight,
+        });
+        return;
+      }
+
       router.push('/profile', 'forward');
     } finally {
       setCheckinSaving(false);
@@ -624,7 +777,7 @@ const Coach: React.FC = () => {
                 <button
                   type="button"
                   className={styles.textButton}
-                  onClick={() => sendQuestion('What can I use for free?')}
+                  onClick={explainProChoice}
                   disabled={isResponding}
                 >
                   Help me choose
@@ -684,6 +837,9 @@ const Coach: React.FC = () => {
                   >
                     Save login
                   </IonButton>
+                  <button type="button" className={styles.textButton} onClick={nextSetupStep}>
+                    Continue without changing login
+                  </button>
                 </div>
               )}
 
@@ -1087,12 +1243,34 @@ const Coach: React.FC = () => {
             </section>
           )}
 
-          {setupComplete && (
+          {setupComplete && checkedInToday && !addingExtraCheckin && (
+            <section className={styles.checkinShell} aria-label="Daily coach check-in saved">
+              <div className={styles.sectionHeader}>
+                <div>
+                  <h2>Today’s check-in is saved</h2>
+                  <p>Nice work. I’ll keep the quick questions tucked away now so the page feels calmer.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.textButton}
+                onClick={() => setAddingExtraCheckin(true)}
+              >
+                Add another check-in
+              </button>
+            </section>
+          )}
+
+          {setupComplete && (!checkedInToday || addingExtraCheckin) && (
             <section className={styles.checkinShell} aria-label="Daily coach check-in">
               <div className={styles.sectionHeader}>
                 <div>
-                  <h2>Quick check-in</h2>
-                  <p>Three taps. No judgment. Just a clearer picture of how you’re doing.</p>
+                  <h2>{addingExtraCheckin ? 'Add another check-in' : 'Quick check-in'}</h2>
+                  <p>
+                    {addingExtraCheckin
+                      ? 'Use this if something changed today and you want a fresh note saved.'
+                      : 'Three taps. No judgment. Just a clearer picture of how you’re doing.'}
+                  </p>
                 </div>
               </div>
               <div className={styles.scaleRows}>
@@ -1117,6 +1295,30 @@ const Coach: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+              <div className={styles.weightCheckinRow}>
+                <div>
+                  <span>Current weight</span>
+                  <small>Optional. If it has moved down, I’ll celebrate the win.</small>
+                </div>
+                <div className={styles.weightInputs}>
+                  <input
+                    inputMode="decimal"
+                    value={checkinWeightDraft}
+                    placeholder={weightUnit === 'kg' ? 'kg' : 'st'}
+                    onChange={(event) => setCheckinWeightDraft(event.target.value)}
+                    aria-label={weightUnit === 'kg' ? 'Current weight in kg' : 'Current weight in stone'}
+                  />
+                  {weightUnit === 'st-lb' && (
+                    <input
+                      inputMode="decimal"
+                      value={checkinWeightAuxDraft}
+                      placeholder="lb"
+                      onChange={(event) => setCheckinWeightAuxDraft(event.target.value)}
+                      aria-label="Current weight pounds"
+                    />
+                  )}
+                </div>
               </div>
               <IonButton
                 className={styles.primarySetupAction}

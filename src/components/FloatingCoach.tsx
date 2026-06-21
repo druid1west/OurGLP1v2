@@ -53,6 +53,7 @@ function useCoachPrompt(): CoachPrompt | null {
 
 const FloatingCoach: React.FC = () => {
   const history = useHistory();
+  const { isPro } = useAuth();
   const prompt = useCoachPrompt();
   const [bubbleOpen, setBubbleOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -94,10 +95,12 @@ const FloatingCoach: React.FC = () => {
             <UserRound size={16} />
             Review profile
           </button>
-          <button type="button" role="menuitem" onClick={() => go('/paywall?returnTo=/coach')}>
-            <Sparkles size={16} />
-            See Pro
-          </button>
+          {!isPro && (
+            <button type="button" role="menuitem" onClick={() => go('/paywall?returnTo=/coach')}>
+              <Sparkles size={16} />
+              See Pro
+            </button>
+          )}
         </div>
       )}
 

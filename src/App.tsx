@@ -134,11 +134,6 @@ const DayPageGuarded: React.FC = () => (
   </RequirePro>
 );
 
-const CelebrationGuarded: React.FC = () => (
-  <RequirePro>
-    <CelebrationPage />
-  </RequirePro>
-);
 const Glp1GraphArchiveGuarded: React.FC = () => (
   <RequirePro>
     <Glp1GraphArchive />
@@ -566,12 +561,12 @@ const App: React.FC = () => {
                   <PrivateRoute exact path="/weeklysummary" component={WeeklySummary} />
                   <PrivateRoute exact path="/weekly-summary" component={WeeklySummary} />
                   <PrivateRoute exact path="/effectiveness" component={Effectiveness} />
+                  <PrivateRoute exact path="/celebrate" component={CelebrationPage} />
                   <PrivateRoute exact path="/glp1-graph/archive" component={Glp1GraphArchiveGuarded} />
                   <PrivateRoute exact path="/glp1-graph/archive/:id" component={Glp1GraphArchiveDetailGuarded} />
 
                   {/* Pro-only routes */}
                   <PrivateRoute exact path="/personalplan" component={PersonalPlanGuarded} />
-                  <PrivateRoute exact path="/celebrate" component={CelebrationGuarded} />
                   <PrivateRoute exact path="/weekly-summary/archive/:id" component={WeeklySummaryArchiveDetailGuarded} />
                   <PrivateRoute exact path="/weekly-summary/archive" component={WeeklySummaryArchiveGuarded} />
                   <PrivateRoute exact path="/plan/day/:day" component={DayPageGuarded} />

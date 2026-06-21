@@ -1,5 +1,5 @@
 // src/pages/Paywall.tsx
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { logger } from '@/utils/logger';
 import {
   IonButton,
@@ -45,6 +45,7 @@ import {
   rcGetBothPackages,
   rcGetPriceString,
 } from '@/lib/revenuecat';
+import { syncLocalEntitlementFromCustomerInfo } from '@/lib/rcSync';
 import {
   StoreKitTest,
   STOREKIT_PRODUCT_IDS,
@@ -171,7 +172,7 @@ function findStoreKitProduct(products: StoreKitProduct[], type: SubscriptionType
 export default function Paywall(): JSX.Element {
   const router = useIonRouter();
   const { search } = useLocation();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isPro } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -183,6 +184,7 @@ export default function Paywall(): JSX.Element {
   const [yearlyPackage, setYearlyPackage] = useState<PackageInfo | null>(null);
   const [selectedType, setSelectedType] = useState<SubscriptionType>('yearly');
   const [storeKitMode, setStoreKitMode] = useState(false);
+  const autoRestoreStartedRef = useRef(false);
 
   const platform = useMemo(() => Capacitor.getPlatform(), []);
   const isIOS = platform === 'ios';
@@ -198,6 +200,20 @@ export default function Paywall(): JSX.Element {
     const p = new URLSearchParams(search).get('returnTo');
     return p && p.startsWith('/') ? p : '/coach';
   }, [search]);
+
+  const shouldAutoRestore = useMemo(() => {
+    return new URLSearchParams(search).get('restore') === '1';
+  }, [search]);
+
+  const shouldShowManage = useMemo(() => {
+    return new URLSearchParams(search).get('manage') === '1';
+  }, [search]);
+
+  useEffect(() => {
+    if (!isPro || shouldShowManage) return;
+    const destination = returnTo.startsWith('/paywall') ? '/today' : returnTo;
+    router.push(destination, 'root');
+  }, [isPro, returnTo, router, shouldShowManage]);
 
   // Get selected package
   const selectedPackage = useMemo(() => {
@@ -370,8 +386,8 @@ export default function Paywall(): JSX.Element {
     [],
   );
 
-  const finalizeAndReturn = useCallback(async () => {
-    if (IS_LOCAL_AUTH && user?.id) {
+  const finalizeAndReturn = useCallback(async (grantLocalTestAccess = false) => {
+    if (grantLocalTestAccess && IS_LOCAL_AUTH && user?.id) {
       const months = selectedType === 'yearly' ? 12 : 1;
       await upgradeLocalUserToPro(user.id, months);
     }
@@ -401,7 +417,7 @@ export default function Paywall(): JSX.Element {
     try {
       if (!selectedPackage && canUseBypass) {
         logger.info('[Paywall] Tester/local build → bypassing purchases');
-        await finalizeAndReturn();
+        await finalizeAndReturn(true);
         return;
       }
 
@@ -434,7 +450,7 @@ export default function Paywall(): JSX.Element {
           return;
         }
 
-        await finalizeAndReturn();
+        await finalizeAndReturn(true);
         return;
       }
 
@@ -458,6 +474,11 @@ export default function Paywall(): JSX.Element {
         );
         setBusy(false);
         return;
+      }
+
+      if (user?.id) {
+        const entitlementInfo = activeNow ? ci : await rcGetCustomerInfo();
+        await syncLocalEntitlementFromCustomerInfo(user.id, entitlementInfo);
       }
       
       await finalizeAndReturn();
@@ -495,7 +516,7 @@ export default function Paywall(): JSX.Element {
     try {
       if (canUseBypass && !storeKitMode) {
         logger.info('[Paywall] Tester/local build → bypassing restore');
-        await finalizeAndReturn();
+        await finalizeAndReturn(true);
         return;
       }
 
@@ -511,7 +532,7 @@ export default function Paywall(): JSX.Element {
           return;
         }
 
-        await finalizeAndReturn();
+        await finalizeAndReturn(true);
         return;
       }
 
@@ -521,11 +542,19 @@ export default function Paywall(): JSX.Element {
       const activeSoon = activeNow ? true : await waitForEntitlement(10000);
       
       if (!activeSoon) {
+        if (user?.id) {
+          await syncLocalEntitlementFromCustomerInfo(user.id, ci);
+        }
         setError(
           `No active subscription found to restore for this ${platformLabel}.`,
         );
         setBusy(false);
         return;
+      }
+
+      if (user?.id) {
+        const entitlementInfo = activeNow ? ci : await rcGetCustomerInfo();
+        await syncLocalEntitlementFromCustomerInfo(user.id, entitlementInfo);
       }
       
       await finalizeAndReturn();
@@ -547,6 +576,12 @@ export default function Paywall(): JSX.Element {
     platformLabel,
     storeKitMode,
   ]);
+
+  useEffect(() => {
+    if (!shouldAutoRestore || autoRestoreStartedRef.current || !user?.id || loading) return;
+    autoRestoreStartedRef.current = true;
+    void handleRestore();
+  }, [handleRestore, loading, shouldAutoRestore, user?.id]);
 
   const handleManage = useCallback(() => {
     if (isIOS) {

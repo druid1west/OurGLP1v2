@@ -5,6 +5,9 @@ export type Entitlements = {
   has_pro: boolean;
   pro_until: string | null;          // ISO string or null
   subscription_tier: 'free' | 'pro' | null;
+  subscription_product_id?: string | null;
+  entitlement_source?: string | null;
+  entitlement_synced_at?: string | null;
 };
 
 type QueryRow = Record<string, unknown>;
@@ -47,7 +50,13 @@ function firstRow(result: QueryResult): QueryRow | null {
 export async function getEntitlements(userId: string): Promise<Entitlements> {
   const db = await getDb();
   const res = await db.query(
-    `SELECT has_pro, pro_until, subscription_tier FROM users WHERE id = ? LIMIT 1`,
+    `
+    SELECT has_pro, pro_until, subscription_tier,
+           subscription_product_id, entitlement_source, entitlement_synced_at
+    FROM users
+    WHERE id = ?
+    LIMIT 1
+    `,
     [userId]
   );
   const row = firstRow(res);
@@ -59,6 +68,12 @@ export async function getEntitlements(userId: string): Promise<Entitlements> {
       row?.subscription_tier === 'free' || row?.subscription_tier === 'pro'
         ? row.subscription_tier
         : null,
+    subscription_product_id:
+      typeof row?.subscription_product_id === 'string' ? row.subscription_product_id : null,
+    entitlement_source:
+      typeof row?.entitlement_source === 'string' ? row.entitlement_source : null,
+    entitlement_synced_at:
+      typeof row?.entitlement_synced_at === 'string' ? row.entitlement_synced_at : null,
   };
 }
 
@@ -70,6 +85,9 @@ export async function setEntitlements(userId: string, e: Partial<Entitlements>):
       SET has_pro = COALESCE(?, has_pro),
           pro_until = COALESCE(?, pro_until),
           subscription_tier = COALESCE(?, subscription_tier),
+          subscription_product_id = COALESCE(?, subscription_product_id),
+          entitlement_source = COALESCE(?, entitlement_source),
+          entitlement_synced_at = COALESCE(?, entitlement_synced_at),
           updated_at = datetime('now')
     WHERE id = ?
   `,
@@ -77,6 +95,9 @@ export async function setEntitlements(userId: string, e: Partial<Entitlements>):
       e.has_pro === undefined ? null : (e.has_pro ? 1 : 0),
       e.pro_until ?? null,
       e.subscription_tier ?? null,
+      e.subscription_product_id ?? null,
+      e.entitlement_source ?? null,
+      e.entitlement_synced_at ?? null,
       userId,
     ]
   );
@@ -84,6 +105,6 @@ export async function setEntitlements(userId: string, e: Partial<Entitlements>):
 
 export function isProNow(e: Entitlements): boolean {
   const now = Date.now();
-  const until = e.pro_until ? new Date(e.pro_until).getTime() : 0;
-  return e.has_pro || e.subscription_tier === 'pro' || (until > now);
+  const until = e.pro_until ? Date.parse(e.pro_until) : NaN;
+  return Boolean(e.has_pro && Number.isFinite(until) && until > now);
 }

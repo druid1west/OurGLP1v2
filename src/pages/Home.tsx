@@ -57,8 +57,11 @@ function reasonFromMessage(message: string): BioDeniedReason {
 
 function getHasPro(u: unknown): boolean {
   if (typeof u !== 'object' || u === null) return false;
-  const maybe = u as { has_pro?: unknown };
-  return typeof maybe.has_pro === 'boolean' ? maybe.has_pro : false;
+  const maybe = u as { has_pro?: unknown; subscription_tier?: unknown; pro_until?: unknown };
+  if (maybe.has_pro !== true && maybe.subscription_tier !== 'pro') return false;
+  if (typeof maybe.pro_until !== 'string') return false;
+  const until = Date.parse(maybe.pro_until);
+  return Number.isFinite(until) && until > Date.now();
 }
 
 async function ensureUsersRowForLocalAccount(
@@ -242,7 +245,7 @@ GLP-1 Health Tracker
 
 
 <p className={styles.subtitle}>
-Track GLP-1 routines with optional Apple Health sync, including Apple Watch activity.
+Body, mind, momentum. Gentle GLP-1 support for the habits that help you feel well.
 </p>
 </div>
 

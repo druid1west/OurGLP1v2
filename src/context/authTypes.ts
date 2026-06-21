@@ -25,6 +25,9 @@ export type User = {
   has_pro?: boolean;
   subscription_tier?: 'free' | 'pro' | null;
   pro_until?: string | null; // ISO (local or UTC); null means not time-bound
+  subscription_product_id?: string | null;
+  entitlement_source?: string | null;
+  entitlement_synced_at?: string | null;
 };
 
 export type AuthContextType = {

@@ -9,7 +9,6 @@ import BottomNav from '@/context/BottomNav';
 import {
   getCustomerInfo as rcGetCustomerInfo,
   isProFromCustomerInfo as rcIsPro,
-  openManageSubscriptions,
 } from '@/lib/purchasesInit';
 
 /* ----------------------------- types & helpers ----------------------------- */
@@ -115,8 +114,13 @@ const Support: React.FC = () => {
 
   const showUpgrade = sub.kind !== 'pro';
 
-  const openPaywall = useCallback((): void => {
-    history.push('/paywall?returnTo=/support');
+  const openPaywall = useCallback((mode?: 'manage'): void => {
+    const manageParam = mode === 'manage' ? '&manage=1' : '';
+    history.push(`/paywall?returnTo=/support${manageParam}`);
+  }, [history]);
+
+  const openRestore = useCallback((): void => {
+    history.push('/paywall?returnTo=/support&restore=1');
   }, [history]);
 
   return (
@@ -141,17 +145,17 @@ const Support: React.FC = () => {
 
             <div className={styles.actions}>
               {showUpgrade ? (
-                <IonButton onClick={openPaywall} expand="block">
+                <IonButton onClick={() => openPaywall()} expand="block">
                   Go Pro
                 </IonButton>
               ) : (
-                <IonButton onClick={() => openManageSubscriptions()} expand="block" fill="outline">
+                <IonButton onClick={() => openPaywall('manage')} expand="block" fill="outline">
                   Manage Subscription
                 </IonButton>
               )}
 
               <IonButton
-                onClick={openPaywall}
+                onClick={openRestore}
                 expand="block"
                 fill="outline"
               >
@@ -218,7 +222,5 @@ const Support: React.FC = () => {
 };
 
 export default Support;
-
-
 
 

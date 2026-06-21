@@ -237,8 +237,12 @@ const hhmmToIndex = (t: string) => {
   return Math.floor((H * 60 + M) / 15);
 };
 
-function isMoodData(d: unknown): d is MoodData {
-  return !!d && typeof d === 'object' && 'score' in (d as Record<string, unknown>);
+function moodScoreFromData(d: unknown): number | undefined {
+  if (!d || typeof d !== 'object') return undefined;
+  const obj = d as Record<string, unknown>;
+  const raw = obj.score ?? obj.mood_score ?? obj.mood ?? obj.value;
+  const score = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(score) ? Math.max(1, Math.min(5, Math.round(score))) : undefined;
 }
 function isHydrationData(d: unknown): d is { amount?: number; note?: string } {
   return (
@@ -606,10 +610,10 @@ const DayPage: React.FC = () => {
       setDayLogs(arr);
 
       const moodInBlock = arr
-        .filter((l) => l.entry_type === 'mood' && isMoodData(l.data))
+        .filter((l) => l.entry_type === 'mood' && moodScoreFromData(l.data) != null)
         .find((l) => isoToBlockIndex(l.recorded_at) === selectedBlockIdx);
       setSelectedBlockMoodId(moodInBlock?.id ?? null);
-      setSelectedBlockMoodScore(isMoodData(moodInBlock?.data) ? moodInBlock!.data.score ?? null : null);
+      setSelectedBlockMoodScore(moodScoreFromData(moodInBlock?.data) ?? null);
     } catch (err) {
       logger.error('mood save failed', err);
       alert('Could not save mood.');
@@ -852,8 +856,8 @@ const DayPage: React.FC = () => {
                           details = `${l.data.amount} mL`;
                         } else if (l.entry_type === 'protein' && isProteinData(l.data) && typeof l.data.grams === 'number') {
                           details = `${l.data.grams} g`;
-                        } else if (l.entry_type === 'mood' && isMoodData(l.data)) {
-                          const sc = l.data.score;
+                        } else if (l.entry_type === 'mood') {
+                          const sc = moodScoreFromData(l.data);
                           details = `${moodEmoji(sc)} ${sc ?? ''}/5`;
                         }
                         lines.push(
@@ -887,7 +891,7 @@ const DayPage: React.FC = () => {
                     const mood = entry.logs.find((l) => l.entry_type === 'mood');
                     setSelectedBlockIdx(idx);
                     setSelectedBlockMoodId(mood ? mood.id : null);
-                    setSelectedBlockMoodScore(mood && isMoodData(mood.data) ? mood.data.score ?? null : null);
+                    setSelectedBlockMoodScore(mood ? moodScoreFromData(mood.data) ?? null : null);
                   }}
                 >
                   <div className={styles.blockTime}>
@@ -903,7 +907,7 @@ const DayPage: React.FC = () => {
                       ))}
                       {entry.logs.map((l) => (
                         <span key={l.id} className={styles.chip}>
-                          {iconFor(l.entry_type)}
+                          {l.entry_type === 'mood' ? moodEmoji(moodScoreFromData(l.data)) : iconFor(l.entry_type)}
                         </span>
                       ))}
                       {entry.exercises.length ? (
@@ -984,4 +988,3 @@ const DayPage: React.FC = () => {
 };
 
 export default DayPage;
-
