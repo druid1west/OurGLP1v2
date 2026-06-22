@@ -1,10 +1,11 @@
 // src/pages/Home.tsx
 import { checkBiometricAvailable, verifyIdentity } from '../utils/biometric';
-import { getLocalAccount } from '../db/LocalAccountRepository';
+import { getLocalAccount, hasSavedEmailPasswordAccount } from '../db/LocalAccountRepository';
 import { markUserAsLoggedIn, getUserByEmail, registerLocalUser } from '../services/localAuth';
 
 import React, { useEffect, useState } from 'react';
 import { IonPage, IonContent, IonButton, useIonRouter } from '@ionic/react';
+import { useLocation } from 'react-router-dom';
 import PageLayout from '../components/PageLayout';
 import styles from './Home.module.css';
 
@@ -112,11 +113,14 @@ async function isBiometricReady(): Promise<boolean> {
 
 const Home: React.FC = () => {
   const router = useIonRouter();
+  const location = useLocation();
   const { user, refreshUser } = useAuth();
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [bioReady, setBioReady] = useState(false);
+  const [localAccountChecked, setLocalAccountChecked] = useState(false);
+  const [hasSavedLocalAccount, setHasSavedLocalAccount] = useState(false);
 
   const platform = Capacitor.getPlatform();
   const isAndroid = platform === 'android';
@@ -133,10 +137,29 @@ const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    let cancelled = false;
+    void hasSavedEmailPasswordAccount()
+      .then((hasSavedAccount) => {
+        if (cancelled) return;
+        setHasSavedLocalAccount(hasSavedAccount);
+      })
+      .catch(() => {
+        if (!cancelled) setHasSavedLocalAccount(false);
+      })
+      .finally(() => {
+        if (!cancelled) setLocalAccountChecked(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (user && (location.pathname === '/home' || location.pathname === '/')) {
       router.push('/today', 'root');
     }
-  }, [router, user]);
+  }, [location.pathname, router, user]);
 
   const completeLocalLogin = async (): Promise<void> => {
     const acctRaw = await getLocalAccount();
@@ -252,7 +275,20 @@ Body, mind, momentum. Gentle GLP-1 support for the habits that help you feel wel
 
 {/* Buttons live separately so hero doesn't move */}
 <div className={styles.actions}>
-{platform !== 'web' && bioReady && (
+{localAccountChecked && !hasSavedLocalAccount && (
+<>
+<IonButton onClick={() => router.push('/coach', 'forward')} className={styles.primaryBtn} expand="block">
+Create local account
+</IonButton>
+
+<IonButton onClick={() => router.push('/coach', 'forward')} className={styles.secondaryBtn} expand="block" fill="outline">
+Start with Coach
+</IonButton>
+</>
+)}
+
+
+{localAccountChecked && hasSavedLocalAccount && platform !== 'web' && bioReady && (
 <IonButton
 className={styles.primaryBtn}
 expand="block"
@@ -264,6 +300,8 @@ disabled={isAuthenticating}
 )}
 
 
+{localAccountChecked && hasSavedLocalAccount && (
+<>
 <IonButton onClick={() => router.push('/login', 'forward')} className={styles.primaryBtn} expand="block">
 Login with Email &amp; Password
 </IonButton>
@@ -272,6 +310,8 @@ Login with Email &amp; Password
 <IonButton onClick={() => router.push('/register', 'forward')} className={styles.primaryBtn} expand="block">
 Register for an Account
 </IonButton>
+</>
+)}
 
 
 {!isPro && (

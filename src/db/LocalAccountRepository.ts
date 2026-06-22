@@ -106,6 +106,22 @@ export async function getLocalAccount(): Promise<LocalAccount | null> {
   };
 }
 
+export async function hasSavedEmailPasswordAccount(): Promise<boolean> {
+  const db = await getDb();
+  const res = await db.query(`
+    SELECT id
+    FROM users
+    WHERE deleted_at IS NULL
+      AND email IS NOT NULL
+      AND email NOT LIKE '%@local.ourglp1'
+      AND password_hash IS NOT NULL
+      AND password_hash <> ''
+    LIMIT 1
+  `);
+
+  return mapSingleRow(res) !== null;
+}
+
 /** Look up an account by lower-cased email. */
 export async function getLocalAccountByEmailLower(
   emailLower: string

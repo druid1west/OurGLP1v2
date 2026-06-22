@@ -5,7 +5,6 @@ import { initRevenueCat } from './lib/purchasesInit';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import {
   refreshCurrentUserEntitlementFromRevenueCat,
-  syncCurrentUserEntitlementFromCustomerInfo,
   writeRcCacheFromCustomerInfo,
 } from './lib/rcSync';
 import { initDbp } from './dev/dbp';
@@ -61,15 +60,16 @@ async function boot() {
       await initRevenueCat();
 
       Purchases.addCustomerInfoUpdateListener((info) => {
-        void syncCurrentUserEntitlementFromCustomerInfo(info);
+        writeRcCacheFromCustomerInfo(info);
         rcLog.info('customerInfo updated');
+        window.dispatchEvent(new Event('rc:customerInfoChanged'));
       });
 
       // ✅ Seed local cache once so Settings has data immediately
       try {
         const info = await Purchases.getCustomerInfo();
         writeRcCacheFromCustomerInfo(info);
-        await syncCurrentUserEntitlementFromCustomerInfo(info);
+        window.dispatchEvent(new Event('rc:customerInfoChanged'));
       } catch (e) {
         rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });
       }

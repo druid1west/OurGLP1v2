@@ -5,6 +5,8 @@ import {
   BellPlus,
   CheckCircle2,
   ChevronRight,
+  Eye,
+  EyeOff,
   MessageCircleHeart,
   Send,
   ShieldAlert,
@@ -36,7 +38,7 @@ import {
 import { insertHealthLog } from '@/db/HealthRepository';
 import { upsertLocalAccount } from '@/db/LocalAccountRepository';
 import { setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
-import { markUserAsLoggedIn, registerLocalUser } from '@/services/localAuth';
+import { getUserByEmail, markUserAsLoggedIn, registerLocalUser } from '@/services/localAuth';
 import { hashPassword } from '@/utils/password';
 import type { CelebrationContext } from '@/types/celebration';
 import styles from './Coach.module.css';
@@ -264,6 +266,7 @@ const Coach: React.FC = () => {
   const history = useHistory();
   const { user, refreshUser, isPro } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([introMessage]);
+  const [latestQuestionId, setLatestQuestionId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [activeCategory, setActiveCategory] = useState<CoachCategory | 'All'>('All');
   const [isResponding, setIsResponding] = useState(false);
@@ -273,6 +276,9 @@ const Coach: React.FC = () => {
   const [setupIndex, setSetupIndex] = useState(0);
   const [setupDraft, setSetupDraft] = useState('');
   const [setupAuxDraft, setSetupAuxDraft] = useState('');
+  const [accountConfirmDraft, setAccountConfirmDraft] = useState('');
+  const [accountPasswordVisible, setAccountPasswordVisible] = useState(false);
+  const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
   const [heightUnit, setHeightUnit] = useState<HeightUnit>('cm');
   const [checkinMood, setCheckinMood] = useState<number | null>(null);
@@ -285,9 +291,16 @@ const Coach: React.FC = () => {
   const [addingExtraCheckin, setAddingExtraCheckin] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const questionHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const responseLockRef = useRef(false);
   const activeSetupStep: SetupStep = setupSteps[setupIndex] ?? 'finish';
   const setupComplete = Boolean(coachProfile?.coach_onboarding_completed_at);
+  const hasSavedLocalAccount = Boolean(user?.email && !user.email.endsWith('@local.ourglp1'));
+  const needsLocalAccount = !hasSavedLocalAccount;
+  const accountEmailValid = /\S+@\S+\.\S+/.test(setupDraft.trim());
+  const accountPasswordValid = setupAuxDraft.length >= 8;
+  const accountPasswordsMatch = setupAuxDraft === accountConfirmDraft && accountConfirmDraft.length > 0;
+  const canCreateAccount = accountEmailValid && accountPasswordValid && accountPasswordsMatch;
 
   const isSetupStepSatisfied = useCallback((step: SetupStep): boolean => {
     if (!coachProfile && step !== 'account') return false;
@@ -296,7 +309,7 @@ const Coach: React.FC = () => {
       case 'first_name':
         return Boolean(coachProfile?.first_name || user?.first_name);
       case 'account':
-        return Boolean(user?.id || coachUserId);
+        return hasSavedLocalAccount;
       case 'units':
         return Boolean(coachProfile?.height || coachProfile?.weight);
       case 'height':
@@ -327,14 +340,19 @@ const Coach: React.FC = () => {
       default:
         return false;
     }
-  }, [coachProfile, coachUserId, user?.first_name, user?.id]);
+  }, [coachProfile, hasSavedLocalAccount, user?.first_name]);
 
   const resetCoach = (): void => {
     if (replyTimerRef.current) {
       clearTimeout(replyTimerRef.current);
       replyTimerRef.current = null;
     }
+    if (questionHighlightTimerRef.current) {
+      clearTimeout(questionHighlightTimerRef.current);
+      questionHighlightTimerRef.current = null;
+    }
     setMessages([introMessage]);
+    setLatestQuestionId(null);
     setDraft('');
     setActiveCategory('All');
     setIsResponding(false);
@@ -348,6 +366,7 @@ const Coach: React.FC = () => {
   useEffect(() => {
     return () => {
       if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (questionHighlightTimerRef.current) clearTimeout(questionHighlightTimerRef.current);
     };
   }, []);
 
@@ -398,9 +417,10 @@ const Coach: React.FC = () => {
     const question = rawQuestion.trim();
     if (!question || responseLockRef.current) return;
     responseLockRef.current = true;
+    const userMessageId = `user-${Date.now()}`;
 
     const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: userMessageId,
       role: 'user',
       text: question,
     };
@@ -418,6 +438,12 @@ const Coach: React.FC = () => {
           };
 
     setMessages((prev) => [...prev, userMessage]);
+    setLatestQuestionId(userMessageId);
+    if (questionHighlightTimerRef.current) clearTimeout(questionHighlightTimerRef.current);
+    questionHighlightTimerRef.current = setTimeout(() => {
+      setLatestQuestionId((current) => (current === userMessageId ? null : current));
+      questionHighlightTimerRef.current = null;
+    }, 2400);
     setDraft('');
     setIsResponding(true);
 
@@ -432,28 +458,6 @@ const Coach: React.FC = () => {
   const handleSubmit = (event: React.FormEvent): void => {
     event.preventDefault();
     sendQuestion(draft);
-  };
-
-  const explainProChoice = (): void => {
-    if (responseLockRef.current) return;
-    responseLockRef.current = true;
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `user-pro-choice-${Date.now()}`,
-        role: 'user',
-        text: 'Help me choose',
-      },
-      {
-        id: `coach-pro-choice-${Date.now()}`,
-        role: 'coach',
-        text:
-          'Of course. Start free if you mainly want gentle guidance, setup help, quick check-ins, and common GLP-1 support questions.\n\nWhat you miss without Pro is the deeper part: fuller tracking, personal plans, saved weekly summaries, archives, and clearer clinic-ready reviews. That matters most if you want to spot patterns, prepare for appointments, or show your prescriber what has been happening between visits.\n\nMy honest coach answer: use the free start to see if the app feels helpful. Go Pro when you want the app to become more of a progress record and clinic-support tool, not just a daily guide.',
-      },
-    ]);
-
-    responseLockRef.current = false;
   };
 
   const showReminderPreview = (reminder: CoachReminderSuggestion): void => {
@@ -516,15 +520,69 @@ const Coach: React.FC = () => {
   const nextSetupStep = (): void => {
     setSetupDraft('');
     setSetupAuxDraft('');
+    setAccountConfirmDraft('');
     setSetupIndex((prev) => Math.min(prev + 1, setupSteps.length - 1));
+  };
+
+  const goToAccountStep = (): void => {
+    setAccountPromptOpen(true);
+    setSetupDraft(hasSavedLocalAccount ? (user?.email ?? '') : '');
+    setSetupAuxDraft('');
+    setAccountConfirmDraft('');
+    setSetupIndex(setupSteps.indexOf('account'));
   };
 
   const saveAccountLogin = async (): Promise<void> => {
     const email = setupDraft.trim().toLowerCase();
     const passphrase = setupAuxDraft;
-    if (!/\S+@\S+\.\S+/.test(email) || passphrase.length < 8) return;
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-account-email-${Date.now()}`,
+          role: 'coach',
+          text: 'Please enter a valid email address so I can save this account on your phone.',
+        },
+      ]);
+      return;
+    }
+    if (passphrase.length < 8) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-account-password-${Date.now()}`,
+          role: 'coach',
+          text: 'Please use a password of at least 8 characters so you can come back to this account later.',
+        },
+      ]);
+      return;
+    }
+    if (passphrase !== accountConfirmDraft) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-account-password-match-${Date.now()}`,
+          role: 'coach',
+          text: 'Those two passwords do not match yet. Please check them and try again.',
+        },
+      ]);
+      return;
+    }
 
     const userId = await ensureCoachUser(coachProfile?.first_name ?? null);
+    const existing = await getUserByEmail(email);
+    if (existing?.id && existing.id !== userId) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-account-existing-${Date.now()}`,
+          role: 'coach',
+          text: 'That email already has an account on this phone. Please log in with it, or use a different email for this setup.',
+        },
+      ]);
+      return;
+    }
+
     const passwordHash = await hashPassword(passphrase);
     await upsertLocalAccount({
       id: userId,
@@ -535,7 +593,18 @@ const Coach: React.FC = () => {
       last_login_at: new Date().toISOString(),
     });
     await markUserAsLoggedIn(userId);
+    setCoachUserId(userId);
     await refreshUser();
+    setAccountPromptOpen(false);
+    setAccountConfirmDraft('');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `coach-account-saved-${Date.now()}`,
+        role: 'coach',
+        text: 'Account saved. Your profile setup is now attached to that email on this phone.',
+      },
+    ]);
     nextSetupStep();
   };
 
@@ -627,6 +696,15 @@ const Coach: React.FC = () => {
       city: lines[2] ?? null,
       postcode: setupAuxDraft.trim() || null,
     });
+    nextSetupStep();
+  };
+
+  const saveInjectionAnchor = async (): Promise<void> => {
+    if (!setupDraft || !setupAuxDraft) return;
+    const day = setupDraft as WeekdayFull;
+    const time = setupAuxDraft;
+    await setInjectionSchedule(day, time);
+    await saveProfilePatch({ injection_day: day, injection_time: time });
     nextSetupStep();
   };
 
@@ -750,21 +828,22 @@ const Coach: React.FC = () => {
             <section className={styles.freeIntroShell} aria-label="Free intro and Pro guidance">
               <div className={styles.freeIntroCopy}>
                 <div className={styles.eyebrowDark}>Free intro</div>
-                <h2>Start gently. See if this support helps.</h2>
+                <h2>Pro is the full tracking experience.</h2>
                 <p>
-                  You can set up your profile, ask common GLP-1 questions, and use quick
-                  check-ins before deciding on Pro. Pro is there when you want deeper tracking,
-                  longer reviews, saved plans, and clearer summaries for clinic appointments.
+                  Free is enough to create your local account, set up your profile, ask common
+                  Coach questions, and try quick check-ins. Pro is better if you want to track
+                  everything properly: personal plans, fuller history, archives, and clearer
+                  reviews for appointments.
                 </p>
               </div>
               <div className={styles.freeIntroGrid}>
                 <div>
                   <strong>Free</strong>
-                  <span>Coach setup, everyday guidance, quick check-ins, and support with what to track.</span>
+                  <span>Local account, profile setup, basic Coach guidance, and quick check-ins.</span>
                 </div>
                 <div>
                   <strong>Pro</strong>
-                  <span>Detailed tracking, personal plans, weekly summaries, archives, and clinic-ready reviews.</span>
+                  <span>Track more, unlock personal plans, save history, keep archives, and build clinic-ready reviews.</span>
                 </div>
               </div>
               <div className={styles.actionRow}>
@@ -774,15 +853,74 @@ const Coach: React.FC = () => {
                 >
                   See Pro options
                 </IonButton>
-                <button
-                  type="button"
-                  className={styles.textButton}
-                  onClick={explainProChoice}
-                  disabled={isResponding}
-                >
-                  Help me choose
-                </button>
               </div>
+            </section>
+          )}
+
+          {needsLocalAccount && (
+            <section className={styles.accountNotice} aria-label="Account status">
+              <div>
+                <strong>No saved account yet</strong>
+                <p>
+                  Adding your name starts a temporary Coach setup on this phone. Create a local
+                  account with email and password so Profile, Today, and your setup stay connected.
+                </p>
+              </div>
+              {accountPromptOpen ? (
+                <div className={styles.accountNoticeForm}>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    value={setupDraft}
+                    placeholder="Email"
+                    onChange={(event) => setSetupDraft(event.target.value)}
+                  />
+                  <div className={styles.passwordField}>
+                    <input
+                      type={accountPasswordVisible ? 'text' : 'password'}
+                      value={setupAuxDraft}
+                      placeholder="Password, 8+ characters"
+                      onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                      aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                    >
+                      {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <div className={styles.passwordField}>
+                    <input
+                      type={accountPasswordVisible ? 'text' : 'password'}
+                      value={accountConfirmDraft}
+                      placeholder="Confirm password"
+                      onChange={(event) => setAccountConfirmDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                      aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                    >
+                      {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.inlinePrimaryButton}
+                    onClick={() => void saveAccountLogin()}
+                    disabled={!canCreateAccount}
+                  >
+                    Create account
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className={styles.inlinePrimaryButton} onClick={goToAccountStep}>
+                  Create account
+                </button>
+              )}
             </section>
           )}
 
@@ -802,6 +940,7 @@ const Coach: React.FC = () => {
               {activeSetupStep === 'first_name' && (
                 <div className={styles.setupCard}>
                   <h3>What should I call you?</h3>
+                  <p>This starts setup only. I’ll ask for email and password next to save an account.</p>
                   <input
                     value={setupDraft}
                     placeholder={coachProfile?.first_name ?? 'First name'}
@@ -815,8 +954,11 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'account' && (
                 <div className={styles.setupCard}>
-                  <h3>Choose your app login</h3>
-                  <p>This is just for this phone, so you can come back to your plan later.</p>
+                  <h3>Create your local account</h3>
+                  <p>
+                    This saves your Coach setup, Profile, Today, and tracking on this phone.
+                    It does not start Pro or charge anything.
+                  </p>
                   <input
                     type="email"
                     inputMode="email"
@@ -824,22 +966,53 @@ const Coach: React.FC = () => {
                     placeholder="Email / username"
                     onChange={(event) => setSetupDraft(event.target.value)}
                   />
-                  <input
-                    type="password"
-                    value={setupAuxDraft}
-                    placeholder="Password, 8+ characters"
-                    onChange={(event) => setSetupAuxDraft(event.target.value)}
-                  />
+                  <div className={styles.passwordField}>
+                    <input
+                      type={accountPasswordVisible ? 'text' : 'password'}
+                      value={setupAuxDraft}
+                      placeholder="Password, 8+ characters"
+                      onChange={(event) => setSetupAuxDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                      aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                    >
+                      {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <div className={styles.passwordField}>
+                    <input
+                      type={accountPasswordVisible ? 'text' : 'password'}
+                      value={accountConfirmDraft}
+                      placeholder="Confirm password"
+                      onChange={(event) => setAccountConfirmDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                      aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                    >
+                      {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {accountConfirmDraft && !accountPasswordsMatch && (
+                    <p className={styles.formHint}>Passwords do not match yet.</p>
+                  )}
                   <IonButton
                     className={styles.primarySetupAction}
                     onClick={() => void saveAccountLogin()}
-                    disabled={!/\S+@\S+\.\S+/.test(setupDraft.trim()) || setupAuxDraft.length < 8}
+                    disabled={!canCreateAccount}
                   >
-                    Save login
+                    Create account
                   </IonButton>
-                  <button type="button" className={styles.textButton} onClick={nextSetupStep}>
-                    Continue without changing login
-                  </button>
+                  {user?.id && (
+                    <button type="button" className={styles.textButton} onClick={nextSetupStep}>
+                      Skip for now
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1065,15 +1238,29 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'injection_schedule' && (
                 <div className={styles.setupCard}>
-                  <h3>Injection day and time</h3>
-                  <p>This helps the app understand your week and prepare better reminders.</p>
-                  <select value={setupDraft} onChange={(event) => setSetupDraft(event.target.value)}>
+                  <h3>Injection Day / Once Weekly</h3>
+                  <p>
+                    Choose the day of the week and usual time your dose starts. This becomes the
+                    anchor for Today, reminders, and weekly reviews.
+                  </p>
+                  <label className={styles.setupLabel} htmlFor="coachInjectionDay">
+                    Anchor day of week
+                  </label>
+                  <select
+                    id="coachInjectionDay"
+                    value={setupDraft}
+                    onChange={(event) => setSetupDraft(event.target.value)}
+                  >
                     <option value="">Select day</option>
                     {weekdayOptions.map((day) => (
                       <option key={day} value={day}>{day}</option>
                     ))}
                   </select>
+                  <label className={styles.setupLabel} htmlFor="coachInjectionTime">
+                    Injection time
+                  </label>
                   <input
+                    id="coachInjectionTime"
                     type="time"
                     value={setupAuxDraft}
                     onChange={(event) => setSetupAuxDraft(event.target.value)}
@@ -1082,13 +1269,8 @@ const Coach: React.FC = () => {
                   <div className={styles.actionRow}>
                     <IonButton
                       className={styles.primarySetupAction}
-                      onClick={() => {
-                        const day = (setupDraft || 'Monday') as WeekdayFull;
-                        const time = setupAuxDraft || '08:00';
-                        void setInjectionSchedule(day, time)
-                          .then(() => saveProfilePatch({ injection_day: day, injection_time: time }))
-                          .then(nextSetupStep);
-                      }}
+                      onClick={() => void saveInjectionAnchor()}
+                      disabled={!setupDraft || !setupAuxDraft}
                     >
                       Save injection anchor
                     </IonButton>
@@ -1363,10 +1545,13 @@ const Coach: React.FC = () => {
               {messages.map((message) => (
                 <article
                   key={message.id}
-                  className={`${styles.message} ${message.role === 'user' ? styles.userMessage : styles.coachMessage}`}
+                  className={`${styles.message} ${message.role === 'user' ? styles.userMessage : styles.coachMessage} ${
+                    message.id === latestQuestionId ? styles.latestUserMessage : ''
+                  }`}
                 >
                   <div className={styles.messageRole}>
                     <span>{message.role === 'user' ? 'You' : 'Coach'}</span>
+                    {message.id === latestQuestionId && <span className={styles.sentBadge}>Question sent</span>}
                     {message.entry && <span>{message.entry.category}</span>}
                     {message.role === 'user' && (
                       <button

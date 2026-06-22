@@ -8,6 +8,7 @@ import { toSafeUser, safeLog } from '../utils/redact';
 import { getLocalCurrentUser, clearLocalCurrentUser } from '../services/localAuth';
 import { onAuthChanged } from '../services/authBus';
 import { getEntitlements, isProNow } from '../db/EntitlementRepository';
+import { refreshCurrentUserEntitlementFromRevenueCat } from '../lib/rcSync';
 
 /* ----------------------------- window typings ----------------------------- */
 declare global {
@@ -160,7 +161,10 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   // When the logged-in user changes, recompute entitlements
   useEffect(() => {
     if (!user?.id) return;
-    void refreshEntitlements();
+    void (async () => {
+      await refreshCurrentUserEntitlementFromRevenueCat();
+      await refreshEntitlements();
+    })();
   }, [user?.id, refreshEntitlements]);
 
   // Optional: react to paywall finishing a purchase/restore
@@ -212,7 +216,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
 
 
 

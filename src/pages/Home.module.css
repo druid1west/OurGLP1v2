@@ -27,11 +27,11 @@
   --home-logo-mb: 1.25rem;
 
   /* Title/subtitle */
-  --home-title-size: 1.7rem;
-  --home-title-mt: 1rem;
+  --home-title-size: 1.45rem;
+  --home-title-mt: 2.35rem;
   --home-title-mb: 0.65rem;
 
-  --home-subtitle-size: 1.1rem;
+  --home-subtitle-size: 0.98rem;
   --home-subtitle-mb: 1.1rem;
 
   /* Buttons */
@@ -117,6 +117,7 @@
 
 .title {
   font-size: var(--home-title-size);
+  line-height: 1.12;
   color: var(--home-title-color);
   margin-top: var(--home-title-mt);
   margin-bottom: var(--home-title-mb);
@@ -127,6 +128,7 @@
 .subtitle {
   margin-top: -6px;
   font-size: var(--home-subtitle-size);
+  line-height: 1.28;
   color: var(--home-subtitle-color);
   margin-bottom: var(--home-subtitle-mb);
   width: 100%;
@@ -203,6 +205,33 @@
   transform: translateY(1px) scale(0.99);
 }
 
+.secondaryBtn {
+  width: 100%;
+  max-width: var(--home-button-max);
+
+  --background: rgba(255, 255, 255, 0.72);
+  --background-hover: rgba(255, 255, 255, 0.86);
+  --background-activated: rgba(255, 255, 255, 0.94);
+  --color: var(--home-button-bg-active);
+  --border-radius: var(--home-button-radius);
+  --border-color: rgba(37, 99, 235, 0.5);
+  --border-style: solid;
+  --border-width: 1px;
+  --box-shadow: 0 10px 24px rgba(20, 50, 95, 0.12);
+
+  --padding-top: var(--home-button-pad-block);
+  --padding-bottom: var(--home-button-pad-block);
+  --padding-start: var(--home-button-pad-inline);
+  --padding-end: var(--home-button-pad-inline);
+
+  font-weight: 700;
+  font-size: var(--home-button-font-size);
+}
+
+.secondaryBtn::part(native) {
+  text-transform: none;
+}
+
 /* ================== TUNING OVERRIDES ================== */
 
 /* Phone: lift only the logo slightly (keeps title/subtitle stable) */
@@ -238,7 +267,7 @@
     --home-button-font-size: 1.15rem;
 
     --home-title-size: 2.2rem;
-    --home-subtitle-size: 1.35rem;
+    --home-subtitle-size: 1.25rem;
   }
 }
 
@@ -263,8 +292,8 @@
 --home-button-pad-inline: 34px;
 --home-button-font-size: 1.3rem;
 
---home-title-size: 2.7rem; /* GLP-1 Health Tracker size */
---home-subtitle-size: 1.7rem; /* Login Options size (optional) */
+--home-title-size: 2.35rem; /* GLP-1 Health Tracker size */
+--home-subtitle-size: 1.45rem; /* Login Options size (optional) */
 
 }
 }
@@ -277,8 +306,8 @@
 /* If you want ONLY title/subtitle/buttons (not logo) to move down: */
 /* android only root or normal phone */
 :global(.plt-android) .title {
-margin-top: calc(var(--home-title-mt) + 80px);
-font-size: calc(var(--home-title-size) + 0.25rem);
+margin-top: calc(var(--home-title-mt) + 96px);
+font-size: calc(var(--home-title-size) + 0.05rem);
 }
 :global(.plt-android) .actions {
 margin-top: calc(var(--home-actions-mt) + 90px);

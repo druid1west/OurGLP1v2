@@ -1,51 +1,43 @@
 // src/pages/PrivateRoute.tsx
-import React from 'react';
-import { Route, useHistory, type RouteProps } from 'react-router-dom';
-import { IonSpinner, useIonRouter } from '@ionic/react';
+import React, { useEffect, useState } from 'react';
+import { Route, Redirect, type RouteProps } from 'react-router-dom';
+import { IonSpinner } from '@ionic/react';
 import { useAuth } from '../context/useAuth';
 
 interface PrivateRouteProps extends RouteProps {
-  component: React.ComponentType;
+  component: React.ComponentType<Record<string, unknown>>;
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...rest }) => {
-  const { user, loading } = useAuth();
-  const ion = useIonRouter();
-  const history = useHistory();
-  const [kicked, setKicked] = React.useState(false);
+  const { user, loading, refreshUser } = useAuth();
+  const [requestedRefresh, setRequestedRefresh] = useState<boolean>(false);
 
-  React.useEffect(() => {
-    if (!loading && !user && !kicked) {
-      setKicked(true);
-      // 1) Try to reset Ionic stack to /login
-      if (ion && typeof ion.push === 'function') {
-        ion.push('/login', 'root'); // 'root' clears stack
-      }
-      // 2) Ensure URL actually becomes /login (works on web too)
-      history.replace('/login');
+  useEffect(() => {
+    if (!user && !loading && !requestedRefresh) {
+      setRequestedRefresh(true);
+      void refreshUser();
     }
-  }, [loading, user, kicked, ion, history]);
+  }, [user, loading, requestedRefresh, refreshUser]);
 
-  return (
-    <Route
-      {...rest}
-      render={() => {
-        if (loading) {
-          return (
-            <div className="pr-loadingCenter" role="status" aria-live="polite">
-              <IonSpinner name="crescent" />
-              <p>Checking login status...</p>
-            </div>
-          );
-        }
-        if (!user) return null; // avoid render-loop while we just replaced
-        return <Component />;
-      }}
-    />
-  );
+  if (loading || (!user && requestedRefresh)) {
+    return (
+      <div className="pr-loadingCenter" role="status" aria-live="polite">
+        <IonSpinner name="crescent" />
+        <p>Checking login status...</p>
+      </div>
+    );
+  }
+
+  if (user) {
+    return (
+      <Route
+        {...rest}
+        render={(props) => <Component {...props} />}
+      />
+    );
+  }
+
+  return <Redirect to="/login" />;
 };
 
 export default PrivateRoute;
-
-
-
