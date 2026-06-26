@@ -16,11 +16,17 @@ import {
 } from '../db/EffectivenessRepository';
 
 import { saveGlp1GraphArchive } from '../db/Glp1GraphRepository';
+import {
+  getPrimaryProtocol,
+  listProtocolEventsForDay,
+  type Protocol,
+  type ProtocolEvent,
+} from '../db/ProtocolRepository';
 
 import styles from './Effectiveness.module.css';
 import { logger } from '../utils/logger';
 
-import { computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
+import { computeDailyDoseActivity, computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
 import Glp1EffectivenessRing from '../components/Glp1EffectivenessRing';
 import Glp1TrendGraph from '../components/Glp1TrendGraph';
 
@@ -55,6 +61,14 @@ function isoFromDatetimeLocalForTz(dtLocal: string, tz: string): string | null {
   const local = new Date(base.toLocaleString('en-US', { timeZone: tz }));
 
   return new Date(base.getTime() - (local.getTime() - base.getTime())).toISOString();
+}
+
+function localYmd(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -177,6 +191,8 @@ const Effectiveness: React.FC = () => {
   const [note, setNote] = useState('');
   const [time, setTime] = useState(dayjs().format('YYYY-MM-DDTHH:mm'));
   const [graphPoints, setGraphPoints] = useState<Glp1GraphPoint[]>([]);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [protocolEventsToday, setProtocolEventsToday] = useState<ProtocolEvent[]>([]);
   const [archiving, setArchiving] = useState(false);
 
   const archivingRef = useRef<boolean>(false);
@@ -188,8 +204,14 @@ const Effectiveness: React.FC = () => {
     }
 
     const load = async (): Promise<void> => {
-      const rows = await listGlp1ExperienceForGraph(userId, 14);
+      const [rows, protocol, events] = await Promise.all([
+        listGlp1ExperienceForGraph(userId, 14),
+        getPrimaryProtocol(userId).catch(() => null),
+        listProtocolEventsForDay(userId, localYmd()).catch(() => []),
+      ]);
       setGraphPoints(rows);
+      setPrimaryProtocol(protocol);
+      setProtocolEventsToday(events);
     };
 
     void load();
@@ -197,14 +219,27 @@ const Effectiveness: React.FC = () => {
 
   const injectionDay = getStringProp(user, 'injection_day');
   const injectionTime = getStringProp(user, 'injection_time')?.slice(0, 5);
-  const medicationName = getStringProp(user, 'medication_name') ?? 'Weekly GLP-1';
+  const protocolIsDaily = primaryProtocol?.effectiveness_model === 'daily_24h';
+  const protocolIsWeekly = primaryProtocol?.effectiveness_model === 'weekly_glp1';
+  const medicationName =
+    primaryProtocol?.name ??
+    getStringProp(user, 'medication_name') ??
+    'Weekly GLP-1';
+  const latestPrimaryEvent = protocolEventsToday.find(
+    (event) => event.protocol_id === primaryProtocol?.id
+  );
 
   const glp1Pct = glp1ActivityToPercent(
-    computeGlp1Activity({
-      injectionDay: toShortDay(injectionDay),
-      injectionTime,
-      timezone,
-    })
+    protocolIsDaily
+      ? computeDailyDoseActivity({
+          doseTime: primaryProtocol?.dose_time,
+          lastTakenAt: latestPrimaryEvent?.event_at,
+        })
+      : computeGlp1Activity({
+          injectionDay: toShortDay(primaryProtocol?.anchor_day ?? injectionDay),
+          injectionTime: primaryProtocol?.dose_time ?? injectionTime,
+          timezone,
+        })
   );
 
   async function submit(): Promise<void> {
@@ -499,7 +534,9 @@ requestAnimationFrame(() => {
 
             {/* ===================== EFFECTIVENESS CARD ===================== */}
             <div className={styles.card}>
-              <div className={styles.cardTitle}>💉 Medication Effectiveness</div>
+              <div className={styles.cardTitle}>
+                {protocolIsDaily ? 'Daily Medication Effectiveness' : 'Medication Effectiveness'}
+              </div>
 
               <div className={styles.glp1Row}>
                 <Glp1EffectivenessRing
@@ -509,7 +546,9 @@ requestAnimationFrame(() => {
                 <div className={styles.glp1Text}>
                   <strong>{medicationName}</strong>
                   <div className={styles.muted}>
-                    Estimated effectiveness in your body since last dose
+                    {protocolIsDaily
+                      ? 'Estimated daily coverage since your selected pill time'
+                      : 'Estimated effectiveness in your body since last dose'}
                   </div>
                 </div>
               </div>
@@ -543,6 +582,7 @@ requestAnimationFrame(() => {
             </div>
 
             {/* ===================== TYPICAL PATTERN CARD (GENERAL) ===================== */}
+            {protocolIsWeekly && (
             <div className={styles.card}>
               <div className={styles.cardTitle}>🧭 Typical weekly pattern (general)</div>
 
@@ -580,6 +620,17 @@ requestAnimationFrame(() => {
                 Nausea often peaks 24–48 hours after the dose → fades by late week.
               </div>
             </div>
+            )}
+
+            {protocolIsDaily && (
+              <div className={styles.card}>
+                <div className={styles.cardTitle}>Daily rhythm</div>
+                <p className={styles.helperText}>
+                  Daily protocols use a 24-hour tracking rhythm. Log each dose from Protocols
+                  when you take it, or the estimate uses your selected daily pill time.
+                </p>
+              </div>
+            )}
           </div>
 
           <div aria-hidden className={styles.endSpacer} />

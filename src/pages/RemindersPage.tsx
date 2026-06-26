@@ -42,6 +42,7 @@ import {
 } from '@/db/RemindersRepository';
 
 import { getSettings, type Settings } from '@/db/SettingsRepository';
+import { getPrimaryProtocol, type Protocol } from '@/db/ProtocolRepository';
 import {
   checkAndPersistPermission,
   getNotificationStatus,
@@ -53,6 +54,14 @@ function getUserTimezone(u: unknown): string | undefined {
   if (!u || typeof u !== 'object') return undefined;
   const r = u as Record<string, unknown>;
   return typeof r.timezone === 'string' ? r.timezone : undefined;
+}
+
+function getUserId(u: unknown): string | null {
+  if (!u || typeof u !== 'object') return null;
+  const raw = (u as Record<string, unknown>).id;
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw);
+  return null;
 }
 
 type UiReminder = Readonly<{
@@ -335,6 +344,7 @@ const RemindersPage: React.FC = () => {
 
   const [reminders, setReminders] = useState<UiReminder[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
   const [notice, setNotice] = useState<string>('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -360,15 +370,18 @@ const RemindersPage: React.FC = () => {
   }, []);
 
   const loadPageData = useCallback(async (): Promise<void> => {
-    const [rowsStatus, rowsSettings] = await Promise.all([
+    const userId = getUserId(authUser);
+    const [rowsStatus, rowsSettings, protocol] = await Promise.all([
       getNotificationStatus(),
       getSettings().catch(() => null),
+      userId ? getPrimaryProtocol(userId).catch(() => null) : Promise.resolve(null),
     ]);
     setNotificationStatus(rowsStatus);
     setSettings(rowsSettings);
+    setPrimaryProtocol(protocol);
     await loadReminders();
     await refreshCount();
-  }, [loadReminders, refreshCount]);
+  }, [authUser, loadReminders, refreshCount]);
 
   useEffect(() => {
     void loadPageData();
@@ -376,21 +389,39 @@ const RemindersPage: React.FC = () => {
 
   const presets = useMemo<ReminderPreset[]>(() => {
     const injectionDay = coerceDay(settings?.injection_day);
-    const injectionTime = settings?.injection_time || '09:00';
+    const primaryIsDaily = primaryProtocol?.cadence_type === 'daily';
+    const primaryIsWeekly = primaryProtocol?.cadence_type === 'weekly';
+    const protocolDay = coerceDay(primaryProtocol?.anchor_day ?? settings?.injection_day);
+    const protocolTime = primaryProtocol?.dose_time || settings?.injection_time || '09:00';
     const symptomDay = nextDay(injectionDay);
+    const primaryMedicationPreset: ReminderPreset = primaryIsDaily
+      ? {
+          key: 'daily-primary-protocol',
+          label: 'Daily medication',
+          title: `Daily ${primaryProtocol?.name ?? 'medication'}`,
+          detail: `Every day at ${protocolTime}`,
+          reminderType: 'protocol',
+          day: dayFromDate(new Date(), userTz),
+          time: protocolTime,
+          advance: 0,
+          Icon: Pill,
+        }
+      : {
+          key: 'weekly-primary-protocol',
+          label: primaryIsWeekly ? 'Injection' : 'Medication',
+          title: primaryIsWeekly
+            ? `Weekly ${primaryProtocol?.name ?? 'injection'}`
+            : 'Weekly injection',
+          detail: `${protocolDay} at ${protocolTime}`,
+          reminderType: primaryIsWeekly ? 'injection' : 'protocol',
+          day: protocolDay,
+          time: protocolTime,
+          advance: 60,
+          Icon: primaryIsWeekly ? Syringe : FlaskConical,
+        };
 
     return [
-      {
-        key: 'injection',
-        label: 'Injection',
-        title: 'Weekly injection',
-        detail: `${injectionDay} at ${injectionTime}`,
-        reminderType: 'injection',
-        day: injectionDay,
-        time: injectionTime,
-        advance: 60,
-        Icon: Syringe,
-      },
+      primaryMedicationPreset,
       {
         key: 'hydration',
         label: 'Hydration',
@@ -458,7 +489,7 @@ const RemindersPage: React.FC = () => {
         Icon: FlaskConical,
       },
     ];
-  }, [settings, userTz]);
+  }, [primaryProtocol, settings, userTz]);
 
   const sortedReminders = useMemo(() => {
     return [...reminders].sort((a, b) => {

@@ -245,6 +245,50 @@
   line-height: 1.35;
 }
 
+.completeNotice,
+.pendingNotice,
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  border-radius: 8px;
+  line-height: 1.35;
+}
+
+.completeNotice,
+.pendingNotice {
+  padding: 11px 12px;
+  font-weight: 850;
+}
+
+.completeNotice {
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: #ecfdf5;
+  color: #0f766e;
+}
+
+.pendingNotice {
+  border: 1px solid rgba(192, 86, 33, 0.2);
+  background: #fff7ed;
+  color: #933f19;
+}
+
+.checkRow {
+  padding: 10px 0 0;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+
+.checkRow input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
 .chatHeader p,
 .sectionHeader p,
 .setupHeader p,

@@ -77,6 +77,40 @@ export function computeGlp1Activity(params: {
   }
 }
 
+/**
+ * Compute a daily-dose activity estimate (0 -> 1) from the most recent
+ * scheduled or logged dose time. This is for journaling context only.
+ */
+export function computeDailyDoseActivity(params: {
+  doseTime?: string | null;
+  lastTakenAt?: string | null;
+  now?: Date;
+}): number {
+  const { doseTime, lastTakenAt, now = new Date() } = params;
+  const current = now.getTime();
+  let anchorMs = lastTakenAt ? Date.parse(lastTakenAt) : Number.NaN;
+
+  if (!Number.isFinite(anchorMs) && doseTime) {
+    const [hhRaw, mmRaw] = doseTime.slice(0, 5).split(':');
+    const hh = Number(hhRaw);
+    const mm = Number(mmRaw);
+    if (Number.isFinite(hh) && Number.isFinite(mm)) {
+      const scheduled = new Date(now);
+      scheduled.setHours(hh, mm, 0, 0);
+      if (scheduled.getTime() > current) {
+        scheduled.setDate(scheduled.getDate() - 1);
+      }
+      anchorMs = scheduled.getTime();
+    }
+  }
+
+  if (!Number.isFinite(anchorMs)) return 0;
+  if (current <= anchorMs) return 1;
+
+  const elapsedHours = (current - anchorMs) / (1000 * 60 * 60);
+  return clamp01(1 - elapsedHours / 24);
+}
+
 // -----------------------------------------------------------------------------
 // Formatting helpers
 // -----------------------------------------------------------------------------

@@ -12,6 +12,7 @@ import {
   Flame,
   HeartPulse,
   Moon,
+  Pill,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -105,6 +106,32 @@ function localDayBounds(ymd: string): { start: string; end: string } {
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 1);
   return { start: startDate.toISOString(), end: endDate.toISOString() };
+}
+
+function ymdToLocalDate(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00`);
+}
+
+function enumerateYmdRange(fromYmd: string, toYmd: string): string[] {
+  const days: string[] = [];
+  const cursor = ymdToLocalDate(fromYmd);
+  const end = ymdToLocalDate(toYmd);
+
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(localYmd(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return days;
+}
+
+function anchorWeekStartYmd(todayYmd: string, injectionDay: WeekdayFull | null): string {
+  const todayDate = ymdToLocalDate(todayYmd);
+  const anchorDow = injectionDay ? FULL_FROM_INDEX.indexOf(injectionDay) : FULL_FROM_INDEX.indexOf('Monday');
+  const safeAnchorDow = anchorDow >= 0 ? anchorDow : FULL_FROM_INDEX.indexOf('Monday');
+  const daysSinceAnchor = (todayDate.getDay() - safeAnchorDow + 7) % 7;
+  todayDate.setDate(todayDate.getDate() - daysSinceAnchor);
+  return localYmd(todayDate);
 }
 
 function minutesBetween(start?: string | null, end?: string | null): number {
@@ -488,26 +515,38 @@ const Today: React.FC = () => {
       }
 
       await AppleHealth.requestAuthorization();
-      const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day: today });
-      const workoutResult = await AppleHealth.getWorkouts({ day: today });
 
-      await upsertHealthDailySummary({
-        day: summary.day,
-        source: 'apple_health',
-        steps: summary.steps,
-        activeEnergyKcal: summary.activeEnergyKcal,
-        exerciseMinutes: summary.exerciseMinutes,
-        sleepMinutes: summary.sleepMinutes,
-        restingHeartRate: summary.restingHeartRate,
-        workouts: summary.workouts,
-      });
-      const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
+      const settings = await getSettings();
+      const injectionDay = primaryIsDaily ? 'Monday' : normalizeWeekdayFull(settings.injection_day);
+      const weekStart = anchorWeekStartYmd(today, injectionDay);
+      const syncDays = enumerateYmdRange(weekStart, today);
+      let insertedWorkouts = 0;
+
+      for (const day of syncDays) {
+        const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day });
+        const workoutResult = await AppleHealth.getWorkouts({ day });
+
+        await upsertHealthDailySummary({
+          day: summary.day,
+          source: 'apple_health',
+          steps: summary.steps,
+          activeEnergyKcal: summary.activeEnergyKcal,
+          exerciseMinutes: summary.exerciseMinutes,
+          sleepMinutes: summary.sleepMinutes,
+          restingHeartRate: summary.restingHeartRate,
+          workouts: summary.workouts,
+        });
+
+        const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
+        insertedWorkouts += imported.inserted;
+      }
 
       setSyncState('synced');
+      const syncRangeLabel = primaryIsDaily ? 'review week' : 'injection week';
       setSyncMessage(
-        imported.inserted > 0
-          ? `Apple Health is up to date. Added ${imported.inserted} workout${imported.inserted === 1 ? '' : 's'}.`
-          : 'Apple Health is up to date for today.'
+        insertedWorkouts > 0
+          ? `Apple Health is up to date for this ${syncRangeLabel}. Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'} and added ${insertedWorkouts} workout${insertedWorkouts === 1 ? '' : 's'}.`
+          : `Apple Health is up to date for this ${syncRangeLabel} (${syncDays.length} day${syncDays.length === 1 ? '' : 's'}).`
       );
       await loadToday();
     } catch (error) {
@@ -527,17 +566,24 @@ const Today: React.FC = () => {
   const activityMinutes = Math.max(importedExercise, stats?.manualExerciseMinutes ?? 0);
   const sleepMinutes = Math.max(importedSleep, stats?.manualSleepMinutes ?? 0);
   const activeProtocols = protocols.filter((protocol) => protocol.is_active);
+  const primaryProtocol = activeProtocols.find((protocol) => protocol.is_primary) ?? activeProtocols[0] ?? null;
+  const primaryIsDaily = primaryProtocol?.cadence_type === 'daily';
+  const primaryDoseLabel = primaryProtocol?.dose_time
+    ? `${primaryProtocol.name} ${primaryProtocol.dose_time}`
+    : primaryProtocol?.name ?? null;
+  const rhythmDays = primaryIsDaily ? rotateShortFromFull('Monday') : (rhythm?.anchorDays ?? rotateShortFromFull('Monday'));
   const protocolLoggedIds = new Set(protocolEvents.map((event) => event.protocol_id));
 
   const focusText = useMemo(() => {
     if (!stats) return 'Loading your day';
+    if (primaryIsDaily) return 'Daily rhythm. Keep the dose, food, and water steady';
     if (rhythm?.isInjectionDay) return 'Anchor day. Keep the plan simple and steady';
     if ((stats.protein ?? 0) < 45) return 'Make protein the easy win today';
     if ((stats.hydration ?? 0) < 1000) return 'A steadier water day would help';
     if (sleepMinutes > 0 && sleepMinutes < 360) return 'Keep today gentle after shorter sleep';
     if (importedSteps >= 7000) return 'Movement is carrying the day nicely';
     return 'Small steady choices are enough today';
-  }, [importedSteps, rhythm?.isInjectionDay, sleepMinutes, stats]);
+  }, [importedSteps, primaryIsDaily, rhythm?.isInjectionDay, sleepMinutes, stats]);
 
   return (
     <IonPage>
@@ -642,9 +688,11 @@ const Today: React.FC = () => {
           <section className={styles.rhythmBand}>
             <div className={styles.sectionHeader}>
               <div>
-                <h2>Week rhythm</h2>
+                <h2>{primaryIsDaily ? 'Daily rhythm' : 'Week rhythm'}</h2>
                 <p>
-                  {rhythm?.injectionDay && rhythm.injectionTime
+                  {primaryIsDaily && primaryProtocol?.dose_time
+                    ? `Daily dose ${primaryProtocol.dose_time}`
+                    : rhythm?.injectionDay && rhythm.injectionTime
                     ? `Anchor ${rhythm.injectionDay} ${rhythm.injectionTime}`
                     : 'Anchor not set yet'}
                 </p>
@@ -659,8 +707,8 @@ const Today: React.FC = () => {
               </IonButton>
             </div>
 
-            <div className={styles.anchorStrip} aria-label="Injection anchored week">
-              {(rhythm?.anchorDays ?? rotateShortFromFull('Monday')).map((day, index) => (
+            <div className={styles.anchorStrip} aria-label={primaryIsDaily ? 'Monday to Sunday review week' : 'Injection anchored week'}>
+              {rhythmDays.map((day, index) => (
                 <button
                   key={day}
                   type="button"
@@ -673,15 +721,19 @@ const Today: React.FC = () => {
                   aria-label={isPro ? `Open ${day} plan` : `Review ${day} with Coach`}
                 >
                   <span>{day}</span>
-                  {index === 0 && <strong>Anchor</strong>}
+                  {index === 0 && <strong>{primaryIsDaily ? 'Review' : 'Anchor'}</strong>}
                 </button>
               ))}
             </div>
 
             <div className={styles.rhythmMeta}>
               <div>
-                <span>Next injection</span>
-                <strong>{rhythm?.nextInjectionLabel ?? 'Set in Profile'}</strong>
+                <span>{primaryIsDaily ? 'Daily dose' : 'Next injection'}</span>
+                <strong>
+                  {primaryIsDaily
+                    ? primaryDoseLabel ?? 'Set protocol'
+                    : rhythm?.nextInjectionLabel ?? 'Set in Profile'}
+                </strong>
               </div>
               <div>
                 <span>Fasting</span>
@@ -711,12 +763,12 @@ const Today: React.FC = () => {
                 <div className={styles.rhythmLegend}>
                   <span><i className={styles.rhythmFasting} /> Fasting</span>
                   <span><i className={styles.rhythmEating} /> Eating</span>
-                  <span><i className={styles.rhythmInjection} /> Injection</span>
+                  <span><i className={styles.rhythmInjection} /> {primaryIsDaily ? 'Dose' : 'Injection'}</span>
                 </div>
               </>
             ) : (
               <p className={styles.rhythmEmpty}>
-                Fasting and injection schedule not set yet.
+                Fasting and {primaryIsDaily ? 'dose' : 'injection'} schedule not set yet.
               </p>
             )}
           </section>
@@ -725,7 +777,11 @@ const Today: React.FC = () => {
             <div className={styles.sectionHeader}>
               <div>
                 <h2>Monthly anchor</h2>
-                <p>Most GLP-1 supplies run as 4 weekly doses. This becomes your review and reorder rhythm.</p>
+                <p>
+                  {primaryIsDaily
+                    ? 'Daily protocols use a Monday-Sunday review rhythm for check-ins and trends.'
+                    : 'Most GLP-1 supplies run as 4 weekly doses. This becomes your review and reorder rhythm.'}
+                </p>
               </div>
               <CalendarDays size={22} />
             </div>
@@ -842,10 +898,12 @@ const Today: React.FC = () => {
 
           <section className={styles.insightGrid}>
             <article className={styles.insightCard}>
-              <Syringe size={20} />
-              <span>Injection Anchor</span>
+              {primaryIsDaily ? <Pill size={20} /> : <Syringe size={20} />}
+              <span>{primaryIsDaily ? 'Daily Dose' : 'Injection Anchor'}</span>
               <strong>
-                {rhythm?.injectionDay && rhythm.injectionTime
+                {primaryIsDaily
+                  ? primaryDoseLabel ?? 'Set protocol'
+                  : rhythm?.injectionDay && rhythm.injectionTime
                   ? `${rhythm.injectionDay} ${rhythm.injectionTime}`
                   : stats?.lastInjectionLabel ?? 'Loading'}
               </strong>

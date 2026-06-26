@@ -37,9 +37,22 @@ import {
 } from '@/db/CoachRepository';
 import { insertHealthLog } from '@/db/HealthRepository';
 import { upsertLocalAccount } from '@/db/LocalAccountRepository';
+import {
+  createProtocol,
+  getPrimaryProtocol,
+  logProtocolEvent,
+  type Protocol,
+} from '@/db/ProtocolRepository';
 import { setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
+import {
+  getProtocolPreset,
+  PROTOCOL_PRESETS,
+  type ProtocolPreset,
+} from '@/lib/protocolCatalog';
+import { getSetupStatus, type SetupStatus } from '@/lib/setupStatus';
 import { getUserByEmail, markUserAsLoggedIn, registerLocalUser } from '@/services/localAuth';
 import { hashPassword } from '@/utils/password';
+import { logger } from '@/utils/logger';
 import type { CelebrationContext } from '@/types/celebration';
 import styles from './Coach.module.css';
 
@@ -133,6 +146,8 @@ const weekdayOptions: WeekdayFull[] = [
   'Saturday',
   'Sunday',
 ];
+
+const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide', 'daily-glp1-pill'] as const;
 
 function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liraglutide' | null {
   const normalized = name.trim().toLowerCase();
@@ -279,6 +294,17 @@ const Coach: React.FC = () => {
   const [accountConfirmDraft, setAccountConfirmDraft] = useState('');
   const [accountPasswordVisible, setAccountPasswordVisible] = useState(false);
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
+  const [setupStatusLoading, setSetupStatusLoading] = useState(true);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [protocolPresetId, setProtocolPresetId] = useState<string>('semaglutide');
+  const [protocolDose, setProtocolDose] = useState<string>('');
+  const [customProtocolDose, setCustomProtocolDose] = useState<string>('');
+  const [protocolDoseTime, setProtocolDoseTime] = useState<string>('08:00');
+  const [protocolAnchorDay, setProtocolAnchorDay] = useState<WeekdayFull>('Monday');
+  const [protocolTakenToday, setProtocolTakenToday] = useState(false);
+  const [protocolSaving, setProtocolSaving] = useState(false);
+  const [protocolSetupMessage, setProtocolSetupMessage] = useState('');
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
   const [heightUnit, setHeightUnit] = useState<HeightUnit>('cm');
   const [checkinMood, setCheckinMood] = useState<number | null>(null);
@@ -301,6 +327,9 @@ const Coach: React.FC = () => {
   const accountPasswordValid = setupAuxDraft.length >= 8;
   const accountPasswordsMatch = setupAuxDraft === accountConfirmDraft && accountConfirmDraft.length > 0;
   const canCreateAccount = accountEmailValid && accountPasswordValid && accountPasswordsMatch;
+  const selectedProtocolPreset: ProtocolPreset = getProtocolPreset(protocolPresetId);
+  const selectedProtocolDose = protocolDose === 'Other' ? customProtocolDose.trim() : protocolDose.trim();
+  const canSavePrimaryProtocol = Boolean(selectedProtocolDose && protocolDoseTime);
 
   const isSetupStepSatisfied = useCallback((step: SetupStep): boolean => {
     if (!coachProfile && step !== 'account') return false;
@@ -375,6 +404,7 @@ const Coach: React.FC = () => {
     if (!user?.id) {
       setCoachUserId(null);
       setProfileLoading(false);
+      setPrimaryProtocol(null);
       return;
     }
 
@@ -395,6 +425,21 @@ const Coach: React.FC = () => {
       cancelled = true;
     };
   }, [user?.id]);
+
+  const refreshSetupStatus = useCallback(async (): Promise<void> => {
+    setSetupStatusLoading(true);
+    try {
+      const status = await getSetupStatus(user);
+      setSetupStatus(status);
+      setPrimaryProtocol(status.primaryProtocol);
+    } finally {
+      setSetupStatusLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void refreshSetupStatus();
+  }, [refreshSetupStatus]);
 
   useEffect(() => {
     if (profileLoading || setupComplete || activeSetupStep === 'finish') return;
@@ -569,7 +614,7 @@ const Coach: React.FC = () => {
       return;
     }
 
-    const userId = await ensureCoachUser(coachProfile?.first_name ?? null);
+    const userId = user?.id ?? coachUserId ?? createLocalId();
     const existing = await getUserByEmail(email);
     if (existing?.id && existing.id !== userId) {
       setMessages((prev) => [
@@ -584,6 +629,17 @@ const Coach: React.FC = () => {
     }
 
     const passwordHash = await hashPassword(passphrase);
+    if (!user?.id && !coachUserId) {
+      const tz =
+        (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+      await registerLocalUser({
+        id: userId,
+        email,
+        first_name: coachProfile?.first_name ?? null,
+        last_name: coachProfile?.last_name ?? null,
+        timezone: tz,
+      });
+    }
     await upsertLocalAccount({
       id: userId,
       email,
@@ -597,6 +653,13 @@ const Coach: React.FC = () => {
     await refreshUser();
     setAccountPromptOpen(false);
     setAccountConfirmDraft('');
+    setSetupStatus((current) => ({
+      hasAccount: true,
+      hasPrimaryProtocol: Boolean(current?.hasPrimaryProtocol),
+      primaryProtocol: current?.primaryProtocol ?? null,
+      complete: Boolean(current?.hasPrimaryProtocol),
+      nextStep: current?.hasPrimaryProtocol ? 'complete' : 'protocol',
+    }));
     setMessages((prev) => [
       ...prev,
       {
@@ -606,6 +669,65 @@ const Coach: React.FC = () => {
       },
     ]);
     nextSetupStep();
+  };
+
+  const savePrimaryProtocol = async (): Promise<void> => {
+    const userId = user?.id ?? coachUserId;
+    if (!userId || protocolSaving) return;
+    if (!canSavePrimaryProtocol) {
+      setProtocolSetupMessage('Choose the medication, dose, and dose time first.');
+      return;
+    }
+
+    setProtocolSaving(true);
+    setProtocolSetupMessage('');
+    try {
+      const preset = selectedProtocolPreset;
+      const isWeekly = preset.cadenceType === 'weekly';
+      const reviewAnchorDay = isWeekly ? protocolAnchorDay : 'Monday';
+      const anchorDay = isWeekly ? protocolAnchorDay : null;
+
+      await createProtocol({
+        userId,
+        kind: preset.kind,
+        name: preset.name,
+        doseLabel: selectedProtocolDose,
+        cadenceLabel: preset.defaultCadence,
+        routeLabel: preset.routeLabel,
+        routeType: preset.routeType,
+        cadenceType: preset.cadenceType,
+        doseTime: protocolDoseTime,
+        anchorDay,
+        reviewAnchorDay,
+        effectivenessModel: preset.effectivenessModel,
+        trackingFocus: preset.trackingFocus,
+        notes: preset.note,
+        isPrimary: true,
+      });
+
+      const createdPrimary = await getPrimaryProtocol(userId);
+      if (protocolTakenToday && createdPrimary) {
+        await logProtocolEvent(createdPrimary, 'Logged during setup');
+      }
+
+      if (isWeekly && anchorDay) {
+        await setInjectionSchedule(anchorDay, protocolDoseTime);
+      }
+
+      window.dispatchEvent(new Event('protocols:changed'));
+      window.dispatchEvent(new Event('profile:saved'));
+      await refreshSetupStatus();
+      await refreshUser();
+      setProtocolSetupMessage('Primary protocol saved. The app can now match your rhythm.');
+      router.push('/today', 'forward');
+    } catch (error) {
+      logger.warn('[Coach] primary protocol setup failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setProtocolSetupMessage('Could not save that protocol yet.');
+    } finally {
+      setProtocolSaving(false);
+    }
   };
 
   const saveSetupText = async (field: 'first_name' | 'medication_name' | 'main_reason' | 'date_of_birth'): Promise<void> => {
@@ -772,6 +894,257 @@ const Coach: React.FC = () => {
       setCheckinSaving(false);
     }
   };
+
+  const handleProtocolPresetChange = (presetId: string): void => {
+    const preset = getProtocolPreset(presetId);
+    setProtocolPresetId(presetId);
+    setProtocolDose('');
+    setCustomProtocolDose('');
+    setProtocolDoseTime('08:00');
+    setProtocolAnchorDay('Monday');
+    setProtocolTakenToday(false);
+    setProtocolSetupMessage(preset.cadenceType === 'daily' ? 'Daily routines use Monday-Sunday review weeks by default.' : '');
+  };
+
+  if (setupStatusLoading) {
+    return (
+      <IonPage>
+        <TopNav showWhenAnon={false} />
+        <IonContent fullscreen className={styles.content}>
+          <main className={styles.page}>
+            <section className={styles.setupShell} aria-label="Preparing setup">
+              <div className={styles.setupHeader}>
+                <div>
+                  <h2>Preparing setup...</h2>
+                  <p>Checking your local account and primary protocol.</p>
+                </div>
+              </div>
+            </section>
+          </main>
+        </IonContent>
+        <BottomNav showWhenAnon={false} />
+      </IonPage>
+    );
+  }
+
+  if (!setupStatus?.complete) {
+    const needsAccount = !setupStatus?.hasAccount;
+    const needsProtocol = setupStatus?.hasAccount && !setupStatus.hasPrimaryProtocol;
+    const doseOptions = selectedProtocolPreset.doseOptions ?? ['Other'];
+    const weeklyProtocol = selectedProtocolPreset.cadenceType === 'weekly';
+
+    return (
+      <IonPage>
+        <TopNav showWhenAnon={false} />
+        <IonContent fullscreen className={styles.content}>
+          <main className={styles.page}>
+            <section className={styles.heroBand}>
+              <div className={styles.heroCopy}>
+                <div className={styles.eyebrow}>
+                  <MessageCircleHeart size={18} />
+                  <span>Setup Coach</span>
+                </div>
+                <h1>Let’s set the app up before you go in.</h1>
+                <p>
+                  The app needs a local account to keep your private data secure on this phone,
+                  and a primary protocol so Today, reminders, and effectiveness match your routine.
+                </p>
+              </div>
+              <div className={styles.heroBadge} aria-hidden="true">
+                <ShieldAlert size={26} />
+              </div>
+            </section>
+
+            <section className={styles.setupShell} aria-label="Required app setup">
+              <div className={styles.setupHeader}>
+                <div>
+                  <h2>Required setup</h2>
+                  <p>Complete these two steps to unlock the rest of the app.</p>
+                </div>
+              </div>
+
+              <div className={styles.setupCard}>
+                <h3>1. Create your local account</h3>
+                <p>
+                  This secures your app on this phone and connects your Coach, Today, Profile,
+                  reminders, and tracking data.
+                </p>
+                {needsAccount ? (
+                  <>
+                    <input
+                      type="email"
+                      inputMode="email"
+                      value={setupDraft}
+                      placeholder="Email"
+                      onChange={(event) => setSetupDraft(event.target.value)}
+                    />
+                    <div className={styles.passwordField}>
+                      <input
+                        type={accountPasswordVisible ? 'text' : 'password'}
+                        value={setupAuxDraft}
+                        placeholder="Password, 8+ characters"
+                        onChange={(event) => setSetupAuxDraft(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                        aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                      >
+                        {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    <div className={styles.passwordField}>
+                      <input
+                        type={accountPasswordVisible ? 'text' : 'password'}
+                        value={accountConfirmDraft}
+                        placeholder="Confirm password"
+                        onChange={(event) => setAccountConfirmDraft(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className={styles.passwordToggle}
+                        onClick={() => setAccountPasswordVisible((visible) => !visible)}
+                        aria-label={accountPasswordVisible ? 'Hide password' : 'Show password'}
+                      >
+                        {accountPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    {accountConfirmDraft && !accountPasswordsMatch && (
+                      <p className={styles.formHint}>Passwords do not match yet.</p>
+                    )}
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => void saveAccountLogin()}
+                      disabled={!canCreateAccount}
+                    >
+                      Create account
+                    </IonButton>
+                  </>
+                ) : (
+                  <div className={styles.completeNotice}>
+                    <CheckCircle2 size={18} />
+                    <span>Account created.</span>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.setupCard}>
+                <h3>2. Select your primary protocol</h3>
+                <p>
+                  This tells the app whether to use a weekly injection rhythm or a daily pill rhythm.
+                  Secondary protocols can still be tracked later.
+                </p>
+                {needsAccount ? (
+                  <div className={styles.pendingNotice}>
+                    <ShieldAlert size={18} />
+                    <span>Create your local account first, then the protocol choices will unlock.</span>
+                  </div>
+                ) : needsProtocol ? (
+                  <>
+                    <label className={styles.setupLabel} htmlFor="primaryProtocol">
+                      Medication
+                    </label>
+                    <select
+                      id="primaryProtocol"
+                      value={protocolPresetId}
+                      onChange={(event) => handleProtocolPresetChange(event.target.value)}
+                    >
+                      {PROTOCOL_PRESETS.filter((preset) =>
+                        primaryProtocolPresetIds.some((id) => id === preset.id)
+                      ).map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className={styles.setupLabel} htmlFor="primaryProtocolDose">
+                      Dose label
+                    </label>
+                    <select
+                      id="primaryProtocolDose"
+                      value={protocolDose}
+                      onChange={(event) => setProtocolDose(event.target.value)}
+                    >
+                      <option value="">Select dose</option>
+                      {doseOptions.map((dose) => (
+                        <option key={dose} value={dose}>
+                          {dose}
+                        </option>
+                      ))}
+                    </select>
+                    {protocolDose === 'Other' && (
+                      <input
+                        value={customProtocolDose}
+                        placeholder="Enter dose label"
+                        onChange={(event) => setCustomProtocolDose(event.target.value)}
+                      />
+                    )}
+
+                    <label className={styles.setupLabel} htmlFor="primaryProtocolTime">
+                      {weeklyProtocol ? 'Injection time' : 'Daily pill time'}
+                    </label>
+                    <input
+                      id="primaryProtocolTime"
+                      type="time"
+                      value={protocolDoseTime}
+                      onChange={(event) => setProtocolDoseTime(event.target.value)}
+                    />
+
+                    {weeklyProtocol ? (
+                      <>
+                        <label className={styles.setupLabel} htmlFor="primaryProtocolAnchor">
+                          Injection day / weekly anchor
+                        </label>
+                        <select
+                          id="primaryProtocolAnchor"
+                          value={protocolAnchorDay}
+                          onChange={(event) => setProtocolAnchorDay(event.target.value as WeekdayFull)}
+                        >
+                          {weekdayOptions.map((day) => (
+                            <option key={day} value={day}>{day}</option>
+                          ))}
+                        </select>
+                      </>
+                    ) : (
+                      <p className={styles.formHint}>
+                        Daily pill review weeks run Monday-Sunday by default.
+                      </p>
+                    )}
+
+                    <label className={styles.checkRow}>
+                      <input
+                        type="checkbox"
+                        checked={protocolTakenToday}
+                        onChange={(event) => setProtocolTakenToday(event.target.checked)}
+                      />
+                      <span>I have already taken/logged today’s dose.</span>
+                    </label>
+
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => void savePrimaryProtocol()}
+                      disabled={!canSavePrimaryProtocol || protocolSaving}
+                    >
+                      {protocolSaving ? 'Saving...' : 'Save primary protocol'}
+                    </IonButton>
+                    {protocolSetupMessage && <p className={styles.formHint}>{protocolSetupMessage}</p>}
+                  </>
+                ) : (
+                  <div className={styles.completeNotice}>
+                    <CheckCircle2 size={18} />
+                    <span>{primaryProtocol?.name ?? 'Primary protocol'} selected.</span>
+                  </div>
+                )}
+              </div>
+            </section>
+          </main>
+        </IonContent>
+        <BottomNav showWhenAnon={false} />
+      </IonPage>
+    );
+  }
 
   return (
     <IonPage>

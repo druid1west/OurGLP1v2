@@ -1,5 +1,10 @@
 import { getDb } from '../db/sqlite';
-import type { ProtocolKind } from '../lib/protocolCatalog';
+import type {
+  ProtocolCadenceType,
+  ProtocolEffectivenessModel,
+  ProtocolKind,
+  ProtocolRouteType,
+} from '../lib/protocolCatalog';
 
 export type Protocol = {
   id: number;
@@ -9,6 +14,12 @@ export type Protocol = {
   dose_label: string | null;
   cadence_label: string | null;
   route_label: string | null;
+  route_type: ProtocolRouteType;
+  cadence_type: ProtocolCadenceType;
+  dose_time: string | null;
+  anchor_day: string | null;
+  review_anchor_day: string | null;
+  effectiveness_model: ProtocolEffectivenessModel;
   tracking_focus: string[];
   notes: string | null;
   is_active: boolean;
@@ -34,6 +45,12 @@ export type CreateProtocolInput = {
   doseLabel?: string | null;
   cadenceLabel?: string | null;
   routeLabel?: string | null;
+  routeType?: ProtocolRouteType;
+  cadenceType?: ProtocolCadenceType;
+  doseTime?: string | null;
+  anchorDay?: string | null;
+  reviewAnchorDay?: string | null;
+  effectivenessModel?: ProtocolEffectivenessModel;
   trackingFocus?: string[];
   notes?: string | null;
   isPrimary?: boolean;
@@ -84,6 +101,42 @@ function str(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function routeType(value: unknown): ProtocolRouteType {
+  const normalized = str(value);
+  if (
+    normalized === 'injection' ||
+    normalized === 'oral' ||
+    normalized === 'topical' ||
+    normalized === 'sublingual' ||
+    normalized === 'other'
+  ) {
+    return normalized;
+  }
+  return 'other';
+}
+
+function cadenceType(value: unknown): ProtocolCadenceType {
+  const normalized = str(value);
+  if (
+    normalized === 'daily' ||
+    normalized === 'weekly' ||
+    normalized === 'twice_weekly' ||
+    normalized === 'custom' ||
+    normalized === 'as_directed'
+  ) {
+    return normalized;
+  }
+  return 'as_directed';
+}
+
+function effectivenessModel(value: unknown): ProtocolEffectivenessModel {
+  const normalized = str(value);
+  if (normalized === 'weekly_glp1' || normalized === 'daily_24h' || normalized === 'none') {
+    return normalized;
+  }
+  return 'none';
+}
+
 function num(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -110,6 +163,12 @@ function mapProtocol(row: QueryRow): Protocol {
     dose_label: str(row.dose_label),
     cadence_label: str(row.cadence_label),
     route_label: str(row.route_label),
+    route_type: routeType(row.route_type),
+    cadence_type: cadenceType(row.cadence_type),
+    dose_time: str(row.dose_time),
+    anchor_day: str(row.anchor_day),
+    review_anchor_day: str(row.review_anchor_day),
+    effectiveness_model: effectivenessModel(row.effectiveness_model),
     tracking_focus: parseFocus(row.tracking_focus_json),
     notes: str(row.notes),
     is_active: num(row.is_active) === 1,
@@ -143,6 +202,12 @@ export async function initProtocolTables(): Promise<void> {
       dose_label TEXT,
       cadence_label TEXT,
       route_label TEXT,
+      route_type TEXT NOT NULL DEFAULT 'other',
+      cadence_type TEXT NOT NULL DEFAULT 'as_directed',
+      dose_time TEXT,
+      anchor_day TEXT,
+      review_anchor_day TEXT,
+      effectiveness_model TEXT NOT NULL DEFAULT 'none',
       tracking_focus_json TEXT NOT NULL DEFAULT '[]',
       notes TEXT,
       is_active INTEGER NOT NULL DEFAULT 1,
@@ -156,6 +221,24 @@ export async function initProtocolTables(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_protocols_user_active
       ON protocols (user_id, is_active, is_primary);
   `);
+
+  const info = await db.query(`PRAGMA table_info('protocols')`);
+  const existing = new Set(
+    rows(info).map((row) => (typeof row.name === 'string' ? row.name : String(row.name ?? '')))
+  );
+  const columns: Array<{ name: string; sql: string }> = [
+    { name: 'route_type', sql: "ALTER TABLE protocols ADD COLUMN route_type TEXT NOT NULL DEFAULT 'other'" },
+    { name: 'cadence_type', sql: "ALTER TABLE protocols ADD COLUMN cadence_type TEXT NOT NULL DEFAULT 'as_directed'" },
+    { name: 'dose_time', sql: 'ALTER TABLE protocols ADD COLUMN dose_time TEXT' },
+    { name: 'anchor_day', sql: 'ALTER TABLE protocols ADD COLUMN anchor_day TEXT' },
+    { name: 'review_anchor_day', sql: 'ALTER TABLE protocols ADD COLUMN review_anchor_day TEXT' },
+    { name: 'effectiveness_model', sql: "ALTER TABLE protocols ADD COLUMN effectiveness_model TEXT NOT NULL DEFAULT 'none'" },
+  ];
+  for (const column of columns) {
+    if (!existing.has(column.name)) {
+      await db.execute(column.sql);
+    }
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS protocol_events (
@@ -207,9 +290,10 @@ export async function createProtocol(input: CreateProtocolInput): Promise<void> 
     `
     INSERT INTO protocols (
       user_id, kind, name, dose_label, cadence_label, route_label,
+      route_type, cadence_type, dose_time, anchor_day, review_anchor_day, effectiveness_model,
       tracking_focus_json, notes, is_active, is_primary, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
     `,
     [
       input.userId,
@@ -218,6 +302,12 @@ export async function createProtocol(input: CreateProtocolInput): Promise<void> 
       input.doseLabel?.trim() || null,
       input.cadenceLabel?.trim() || null,
       input.routeLabel?.trim() || null,
+      input.routeType ?? 'other',
+      input.cadenceType ?? 'as_directed',
+      input.doseTime?.trim() || null,
+      input.anchorDay?.trim() || null,
+      input.reviewAnchorDay?.trim() || null,
+      input.effectivenessModel ?? 'none',
       focus,
       input.notes?.trim() || null,
       input.isPrimary ? 1 : 0,
@@ -225,6 +315,33 @@ export async function createProtocol(input: CreateProtocolInput): Promise<void> 
       now,
     ]
   );
+}
+
+export async function getPrimaryProtocol(userId: string): Promise<Protocol | null> {
+  await initProtocolTables();
+  const db = await getDb();
+  const result = await db.query(
+    `
+    SELECT *
+    FROM protocols
+    WHERE user_id = ?
+      AND is_active = 1
+      AND is_primary = 1
+    ORDER BY datetime(updated_at) DESC, id DESC
+    LIMIT 1
+    `,
+    [userId]
+  );
+  return rows(result).map(mapProtocol)[0] ?? null;
+}
+
+export async function hasCompletePrimaryProtocol(userId: string): Promise<boolean> {
+  const primary = await getPrimaryProtocol(userId);
+  if (!primary) return false;
+  if (!primary.name || !primary.dose_label || !primary.dose_time) return false;
+  if (primary.cadence_type === 'weekly') return Boolean(primary.anchor_day);
+  if (primary.cadence_type === 'daily') return Boolean(primary.review_anchor_day);
+  return false;
 }
 
 export async function setProtocolActive(protocolId: number, active: boolean): Promise<void> {

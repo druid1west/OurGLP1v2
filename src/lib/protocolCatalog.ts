@@ -5,12 +5,20 @@ export type ProtocolKind =
   | 'cellular_support'
   | 'custom';
 
+export type ProtocolRouteType = 'injection' | 'oral' | 'topical' | 'sublingual' | 'other';
+export type ProtocolCadenceType = 'daily' | 'weekly' | 'twice_weekly' | 'custom' | 'as_directed';
+export type ProtocolEffectivenessModel = 'weekly_glp1' | 'daily_24h' | 'none';
+
 export type ProtocolPreset = {
   id: string;
   name: string;
   kind: ProtocolKind;
   defaultCadence: string;
   routeLabel: string;
+  routeType: ProtocolRouteType;
+  cadenceType: ProtocolCadenceType;
+  effectivenessModel: ProtocolEffectivenessModel;
+  doseOptions?: string[];
   trackingFocus: string[];
   note: string;
 };
@@ -30,6 +38,10 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'glp1',
     defaultCadence: 'Weekly',
     routeLabel: 'Injection',
+    routeType: 'injection',
+    cadenceType: 'weekly',
+    effectivenessModel: 'weekly_glp1',
+    doseOptions: ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2 mg', '2.4 mg', 'Other'],
     trackingFocus: ['Weight trend', 'Protein', 'Hydration', 'Appetite', 'Nausea', 'Bowel changes'],
     note: 'Use this for semaglutide routines prescribed under any brand name.',
   },
@@ -39,6 +51,10 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'glp1',
     defaultCadence: 'Weekly',
     routeLabel: 'Injection',
+    routeType: 'injection',
+    cadenceType: 'weekly',
+    effectivenessModel: 'weekly_glp1',
+    doseOptions: ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg', 'Other'],
     trackingFocus: ['Weight trend', 'Protein', 'Hydration', 'Appetite', 'Nausea', 'Blood sugar if relevant'],
     note: 'Use this for tirzepatide routines prescribed under any brand name.',
   },
@@ -48,8 +64,25 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'glp1',
     defaultCadence: 'Daily',
     routeLabel: 'Injection',
+    routeType: 'injection',
+    cadenceType: 'daily',
+    effectivenessModel: 'daily_24h',
+    doseOptions: ['0.6 mg', '1.2 mg', '1.8 mg', '2.4 mg', '3 mg', 'Other'],
     trackingFocus: ['Weight trend', 'Protein', 'Hydration', 'Appetite', 'Nausea', 'Bowel changes'],
     note: 'Use this for daily liraglutide routines.',
+  },
+  {
+    id: 'daily-glp1-pill',
+    name: 'Daily GLP-1 pill',
+    kind: 'glp1',
+    defaultCadence: 'Daily',
+    routeLabel: 'Oral',
+    routeType: 'oral',
+    cadenceType: 'daily',
+    effectivenessModel: 'daily_24h',
+    doseOptions: ['1 mg', '3 mg', '7 mg', '14 mg', 'Other'],
+    trackingFocus: ['Dose adherence', 'Appetite', 'Nausea', 'Hydration', 'Protein', 'Bowel changes'],
+    note: 'Use this for a daily oral GLP-1 routine exactly as prescribed.',
   },
   {
     id: 'copper-peptide',
@@ -57,6 +90,9 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'copper_peptide',
     defaultCadence: 'As directed',
     routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
     trackingFocus: ['Skin notes', 'Sleep', 'Energy', 'Training load', 'Side effects', 'Photos or notes'],
     note: 'Track usage and observations only. The app does not suggest dose or frequency.',
   },
@@ -66,6 +102,9 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'recovery_peptide',
     defaultCadence: 'As directed',
     routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
     trackingFocus: ['Pain score', 'Mobility', 'Sleep', 'Training load', 'Side effects', 'Notes'],
     note: 'Track usage and recovery observations only.',
   },
@@ -75,6 +114,9 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'recovery_peptide',
     defaultCadence: 'As directed',
     routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
     trackingFocus: ['Pain score', 'Mobility', 'Training load', 'Sleep', 'Side effects', 'Notes'],
     note: 'Track usage and recovery observations only.',
   },
@@ -84,6 +126,9 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'cellular_support',
     defaultCadence: 'As directed',
     routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
     trackingFocus: ['Energy', 'Sleep', 'Resting heart rate', 'Training load', 'Side effects', 'Notes'],
     note: 'Track usage and observations only.',
   },
@@ -93,6 +138,10 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     kind: 'custom',
     defaultCadence: 'As directed',
     routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
+    doseOptions: ['Other'],
     trackingFocus: ['Symptoms', 'Sleep', 'Energy', 'Activity', 'Side effects', 'Notes'],
     note: 'Use this for anything not listed. Keep dose and timing based on your own instructions.',
   },
