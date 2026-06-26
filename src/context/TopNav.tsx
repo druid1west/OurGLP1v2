@@ -14,8 +14,8 @@ const barStyle: React.CSSProperties = {
   right: 0,
   top: 0,
   backgroundColor: '#2563eb',
-  paddingLeft: 10,
-  paddingRight: 10,
+  paddingLeft: 16,
+  paddingRight: 16,
 
   // ⬇️ Push content below the notch/status bar
   paddingTop: 'calc(env(safe-area-inset-top, 0px) + 52px)',
@@ -34,8 +34,8 @@ const barStyle: React.CSSProperties = {
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'flex-start',
-  gap: '10px',
+  justifyContent: 'center',
+  gap: 'clamp(12px, 3.1vw, 20px)',
   width: '100%',
   marginTop: 0, // no extra nudge needed once we pad above
   whiteSpace: 'nowrap',
@@ -47,7 +47,8 @@ const rowStyle: React.CSSProperties = {
 
 
 const linkStyle: React.CSSProperties = {
-  fontSize: '12px',
+  fontSize: 'clamp(14px, 3.65vw, 16px)',
+  fontWeight: 700,
   color: 'white',
   textDecoration: 'none',
   display: 'inline-flex',
