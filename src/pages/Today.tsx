@@ -94,11 +94,10 @@ const STEPS_TARGET = 8000;
 const SLEEP_TARGET_MINUTES = 7 * 60;
 
 function localYmd(date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function localDayBounds(ymd: string): { start: string; end: string } {
@@ -161,6 +160,13 @@ function formatMinutes(minutes: number): string {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+}
+
+function heartRateLabel(summary: HealthDailySummary | null): string {
+  if (summary?.restingHeartRate) return `Resting ${Math.round(summary.restingHeartRate)} bpm`;
+  if (summary?.averageHeartRate) return `Avg ${Math.round(summary.averageHeartRate)} bpm`;
+  if (summary?.latestHeartRate) return `Latest ${Math.round(summary.latestHeartRate)} bpm`;
+  return 'No HR';
 }
 
 function percentage(value: number, target: number): number {
@@ -517,14 +523,28 @@ const Today: React.FC = () => {
       await AppleHealth.requestAuthorization();
 
       const settings = await getSettings();
-      const injectionDay = primaryIsDaily ? 'Monday' : normalizeWeekdayFull(settings.injection_day);
-      const weekStart = anchorWeekStartYmd(today, injectionDay);
+      const syncAnchorDay = primaryIsDaily
+        ? 'Monday'
+        : normalizeWeekdayFull(primaryProtocol?.anchor_day ?? settings.injection_day);
+      const weekStart = anchorWeekStartYmd(today, syncAnchorDay);
       const syncDays = enumerateYmdRange(weekStart, today);
       let insertedWorkouts = 0;
+      let daysWithHealthData = 0;
 
       for (const day of syncDays) {
         const summary: AppleHealthDailySummary = await AppleHealth.getDailySummary({ day });
         const workoutResult = await AppleHealth.getWorkouts({ day });
+        const dayHasData = Boolean(
+          summary.steps ||
+          summary.activeEnergyKcal ||
+          summary.exerciseMinutes ||
+          summary.sleepMinutes ||
+          summary.restingHeartRate ||
+          summary.averageHeartRate ||
+          summary.latestHeartRate ||
+          summary.workouts ||
+          workoutResult.workouts.length
+        );
 
         await upsertHealthDailySummary({
           day: summary.day,
@@ -534,19 +554,23 @@ const Today: React.FC = () => {
           exerciseMinutes: summary.exerciseMinutes,
           sleepMinutes: summary.sleepMinutes,
           restingHeartRate: summary.restingHeartRate,
+          averageHeartRate: summary.averageHeartRate,
+          latestHeartRate: summary.latestHeartRate,
           workouts: summary.workouts,
         });
 
         const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
         insertedWorkouts += imported.inserted;
+        if (dayHasData) daysWithHealthData += 1;
       }
 
       setSyncState('synced');
       const syncRangeLabel = primaryIsDaily ? 'review week' : 'injection week';
+      const syncedRange = `${weekStart} to ${today}`;
       setSyncMessage(
         insertedWorkouts > 0
-          ? `Apple Health is up to date for this ${syncRangeLabel}. Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'} and added ${insertedWorkouts} workout${insertedWorkouts === 1 ? '' : 's'}.`
-          : `Apple Health is up to date for this ${syncRangeLabel} (${syncDays.length} day${syncDays.length === 1 ? '' : 's'}).`
+          ? `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'}, found data on ${daysWithHealthData}, and added ${insertedWorkouts} workout${insertedWorkouts === 1 ? '' : 's'}.`
+          : `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'} and found data on ${daysWithHealthData}.`
       );
       await loadToday();
     } catch (error) {
@@ -826,7 +850,7 @@ const Today: React.FC = () => {
               </div>
               <div>
                 <HeartPulse size={18} />
-                <span>{appleSummary?.restingHeartRate ? `${Math.round(appleSummary.restingHeartRate)} bpm` : 'No HR'}</span>
+                <span>{heartRateLabel(appleSummary)}</span>
               </div>
             </div>
 

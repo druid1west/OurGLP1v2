@@ -56,6 +56,8 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         var exerciseMinutes = 0.0
         var sleepMinutes = 0.0
         var restingHeartRate: Double?
+        var averageHeartRate: Double?
+        var latestHeartRate: Double?
         var workouts = 0
 
         group.enter()
@@ -89,6 +91,18 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         group.enter()
+        averageQuantity(.heartRate, unit: HKUnit.count().unitDivided(by: HKUnit.minute()), start: bounds.start, end: bounds.end) { value in
+            averageHeartRate = value
+            group.leave()
+        }
+
+        group.enter()
+        latestQuantity(.heartRate, unit: HKUnit.count().unitDivided(by: HKUnit.minute()), start: bounds.start, end: bounds.end) { value in
+            latestHeartRate = value
+            group.leave()
+        }
+
+        group.enter()
         workoutCount(start: bounds.start, end: bounds.end) { value in
             workouts = value
             group.leave()
@@ -108,6 +122,18 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 result["restingHeartRate"] = restingHeartRate
             } else {
                 result["restingHeartRate"] = NSNull()
+            }
+
+            if let averageHeartRate = averageHeartRate {
+                result["averageHeartRate"] = averageHeartRate
+            } else {
+                result["averageHeartRate"] = NSNull()
+            }
+
+            if let latestHeartRate = latestHeartRate {
+                result["latestHeartRate"] = latestHeartRate
+            } else {
+                result["latestHeartRate"] = NSNull()
             }
 
             call.resolve(result)
@@ -178,6 +204,9 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             types.insert(type)
         }
         if let type = HKQuantityType.quantityType(forIdentifier: .restingHeartRate) {
+            types.insert(type)
+        }
+        if let type = HKQuantityType.quantityType(forIdentifier: .heartRate) {
             types.insert(type)
         }
         if let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
@@ -253,6 +282,32 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             options: .discreteAverage
         ) { _, statistics, _ in
             completion(statistics?.averageQuantity()?.doubleValue(for: unit))
+        }
+
+        healthStore.execute(query)
+    }
+
+    private func latestQuantity(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        start: Date,
+        end: Date,
+        completion: @escaping (Double?) -> Void
+    ) {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            completion(nil)
+            return
+        }
+
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        let query = HKSampleQuery(
+            sampleType: type,
+            predicate: predicate(start: start, end: end),
+            limit: 1,
+            sortDescriptors: [sort]
+        ) { _, samples, _ in
+            let sample = (samples as? [HKQuantitySample])?.first
+            completion(sample?.quantity.doubleValue(for: unit))
         }
 
         healthStore.execute(query)

@@ -128,6 +128,12 @@ const WeeklySummaryArchiveDetailGuarded: React.FC = () => (
   </RequirePro>
 );
 
+const WeeklySummaryGuarded: React.FC = () => (
+  <RequirePro>
+    <WeeklySummary />
+  </RequirePro>
+);
+
 const DayPageGuarded: React.FC = () => (
   <RequirePro>
     <DayPage />
@@ -558,8 +564,8 @@ const App: React.FC = () => {
                   <PrivateRoute exact path="/profile" component={Profile} />
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />
                   <PrivateRoute exact path="/reminders" component={RemindersPage} />
-                  <PrivateRoute exact path="/weeklysummary" component={WeeklySummary} />
-                  <PrivateRoute exact path="/weekly-summary" component={WeeklySummary} />
+                  <PrivateRoute exact path="/weeklysummary" component={WeeklySummaryGuarded} />
+                  <PrivateRoute exact path="/weekly-summary" component={WeeklySummaryGuarded} />
                   <PrivateRoute exact path="/effectiveness" component={Effectiveness} />
                   <PrivateRoute exact path="/celebrate" component={CelebrationPage} />
                   <PrivateRoute exact path="/glp1-graph/archive" component={Glp1GraphArchiveGuarded} />

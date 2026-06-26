@@ -153,6 +153,7 @@ export function writeRcCacheFromCustomerInfo(info: unknown): RcCache {
 export async function syncLocalEntitlementFromCustomerInfo(
   userId: string,
   info: CustomerInfo | unknown,
+  options: { emitEvents?: boolean } = {},
 ): Promise<RevenueCatEntitlementSnapshot> {
   const snapshot = deriveEntitlementFromCustomerInfo(info);
   const db = await getDb();
@@ -181,21 +182,24 @@ export async function syncLocalEntitlementFromCustomerInfo(
   );
 
   writeRcCacheFromCustomerInfo(info);
-  window.dispatchEvent(new Event('billing:changed'));
-  window.dispatchEvent(new Event('rc:customerInfoChanged'));
+  if (options.emitEvents !== false) {
+    window.dispatchEvent(new Event('billing:changed'));
+    window.dispatchEvent(new Event('rc:customerInfoChanged'));
+  }
 
   return snapshot;
 }
 
 export async function syncCurrentUserEntitlementFromCustomerInfo(
   info: CustomerInfo | unknown,
+  options: { emitEvents?: boolean } = {},
 ): Promise<RevenueCatEntitlementSnapshot | null> {
   const user = await getLocalCurrentUser();
   if (!user?.id) {
     writeRcCacheFromCustomerInfo(info);
     return null;
   }
-  return syncLocalEntitlementFromCustomerInfo(user.id, info);
+  return syncLocalEntitlementFromCustomerInfo(user.id, info, options);
 }
 
 export async function refreshCurrentUserEntitlementFromRevenueCat(): Promise<RevenueCatEntitlementSnapshot | null> {

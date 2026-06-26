@@ -11,6 +11,8 @@ type DB = {
   run: (sql: string, params?: unknown[]) => Promise<RunResult>;
 };
 
+let weeklySummaryInitPromise: Promise<void> | null = null;
+
 // -----------------------------
 // Types used by the page
 // -----------------------------
@@ -229,9 +231,14 @@ async function initWeeklySummaryTables(db: DB): Promise<void> {
 // Call before each public op
 async function getDbInit(): Promise<DB> {
   const db = (await getDb()) as DB;
-  await initWeeklySummaryTables(db);
-  // Make sure all health tables (incl. daily_hydration_intake) exist
-  await initHealthTables();
+  weeklySummaryInitPromise =
+    weeklySummaryInitPromise ??
+    (async () => {
+      await initWeeklySummaryTables(db);
+      // Make sure all health tables (incl. daily_hydration_intake) exist
+      await initHealthTables();
+    })();
+  await weeklySummaryInitPromise;
   return db;
 }
 

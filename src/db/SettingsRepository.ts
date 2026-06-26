@@ -214,6 +214,7 @@ async function columnExists(table: string, column: string): Promise<boolean> {
 }
 
 type ColumnSpec = { name: string; type: string; defaultSql?: string };
+let settingsInitPromise: Promise<void> | null = null;
 
 async function ensureColumns(table: string, cols: ReadonlyArray<ColumnSpec>): Promise<void> {
   const db = await getDb();
@@ -231,7 +232,7 @@ async function ensureColumns(table: string, cols: ReadonlyArray<ColumnSpec>): Pr
 /* ────────────────────────────────────────────────────────────────────────────
    Table init (singleton row id = 1) + migration to match schema
 ──────────────────────────────────────────────────────────────────────────── */
-async function initSettingsTable(): Promise<void> {
+async function doInitSettingsTable(): Promise<void> {
   const db = await getDb();
 
   // 1) Ensure table exists (minimal columns so ALTERs never get blocked)
@@ -264,6 +265,14 @@ async function initSettingsTable(): Promise<void> {
     { name: 'updated_at',               type: 'TEXT',    defaultSql: `datetime('now')` },
     { name: 'notification_sound',       type: 'TEXT',    defaultSql: `'default'` },
   ]);
+}
+
+async function initSettingsTable(): Promise<void> {
+  settingsInitPromise ??= doInitSettingsTable().catch((error) => {
+    settingsInitPromise = null;
+    throw error;
+  });
+  return settingsInitPromise;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -543,7 +552,6 @@ export async function setTimezone(tz: string): Promise<void> {
   );
   await mirrorIntoUsers({ timezone: tz });
 }
-
 
 
 

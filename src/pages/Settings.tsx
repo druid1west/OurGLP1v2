@@ -30,11 +30,7 @@ import { emitAuthChanged } from '@/services/authBus';
 import { dropAllLocalData } from '@/db/_maintenance';
 import { logger } from '@/utils/logger';
 
-import {
-  getCustomerInfo as rcGetCustomerInfo,
-  isProFromCustomerInfo as rcIsPro,
-  openManageSubscriptions,
-} from '@/lib/purchasesInit';
+import { openManageSubscriptions } from '@/lib/purchasesInit';
 
 type SubscriptionStatus =
   | { kind: 'pro'; sandbox: boolean; startedAt?: string; expiresAt?: string }
@@ -74,68 +70,6 @@ async function setTheme(theme: 'light' | 'dark'): Promise<void> {
   document.body.setAttribute('data-theme', theme);
 }
 
-/* ------------------- RevenueCat helper types + hook ------------------- */
-
-type RcEntitlement = {
-  isSandbox?: boolean;
-  latestPurchaseDate?: string | null;
-  expirationDate?: string | null;
-};
-
-type RcCustomerInfoLike = {
-  entitlements?: {
-    active?: Record<string, RcEntitlement>;
-  };
-};
-
-function useSubscriptionStatus(): SubscriptionStatus {
-  const [status, setStatus] = useState<SubscriptionStatus>({ kind: 'free' });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const updateFromRevenueCat = async (): Promise<void> => {
-      try {
-        const raw = await rcGetCustomerInfo();
-        if (cancelled) return;
-
-        if (rcIsPro(raw)) {
-          const ciLike = raw as RcCustomerInfoLike;
-          const activeEntitlements = ciLike.entitlements?.active ?? {};
-          const entitlementsRecord: Record<string, RcEntitlement> = activeEntitlements;
-
-          const proEnt =
-            entitlementsRecord.pro ??
-            entitlementsRecord.ourglp1_pro ??
-            Object.values(entitlementsRecord)[0];
-
-          const sandbox = !!proEnt?.isSandbox;
-          const startedAt = proEnt?.latestPurchaseDate ?? undefined;
-          const expiresAt = proEnt?.expirationDate ?? undefined;
-
-          setStatus({ kind: 'pro', sandbox, startedAt, expiresAt });
-        } else {
-          setStatus({ kind: 'free' });
-        }
-      } catch (e) {
-        dlog.warn('failed to refresh subscription status', {
-          msg: e instanceof Error ? e.message : String(e),
-        });
-      }
-    };
-
-    void updateFromRevenueCat();
-    window.addEventListener('rc:customerInfoChanged', updateFromRevenueCat);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener('rc:customerInfoChanged', updateFromRevenueCat);
-    };
-  }, []);
-
-  return status.kind === 'pro' ? status : { kind: 'free' };
-}
-
 /* -------------------------------- Page -------------------------------- */
 
 const Settings: React.FC = () => {
@@ -152,18 +86,16 @@ const Settings: React.FC = () => {
 
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
 
-  const rcSub = useSubscriptionStatus();
   const sub = useMemo<SubscriptionStatus>(() => {
-    if (rcSub.kind === 'pro') return rcSub;
     if (isPro) {
       return {
         kind: 'pro',
-        sandbox: true,
+        sandbox: user?.entitlement_source !== 'revenuecat',
         expiresAt: user?.pro_until ?? undefined,
       };
     }
-    return rcSub;
-  }, [isPro, rcSub, user?.pro_until]);
+    return { kind: 'free' };
+  }, [isPro, user?.entitlement_source, user?.pro_until]);
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
   const subLabel = useMemo(() => {
@@ -433,10 +365,6 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-
-
-
-
 
 
 

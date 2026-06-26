@@ -228,6 +228,11 @@ function toLocalISOWithOffset(d: Date) {
   return `${y}-${m}-${day}T${H}:${M}:${S}${sign}${offH}:${offM}`;
 }
 
+function localYmd(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function isoToBlockIndex(iso: string) {
   const d = new Date(iso);
   return Math.floor(d.getHours() * 4 + d.getMinutes() / 15);
@@ -364,13 +369,13 @@ const DayPage: React.FC = () => {
 
   const dayStartUtc = useMemo(() => {
     const d = new Date(selectedDate);
-    d.setUTCHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
     return d.toISOString();
   }, [selectedDate]);
 
   const dayEndUtc = useMemo(() => {
     const d = new Date(selectedDate);
-    d.setUTCHours(23, 59, 59, 999);
+    d.setHours(23, 59, 59, 999);
     return d.toISOString();
   }, [selectedDate]);
 
@@ -590,12 +595,21 @@ const DayPage: React.FC = () => {
     return toLocalISOWithOffset(base);
   };
 
+  const blockDateForIndex = (idx: number) => new Date(isoForBlock(idx));
+
+  const isSelectedLocalToday = () => localYmd(selectedDate) === localYmd(new Date());
+
+  const isBlockInFuture = (idx: number) => blockDateForIndex(idx).getTime() > Date.now();
+
   // Actions
   const upsertMood = async (score: number) => {
     if (selectedBlockIdx == null) return;
-    const todayShort = DAY_SHORT[new Date().getDay()];
-    if (shortDay !== todayShort) {
+    if (!isSelectedLocalToday()) {
       alert('Mood logging is available on the current day only.');
+      return;
+    }
+    if (isBlockInFuture(selectedBlockIdx)) {
+      alert('Mood logging is available for the current or past time blocks only.');
       return;
     }
 
@@ -622,9 +636,12 @@ const DayPage: React.FC = () => {
 
   const removeMood = async () => {
     if (selectedBlockIdx == null) return;
-    const todayShort = DAY_SHORT[new Date().getDay()];
-    if (shortDay !== todayShort) {
+    if (!isSelectedLocalToday()) {
       alert('Mood removal is available on the current day only.');
+      return;
+    }
+    if (isBlockInFuture(selectedBlockIdx)) {
+      alert('Mood removal is available for the current or past time blocks only.');
       return;
     }
     try {

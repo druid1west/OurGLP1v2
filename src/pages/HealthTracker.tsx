@@ -562,6 +562,8 @@ const HealthTracker: React.FC = () => {
         exerciseMinutes: summary.exerciseMinutes,
         sleepMinutes: summary.sleepMinutes,
         restingHeartRate: summary.restingHeartRate,
+        averageHeartRate: summary.averageHeartRate,
+        latestHeartRate: summary.latestHeartRate,
         workouts: summary.workouts,
       });
       const imported = await importAppleHealthWorkoutsAndEmit(workoutResult.workouts);
@@ -1800,5 +1802,4 @@ alert('Error saving health data.');
 };
 
 export default HealthTracker;
-
 

@@ -1182,7 +1182,44 @@ const SleepChartCard: React.FC<{
 /* -----------------------------
    Page (Local-DB, Local-Auth)
 ----------------------------- */
-const WeeklySummaryPage: React.FC = () => {
+class WeeklySummaryErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error): { error: Error } {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    logger.error("[weekly-summary] render failed", {
+      msg: error.message,
+      stack: typeof error.stack === "string" ? error.stack.split("\n").slice(0, 2).join(" | ") : undefined,
+      where: info.componentStack?.split("\n").filter(Boolean)[0],
+    });
+  }
+
+  render(): React.ReactNode {
+    if (this.state.error) {
+      return (
+        <IonPage>
+          <TopNav showWhenAnon />
+          <IonContent fullscreen className={styles.contentPad}>
+            <div className={styles.errorBox}>
+              Weekly Summary could not load safely. Please try Apple Health sync again or come back after adding a new log.
+            </div>
+          </IonContent>
+          <BottomNav />
+        </IonPage>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const WeeklySummaryPageContent: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const router = useIonRouter();
 
@@ -1401,7 +1438,6 @@ const WeeklySummaryPage: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await refreshUser();
       try {
         const tzLocal =
           user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -1437,7 +1473,7 @@ const WeeklySummaryPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [user?.timezone, user?.injection_day, user?.injection_time, profileRefreshKey, refreshUser]);
+  }, [user?.timezone, user?.injection_day, user?.injection_time, profileRefreshKey]);
 
   // load fasting rows for this window (local DB)
   useEffect(() => {
@@ -1468,7 +1504,6 @@ const WeeklySummaryPage: React.FC = () => {
     let cancelled = false;
 
     (async () => {
-      await refreshUser();
       try {
         // Compute the anchored start index from the user’s injection day
         const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
@@ -1511,7 +1546,6 @@ const WeeklySummaryPage: React.FC = () => {
     bpRefreshKey,
     bgRefreshKey,
     sleepRefreshKey,
-    refreshUser,
     user?.injection_day
   ]);
 
@@ -1654,8 +1688,6 @@ useEffect(() => {
 
     (async () => {
       try {
-        await refreshUser();
-
         const weekStartLocal = new Intl.DateTimeFormat("en-CA", {
           timeZone: winParams.tz,
           year: "numeric",
@@ -1742,7 +1774,7 @@ if (needsFallback) {
     return () => {
       cancelled = true;
     };
- }, [winParams, user?.id, user?.injection_day, proteinRefreshKey, refreshUser]);
+ }, [winParams, user?.id, user?.injection_day, proteinRefreshKey]);
 
   // hydration weekly buckets
   useEffect(() => {
@@ -1753,7 +1785,6 @@ if (needsFallback) {
     }
     let cancelled = false;
     (async () => {
-       await refreshUser();
       try {
         const weekStartLocal = new Intl.DateTimeFormat("en-CA", {
           timeZone: winParams.tz, year: "numeric", month: "2-digit", day: "2-digit",
@@ -1821,7 +1852,7 @@ if (needsFallback) {
       }
     })();
     return () => { cancelled = true; };
-  }, [winParams, user?.id, user?.injection_day, hydrationRefreshKey, refreshUser]);
+  }, [winParams, user?.id, user?.injection_day, hydrationRefreshKey]);
 
   const rangeLabel = useMemo(
     () =>
@@ -2179,6 +2210,12 @@ try {
     </IonPage>
   );
 };
+
+const WeeklySummaryPage: React.FC = () => (
+  <WeeklySummaryErrorBoundary>
+    <WeeklySummaryPageContent />
+  </WeeklySummaryErrorBoundary>
+);
 
 export default WeeklySummaryPage;
 export { EmailPreview as SummaryPreview }

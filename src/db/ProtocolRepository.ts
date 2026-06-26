@@ -59,6 +59,8 @@ export type CreateProtocolInput = {
 type QueryRow = Record<string, unknown>;
 type QueryResult = { values?: unknown[] } | null | undefined;
 
+let protocolTablesInitPromise: Promise<void> | null = null;
+
 function rows(result: QueryResult): QueryRow[] {
   const values = result?.values;
   if (!values || values.length === 0) return [];
@@ -190,7 +192,7 @@ function mapEvent(row: QueryRow): ProtocolEvent {
   };
 }
 
-export async function initProtocolTables(): Promise<void> {
+async function doInitProtocolTables(): Promise<void> {
   const db = await getDb();
 
   await db.execute(`
@@ -256,6 +258,14 @@ export async function initProtocolTables(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_protocol_events_user_day
       ON protocol_events (user_id, event_at);
   `);
+}
+
+export async function initProtocolTables(): Promise<void> {
+  protocolTablesInitPromise ??= doInitProtocolTables().catch((error) => {
+    protocolTablesInitPromise = null;
+    throw error;
+  });
+  return protocolTablesInitPromise;
 }
 
 export async function listProtocols(userId: string): Promise<Protocol[]> {

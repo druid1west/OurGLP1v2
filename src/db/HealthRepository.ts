@@ -3,6 +3,7 @@ import { getDb } from '../db/sqlite';
 import { emitHealthChanged } from '../services/healthBus';
 import type { HealthEventKind } from '../services/healthBus';
 
+let healthTablesInitPromise: Promise<void> | null = null;
 
 /* =============================================================================
    Types
@@ -73,6 +74,8 @@ export type HealthDailySummaryData = {
   exerciseMinutes?: number | null;
   sleepMinutes?: number | null;
   restingHeartRate?: number | null;
+  averageHeartRate?: number | null;
+  latestHeartRate?: number | null;
   workouts?: number | null;
 };
 
@@ -266,7 +269,7 @@ function mapRows(result: SqliteQueryResult): SqliteRowObject[] {
 /* =============================================================================
    Table init
 ============================================================================= */
-export async function initHealthTables(): Promise<void> {
+async function doInitHealthTables(): Promise<void> {
   
   const db = await getDb();
   
@@ -364,6 +367,14 @@ await db.execute(`
       ON health_daily_summaries (day, source);
   `);
 
+}
+
+export async function initHealthTables(): Promise<void> {
+  healthTablesInitPromise ??= doInitHealthTables().catch((error) => {
+    healthTablesInitPromise = null;
+    throw error;
+  });
+  return healthTablesInitPromise;
 }
 
 /* =============================================================================
@@ -1032,6 +1043,8 @@ export async function upsertHealthDailySummary(
     exerciseMinutes: row.exerciseMinutes ?? null,
     sleepMinutes: row.sleepMinutes ?? null,
     restingHeartRate: row.restingHeartRate ?? null,
+    averageHeartRate: row.averageHeartRate ?? null,
+    latestHeartRate: row.latestHeartRate ?? null,
     workouts: row.workouts ?? null,
   };
 
@@ -1083,6 +1096,8 @@ export async function getHealthDailySummaryByDay(
     exerciseMinutes: toNumberOrNull(data.exerciseMinutes),
     sleepMinutes: toNumberOrNull(data.sleepMinutes),
     restingHeartRate: toNumberOrNull(data.restingHeartRate),
+    averageHeartRate: toNumberOrNull(data.averageHeartRate),
+    latestHeartRate: toNumberOrNull(data.latestHeartRate),
     workouts: toNumberOrNull(data.workouts),
     synced_at: String(rec.synced_at ?? ''),
   };
@@ -1122,6 +1137,8 @@ export async function listHealthDailySummariesRange(
       exerciseMinutes: toNumberOrNull(data.exerciseMinutes),
       sleepMinutes: toNumberOrNull(data.sleepMinutes),
       restingHeartRate: toNumberOrNull(data.restingHeartRate),
+      averageHeartRate: toNumberOrNull(data.averageHeartRate),
+      latestHeartRate: toNumberOrNull(data.latestHeartRate),
       workouts: toNumberOrNull(data.workouts),
       synced_at: String(rec.synced_at ?? ''),
     };

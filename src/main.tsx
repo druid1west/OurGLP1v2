@@ -5,6 +5,7 @@ import { initRevenueCat } from './lib/purchasesInit';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import {
   refreshCurrentUserEntitlementFromRevenueCat,
+  syncCurrentUserEntitlementFromCustomerInfo,
   writeRcCacheFromCustomerInfo,
 } from './lib/rcSync';
 import { initDbp } from './dev/dbp';
@@ -18,6 +19,7 @@ import { initHealthTables } from './db/HealthRepository';
 import { initProtocolTables } from './db/ProtocolRepository';
 import { canUseStoreKitTestProducts } from './plugins/storeKitTest';
 import { App as CapacitorApp } from '@capacitor/app';
+import { getLocalCurrentUser } from './services/localAuth';
 
 // import '@/polyfills/crypto-subtle';
 
@@ -57,10 +59,24 @@ async function boot() {
     if (useStoreKitTest) {
       rcLog.info('Skipping RevenueCat in Xcode StoreKit test mode');
     } else {
-      await initRevenueCat();
+      let bootUserId: string | undefined;
+      try {
+        await initDbOnce();
+        await initHealthTables();
+        await initProtocolTables();
+        const bootUser = await getLocalCurrentUser();
+        bootUserId = bootUser?.id || undefined;
+      } catch (e) {
+        rcLog.warn('Could not read local user before RevenueCat configure', {
+          msg: e instanceof Error ? e.message : String(e),
+        });
+      }
+
+      await initRevenueCat(bootUserId);
 
       Purchases.addCustomerInfoUpdateListener((info) => {
         writeRcCacheFromCustomerInfo(info);
+        void syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false });
         rcLog.info('customerInfo updated');
         window.dispatchEvent(new Event('rc:customerInfoChanged'));
       });
@@ -69,6 +85,7 @@ async function boot() {
       try {
         const info = await Purchases.getCustomerInfo();
         writeRcCacheFromCustomerInfo(info);
+        void syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false });
         window.dispatchEvent(new Event('rc:customerInfoChanged'));
       } catch (e) {
         rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });

@@ -7,6 +7,8 @@ export type AppleHealthDailySummary = {
   exerciseMinutes: number;
   sleepMinutes: number;
   restingHeartRate: number | null;
+  averageHeartRate: number | null;
+  latestHeartRate: number | null;
   workouts: number;
 };
 

@@ -802,6 +802,8 @@ const syncExerciseAppleHealth = useCallback(async (): Promise<void> => {
       exerciseMinutes: summary.exerciseMinutes,
       sleepMinutes: summary.sleepMinutes,
       restingHeartRate: summary.restingHeartRate,
+      averageHeartRate: summary.averageHeartRate,
+      latestHeartRate: summary.latestHeartRate,
       workouts: summary.workouts,
     });
 

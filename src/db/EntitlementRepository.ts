@@ -106,5 +106,7 @@ export async function setEntitlements(userId: string, e: Partial<Entitlements>):
 export function isProNow(e: Entitlements): boolean {
   const now = Date.now();
   const until = e.pro_until ? Date.parse(e.pro_until) : NaN;
-  return Boolean(e.has_pro && Number.isFinite(until) && until > now);
+  if (!e.has_pro) return false;
+  if (Number.isFinite(until)) return until > now;
+  return e.subscription_tier === 'pro';
 }

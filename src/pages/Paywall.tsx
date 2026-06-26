@@ -308,7 +308,7 @@ export default function Paywall(): JSX.Element {
           if (loadedStoreKitFirst) return;
         }
 
-        const id = await initAndGetAppUserId();
+        const id = await initAndGetAppUserId(user?.id);
         if (didCancel) return;
         setAppUserId(id);
         logger.info('[Paywall boot] rcInit() ok; appUserId:', id);

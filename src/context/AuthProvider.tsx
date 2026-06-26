@@ -8,7 +8,10 @@ import { toSafeUser, safeLog } from '../utils/redact';
 import { getLocalCurrentUser, clearLocalCurrentUser } from '../services/localAuth';
 import { onAuthChanged } from '../services/authBus';
 import { getEntitlements, isProNow } from '../db/EntitlementRepository';
-import { refreshCurrentUserEntitlementFromRevenueCat } from '../lib/rcSync';
+import {
+  syncLocalEntitlementFromCustomerInfo,
+} from '../lib/rcSync';
+import { loginPurchases } from '../lib/purchasesInit';
 
 /* ----------------------------- window typings ----------------------------- */
 declare global {
@@ -162,7 +165,14 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (!user?.id) return;
     void (async () => {
-      await refreshCurrentUserEntitlementFromRevenueCat();
+      try {
+        const info = await loginPurchases(user.id);
+        await syncLocalEntitlementFromCustomerInfo(user.id, info, { emitEvents: false });
+      } catch (err) {
+        logger.debug('[AuthContext] RevenueCat login failed (non-fatal)', {
+          msg: err instanceof Error ? err.message : String(err),
+        });
+      }
       await refreshEntitlements();
     })();
   }, [user?.id, refreshEntitlements]);
@@ -216,8 +226,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
-
 
 
 
