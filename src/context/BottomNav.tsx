@@ -6,6 +6,7 @@ import { useAuth } from '../context/useAuth';
 
 interface BottomNavProps {
   showWhenAnon?: boolean;
+  setupOnly?: boolean;
 }
 
 const barStyle: React.CSSProperties = {
@@ -23,37 +24,52 @@ const barStyle: React.CSSProperties = {
   zIndex: 10000,
 };
 
-const rowStyle: React.CSSProperties = {
-  fontSize: '13px',
+const baseRowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '0.85rem',
   marginTop: 0,
   flexWrap: 'wrap', // helps on smaller screens
 };
 
-const linkStyle: React.CSSProperties = {
-  fontSize: '13px',
+const baseLinkStyle: React.CSSProperties = {
   color: 'white',
   textDecoration: 'none',
   opacity: 0.95,
+  lineHeight: 1.15,
 };
 
-const btnStyle: React.CSSProperties = {
-  ...linkStyle,
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  padding: 0,
-  font: 'inherit',
-};
-
-const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = false }) => {
   const { user, isPro, logout } = useAuth();
   const ion = useIonRouter();
   const history = useHistory();
   const location = useLocation();
+  const isLoggedInNav = Boolean(user && !setupOnly);
+  const isSetupNav = Boolean(setupOnly);
+
+  const rowStyle: React.CSSProperties = {
+    ...baseRowStyle,
+    gap: isLoggedInNav ? 'clamp(0.48rem, 2.2vw, 0.72rem)' : 'clamp(0.8rem, 4vw, 1.25rem)',
+  };
+
+  const linkStyle: React.CSSProperties = {
+    ...baseLinkStyle,
+    fontSize: isLoggedInNav
+      ? 'clamp(12px, 3vw, 13.5px)'
+      : isSetupNav
+        ? 'clamp(13.5px, 3.45vw, 15px)'
+        : 'clamp(15px, 4vw, 17px)',
+    fontWeight: 700,
+  };
+
+  const btnStyle: React.CSSProperties = {
+    ...linkStyle,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    fontFamily: 'inherit',
+  };
 
   type NavDirection = Extract<RouterDirection, 'forward' | 'back' | 'root' | 'none'>;
 
@@ -74,7 +90,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
     try {
       await logout();
     } finally {
-      navigateTo('/login', true);
+      navigateTo('/coach', true);
     }
   };
 
@@ -92,17 +108,28 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true }) => {
       aria-label="Bottom navigation"
     >
       <div style={rowStyle}>
-        {!user && showWhenAnon && (
+        {setupOnly && (
           <>
+            <Link to="/coach" style={linkStyle} aria-label="Coach setup">Coach</Link>
+            <Link to="/home" style={linkStyle} aria-label="Home">Home</Link>
+            <Link to="/information" style={linkStyle} aria-label="Information">Info</Link>
+            <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
+            <Link to="/privacy" style={linkStyle} aria-label="Privacy Policy">Privacy</Link>
+            <Link to="/terms" style={linkStyle} aria-label="Terms of Service">Terms</Link>
+          </>
+        )}
+
+        {!setupOnly && !user && showWhenAnon && (
+          <>
+            <Link to="/coach" style={linkStyle} aria-label="Coach setup">Coach</Link>
             <Link to="/privacy" style={linkStyle} aria-label="Privacy Policy">Privacy</Link>
             <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
             <Link to="/terms" style={linkStyle} aria-label="Terms of Service">Terms</Link>
-            <Link to="/paywall" style={linkStyle} aria-label="Subscribe to Pro">Subscribe</Link>
             <Link to="/deepdive" style={linkStyle} aria-label="About OurGLP1">About</Link>
           </>
         )}
 
-        {user && (
+        {!setupOnly && user && (
           <>
             <Link to="/coach" style={linkStyle} aria-label="Coach">Coach</Link>
             <Link to="/today" style={linkStyle} aria-label="Today">Today</Link>

@@ -76,16 +76,20 @@ async function boot() {
 
       Purchases.addCustomerInfoUpdateListener((info) => {
         writeRcCacheFromCustomerInfo(info);
-        void syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false });
-        rcLog.info('customerInfo updated');
-        window.dispatchEvent(new Event('rc:customerInfoChanged'));
+        void syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false })
+          .finally(() => {
+            rcLog.info('customerInfo updated');
+            window.dispatchEvent(new Event('billing:changed'));
+            window.dispatchEvent(new Event('rc:customerInfoChanged'));
+          });
       });
 
       // ✅ Seed local cache once so Settings has data immediately
       try {
         const info = await Purchases.getCustomerInfo();
         writeRcCacheFromCustomerInfo(info);
-        void syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false });
+        await syncCurrentUserEntitlementFromCustomerInfo(info, { emitEvents: false });
+        window.dispatchEvent(new Event('billing:changed'));
         window.dispatchEvent(new Event('rc:customerInfoChanged'));
       } catch (e) {
         rcLog.warn('initial getCustomerInfo failed', { msg: e instanceof Error ? e.message : String(e) });

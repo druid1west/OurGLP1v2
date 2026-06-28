@@ -6,6 +6,7 @@ import { useAuth } from '../context/useAuth';
 
 interface TopNavProps {
   showWhenAnon?: boolean;
+  setupOnly?: boolean;
 }
 
 const barStyle: React.CSSProperties = {
@@ -17,17 +18,20 @@ const barStyle: React.CSSProperties = {
   paddingLeft: 16,
   paddingRight: 16,
 
-  // ⬇️ Push content below the notch/status bar
-  paddingTop: 'calc(env(safe-area-inset-top, 0px) + 52px)',
+  // Keep links below the status bar / Dynamic Island. Some simulator/native
+  // combinations report env(safe-area-inset-top) too small, so keep a real
+  // fallback clearance as well.
+  paddingTop: 'max(72px, calc(env(safe-area-inset-top, 0px) + 52px))',
+  paddingBottom: 10,
 
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'flex-start',
   boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
   zIndex: 10000,
+  boxSizing: 'border-box',
 
-  // Keep overall height consistent with your pages’ paddingTop (96px)
-  minHeight: 'calc(var(--top-nav-height, 96px) + env(safe-area-inset-top, 0px))',
+  minHeight: 'calc(max(72px, calc(env(safe-area-inset-top, 0px) + 52px)) + 44px)',
 };
 
 
@@ -37,7 +41,8 @@ const rowStyle: React.CSSProperties = {
   justifyContent: 'center',
   gap: 'clamp(12px, 3.1vw, 20px)',
   width: '100%',
-  marginTop: 0, // no extra nudge needed once we pad above
+  minHeight: 34,
+  marginTop: 0,
   whiteSpace: 'nowrap',
   overflowX: 'auto',
   overflowY: 'hidden',
@@ -48,6 +53,7 @@ const rowStyle: React.CSSProperties = {
 
 const linkStyle: React.CSSProperties = {
   fontSize: 'clamp(14px, 3.65vw, 16px)',
+  lineHeight: 1.15,
   fontWeight: 700,
   color: 'white',
   textDecoration: 'none',
@@ -68,7 +74,7 @@ const badgeStyle: React.CSSProperties = {
   textAlign: 'center',
 };
 
-const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
+const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true, setupOnly = false }) => {
   const { user, isPro } = useAuth();
   const { count, refreshCount } = useReminderBadge();
 
@@ -86,7 +92,16 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true }) => {
   return (
     <nav id="topNav" className="top-nav" style={barStyle} role="navigation" aria-label="Top navigation">
       <div style={rowStyle}>
-        {user ? (
+        {setupOnly ? (
+          <>
+            <Link to="/coach" style={linkStyle}>Coach</Link>
+            <Link to="/home" style={linkStyle}>Home</Link>
+            <Link to="/information" style={linkStyle}>Info</Link>
+            <Link to="/support" style={linkStyle}>Support</Link>
+            {!user && <Link to="/login" style={linkStyle}>Login</Link>}
+            {!user && <Link to="/register" style={linkStyle}>Register</Link>}
+          </>
+        ) : user ? (
           <>
             <Link to="/coach" style={linkStyle}>Coach</Link>
             <Link to="/today" style={linkStyle}>Today</Link>

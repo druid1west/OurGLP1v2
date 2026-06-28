@@ -315,8 +315,8 @@ Register for an Account
 
 
 {!isPro && (
-<IonButton onClick={() => router.push('/paywall', 'forward')} className={styles.primaryBtn} expand="block">
-Go Pro
+<IonButton onClick={() => router.push('/coach', 'forward')} className={styles.primaryBtn} expand="block">
+Start setup with Coach
 </IonButton>
 )}
 

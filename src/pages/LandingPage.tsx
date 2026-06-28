@@ -199,19 +199,19 @@ const LandingPage: React.FC = () => {
                   <br />
                   <br />
                   <IonButton
-                    routerLink="/weekly-summary"
+                    routerLink="/coach"
                     expand="block"
                     className={styles.blockBtn}
                   >
-                    Open Weekly Summary
+                    Start setup
                   </IonButton>
                   <IonButton
-                    routerLink="/weekly-summary/archive"
+                    routerLink="/coach"
                     expand="block"
                     fill="outline"
                     className={styles.blockBtn}
                   >
-                    View Summary Archive
+                    Open Coach
                   </IonButton>
                 </div>
 
@@ -239,11 +239,11 @@ const LandingPage: React.FC = () => {
                   <br />
                   <br />
                   <IonButton
-                    routerLink="/profile"
+                    routerLink="/coach"
                     expand="block"
                     className={styles.blockBtn}
                   >
-                    Start Your Profile
+                    Start setup
                   </IonButton>
                 </div>
 
@@ -255,11 +255,11 @@ const LandingPage: React.FC = () => {
                   <br />
                   <br />
                   <IonButton
-                    routerLink="/personalplan"
+                    routerLink="/coach"
                     expand="block"
                     className={styles.blockBtn}
                   >
-                    View Your Plan
+                    Open Coach
                   </IonButton>
                 </div>
 
@@ -272,11 +272,11 @@ const LandingPage: React.FC = () => {
                   <br />
                   <br />
                   <IonButton
-                    onClick={() => history.replace('/paywall')}
+                    onClick={() => history.replace('/coach')}
                     expand="block"
                     className={styles.blockBtn}
                   >
-                    Subscribe
+                    Start setup
                   </IonButton>
                 </div>
               </div>
@@ -340,10 +340,10 @@ const LandingPage: React.FC = () => {
 
                 <div className={styles.pt8}>
                   <IonButton
-                    onClick={() => history.replace('/paywall')}
+                    onClick={() => history.replace('/coach')}
                     expand="block"
                   >
-                    Subscribe
+                    Start setup
                   </IonButton>
                 </div>
 
@@ -361,7 +361,6 @@ const LandingPage: React.FC = () => {
 };
 
 export default LandingPage;
-
 
 
 

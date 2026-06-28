@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import { MessageCircleHeart, UserRound, Sparkles, X } from 'lucide-react';
+import { MessageCircleHeart, UserRound, X } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import styles from './FloatingCoach.module.css';
 
@@ -96,9 +96,9 @@ const FloatingCoach: React.FC = () => {
             Review profile
           </button>
           {!isPro && (
-            <button type="button" role="menuitem" onClick={() => go('/paywall?returnTo=/coach')}>
-              <Sparkles size={16} />
-              See Pro
+            <button type="button" role="menuitem" onClick={() => go('/coach')}>
+              <MessageCircleHeart size={16} />
+              Finish setup
             </button>
           )}
         </div>

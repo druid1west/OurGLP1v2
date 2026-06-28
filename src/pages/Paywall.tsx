@@ -34,6 +34,7 @@ import styles from './Paywall.module.css';
 import { useAuth } from '@/context/useAuth';
 import { IS_LOCAL_AUTH } from '@/config/runtime';
 import { upgradeLocalUserToPro } from '@/services/localAuth';
+import { getSetupStatus } from '@/lib/setupStatus';
 import {
   initAndGetAppUserId,
   purchasePackage as rcPurchasePackage,
@@ -172,9 +173,11 @@ function findStoreKitProduct(products: StoreKitProduct[], type: SubscriptionType
 export default function Paywall(): JSX.Element {
   const router = useIonRouter();
   const { search } = useLocation();
-  const { user, refreshUser, isPro } = useAuth();
+  const { user, loading: authLoading, refreshUser, refreshEntitlements, isPro } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [setupGateLoading, setSetupGateLoading] = useState(true);
+  const [setupGateReady, setSetupGateReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appUserId, setAppUserId] = useState<string>('');
@@ -210,10 +213,49 @@ export default function Paywall(): JSX.Element {
   }, [search]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (authLoading) {
+      setSetupGateLoading(true);
+      return;
+    }
+
+    if (!user?.id) {
+      setSetupGateReady(false);
+      setSetupGateLoading(false);
+      router.push('/coach', 'root');
+      return;
+    }
+
+    setSetupGateLoading(true);
+    void getSetupStatus(user)
+      .then((status) => {
+        if (cancelled) return;
+        setSetupGateReady(status.complete);
+        if (!status.complete) {
+          router.push('/coach', 'root');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSetupGateReady(false);
+        router.push('/coach', 'root');
+      })
+      .finally(() => {
+        if (!cancelled) setSetupGateLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, router, user]);
+
+  useEffect(() => {
+    if (!setupGateReady) return;
     if (!isPro || shouldShowManage) return;
     const destination = returnTo.startsWith('/paywall') ? '/today' : returnTo;
     router.push(destination, 'root');
-  }, [isPro, returnTo, router, shouldShowManage]);
+  }, [isPro, returnTo, router, setupGateReady, shouldShowManage]);
 
   // Get selected package
   const selectedPackage = useMemo(() => {
@@ -228,16 +270,13 @@ export default function Paywall(): JSX.Element {
   const selectedPriceLabel =
     selectedPackage?.price || getDefaultPriceLabel(selectedType);
 
-  // If not logged in, send to register keeping the return path
+  // If not logged in, send to setup keeping the app in the correct order.
   useEffect(() => {
-    if (!loading && !user?.id) {
-      logger.info('[Paywall] No user.id → redirecting to /register');
-      router.push(
-        `/register?returnTo=${encodeURIComponent(returnTo)}`,
-        'forward',
-      );
+    if (!authLoading && !user?.id) {
+      logger.info('[Paywall] No user.id → redirecting to /coach');
+      router.push('/coach', 'root');
     }
-  }, [loading, user?.id, returnTo, router]);
+  }, [authLoading, user?.id, router]);
 
   // Init purchase products. Debug builds can use the Xcode StoreKit file first;
   // TestFlight/App Store builds use RevenueCat first, then StoreKit as a fallback.
@@ -392,8 +431,10 @@ export default function Paywall(): JSX.Element {
       await upgradeLocalUserToPro(user.id, months);
     }
     await refreshUser();
+    await refreshEntitlements();
+    window.dispatchEvent(new Event('billing:changed'));
     router.push(returnTo, 'root');
-  }, [returnTo, refreshUser, router, user?.id, selectedType]);
+  }, [returnTo, refreshEntitlements, refreshUser, router, user?.id, selectedType]);
 
   const handleBuy = useCallback(async () => {
     if (busy) return;
@@ -578,10 +619,10 @@ export default function Paywall(): JSX.Element {
   ]);
 
   useEffect(() => {
-    if (!shouldAutoRestore || autoRestoreStartedRef.current || !user?.id || loading) return;
+    if (!shouldAutoRestore || autoRestoreStartedRef.current || !user?.id || loading || !setupGateReady) return;
     autoRestoreStartedRef.current = true;
     void handleRestore();
-  }, [handleRestore, loading, shouldAutoRestore, user?.id]);
+  }, [handleRestore, loading, setupGateReady, shouldAutoRestore, user?.id]);
 
   const handleManage = useCallback(() => {
     if (isIOS) {
@@ -605,9 +646,10 @@ export default function Paywall(): JSX.Element {
     router.push(user?.id ? '/coach' : '/home', 'back');
   }, [router, user?.id]);
 
-  if (loading) {
+  if (authLoading || setupGateLoading || loading) {
     return (
       <IonPage>
+        <TopNav showWhenAnon setupOnly />
         <IonHeader>
           <IonToolbar>
             <IonTitle>OURGLP1 PRO</IonTitle>
@@ -623,6 +665,26 @@ export default function Paywall(): JSX.Element {
             </main>
           </div>
         </IonContent>
+        <BottomNav showWhenAnon setupOnly />
+      </IonPage>
+    );
+  }
+
+  if (!setupGateReady) {
+    return (
+      <IonPage>
+        <TopNav showWhenAnon setupOnly />
+        <IonContent fullscreen>
+          <div className={styles.scrollContainer}>
+            <main className={styles.paywallContainer}>
+              <div className={styles.loadingBox}>
+                <RefreshCw className={styles.spin} size={20} />
+                <span>Opening setup...</span>
+              </div>
+            </main>
+          </div>
+        </IonContent>
+        <BottomNav showWhenAnon setupOnly />
       </IonPage>
     );
   }

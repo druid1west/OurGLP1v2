@@ -177,11 +177,15 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     })();
   }, [user?.id, refreshEntitlements]);
 
-  // Optional: react to paywall finishing a purchase/restore
+  // React to paywall purchase/restore and native RevenueCat customer updates.
   useEffect(() => {
     const onBillingChanged = () => { void refreshEntitlements(); };
     window.addEventListener('billing:changed', onBillingChanged);
-    return () => window.removeEventListener('billing:changed', onBillingChanged);
+    window.addEventListener('rc:customerInfoChanged', onBillingChanged);
+    return () => {
+      window.removeEventListener('billing:changed', onBillingChanged);
+      window.removeEventListener('rc:customerInfoChanged', onBillingChanged);
+    };
   }, [refreshEntitlements]);
 
   // Debug log when state changes
@@ -226,6 +230,5 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
 
 

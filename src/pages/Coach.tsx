@@ -36,7 +36,7 @@ import {
   type WeightUnit,
 } from '@/db/CoachRepository';
 import { insertHealthLog } from '@/db/HealthRepository';
-import { upsertLocalAccount } from '@/db/LocalAccountRepository';
+import { getLocalAccount, upsertLocalAccount } from '@/db/LocalAccountRepository';
 import {
   createProtocol,
   getPrimaryProtocol,
@@ -296,6 +296,8 @@ const Coach: React.FC = () => {
   const [accountPromptOpen, setAccountPromptOpen] = useState(false);
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [setupStatusLoading, setSetupStatusLoading] = useState(true);
+  const [savedAccountEmail, setSavedAccountEmail] = useState<string | null>(null);
+  const [savedAccountLoading, setSavedAccountLoading] = useState(true);
   const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
   const [protocolPresetId, setProtocolPresetId] = useState<string>('semaglutide');
   const [protocolDose, setProtocolDose] = useState<string>('');
@@ -322,6 +324,7 @@ const Coach: React.FC = () => {
   const activeSetupStep: SetupStep = setupSteps[setupIndex] ?? 'finish';
   const setupComplete = Boolean(coachProfile?.coach_onboarding_completed_at);
   const hasSavedLocalAccount = Boolean(user?.email && !user.email.endsWith('@local.ourglp1'));
+  const hasLoggedOutSavedAccount = Boolean(!user?.id && savedAccountEmail);
   const needsLocalAccount = !hasSavedLocalAccount;
   const accountEmailValid = /\S+@\S+\.\S+/.test(setupDraft.trim());
   const accountPasswordValid = setupAuxDraft.length >= 8;
@@ -403,6 +406,7 @@ const Coach: React.FC = () => {
     let cancelled = false;
     if (!user?.id) {
       setCoachUserId(null);
+      setCoachProfile(null);
       setProfileLoading(false);
       setPrimaryProtocol(null);
       return;
@@ -419,6 +423,39 @@ const Coach: React.FC = () => {
       })
       .finally(() => {
         if (!cancelled) setProfileLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (user?.id) {
+      setSavedAccountEmail(null);
+      setSavedAccountLoading(false);
+      return;
+    }
+
+    setSavedAccountLoading(true);
+    void getLocalAccount()
+      .then((account) => {
+        if (cancelled) return;
+        const email = account?.email?.trim() ?? '';
+        const isRealSavedAccount = Boolean(
+          email &&
+            !email.endsWith('@local.ourglp1') &&
+            account?.password_hash,
+        );
+        setSavedAccountEmail(isRealSavedAccount ? email : null);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedAccountEmail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSavedAccountLoading(false);
       });
 
     return () => {
@@ -906,10 +943,10 @@ const Coach: React.FC = () => {
     setProtocolSetupMessage(preset.cadenceType === 'daily' ? 'Daily routines use Monday-Sunday review weeks by default.' : '');
   };
 
-  if (setupStatusLoading) {
+  if (setupStatusLoading || savedAccountLoading) {
     return (
       <IonPage>
-        <TopNav showWhenAnon={false} />
+        <TopNav showWhenAnon setupOnly />
         <IonContent fullscreen className={styles.content}>
           <main className={styles.page}>
             <section className={styles.setupShell} aria-label="Preparing setup">
@@ -922,7 +959,7 @@ const Coach: React.FC = () => {
             </section>
           </main>
         </IonContent>
-        <BottomNav showWhenAnon={false} />
+        <BottomNav showWhenAnon setupOnly />
       </IonPage>
     );
   }
@@ -935,7 +972,7 @@ const Coach: React.FC = () => {
 
     return (
       <IonPage>
-        <TopNav showWhenAnon={false} />
+        <TopNav showWhenAnon setupOnly />
         <IonContent fullscreen className={styles.content}>
           <main className={styles.page}>
             <section className={styles.heroBand}>
@@ -964,12 +1001,27 @@ const Coach: React.FC = () => {
               </div>
 
               <div className={styles.setupCard}>
-                <h3>1. Create your local account</h3>
+                <h3>{hasLoggedOutSavedAccount ? '1. Log in to your local account' : '1. Create your local account'}</h3>
                 <p>
                   This secures your app on this phone and connects your Coach, Today, Profile,
                   reminders, and tracking data.
                 </p>
-                {needsAccount ? (
+                {hasLoggedOutSavedAccount ? (
+                  <>
+                    <div className={styles.pendingNotice}>
+                      <ShieldAlert size={18} />
+                      <span>
+                        Account found for {savedAccountEmail}. Log in to continue setup on this phone.
+                      </span>
+                    </div>
+                    <IonButton
+                      className={styles.primarySetupAction}
+                      onClick={() => router.push('/login', 'forward')}
+                    >
+                      Log in to continue
+                    </IonButton>
+                  </>
+                ) : needsAccount ? (
                   <>
                     <input
                       type="email"
@@ -1038,7 +1090,11 @@ const Coach: React.FC = () => {
                 {needsAccount ? (
                   <div className={styles.pendingNotice}>
                     <ShieldAlert size={18} />
-                    <span>Create your local account first, then the protocol choices will unlock.</span>
+                    <span>
+                      {hasLoggedOutSavedAccount
+                        ? 'Log in to your local account first, then the protocol choices will unlock.'
+                        : 'Create your local account first, then the protocol choices will unlock.'}
+                    </span>
                   </div>
                 ) : needsProtocol ? (
                   <>
@@ -1141,7 +1197,7 @@ const Coach: React.FC = () => {
             </section>
           </main>
         </IonContent>
-        <BottomNav showWhenAnon={false} />
+        <BottomNav showWhenAnon setupOnly />
       </IonPage>
     );
   }

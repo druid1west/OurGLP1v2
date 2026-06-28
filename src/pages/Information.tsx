@@ -331,8 +331,8 @@ className={styles.swiper}
                 <br />
                 Add your medication, dose, height/weight, and reminder preferences.
                 <div className={styles.mt12}>
-                  <IonButton routerLink="/profile" expand="block">
-                    Start Your Profile
+                  <IonButton routerLink="/coach" expand="block">
+                    Start setup
                   </IonButton>
                 </div>
               </div>
@@ -367,8 +367,8 @@ className={styles.swiper}
                 <br />
                 Review your weekly plan and enable notifications to stay consistent.
                 <div className={styles.mt12}>
-                  <IonButton routerLink="/personalplan" expand="block">
-                    View Your Plan
+                  <IonButton routerLink="/coach" expand="block">
+                    Start setup
                   </IonButton>
                 </div>
               </div>
@@ -392,8 +392,8 @@ className={styles.swiper}
               </div>
 
               <div className={styles.mt12}>
-                <IonButton onClick={() => history.replace('/paywall')} expand="block">
-                  Subscribe
+                <IonButton onClick={() => history.replace('/coach')} expand="block">
+                  Start setup
                 </IonButton>
               </div>
 
@@ -410,4 +410,3 @@ className={styles.swiper}
 };
 
 export default Info;
-
