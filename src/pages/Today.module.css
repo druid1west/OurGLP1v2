@@ -316,6 +316,50 @@
   line-height: 1.25;
 }
 
+.doseActionPanel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  background: #eef7ff;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+}
+
+.doseActionPanel span,
+.doseActionPanel strong {
+  display: block;
+}
+
+.doseActionPanel span {
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.doseActionPanel strong {
+  margin-top: 4px;
+  color: #172033;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.doseActionPanel p {
+  margin: 5px 0 0;
+  color: #526b65;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.protocolLogMessage {
+  margin: -4px 0 0;
+  color: #2563eb;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
 .rhythmTimeline {
   display: grid;
   grid-template-columns: repeat(48, minmax(3px, 1fr));

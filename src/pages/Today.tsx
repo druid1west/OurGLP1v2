@@ -41,6 +41,7 @@ import {
   initProtocolTables,
   listProtocolEventsForDay,
   listProtocols,
+  logProtocolEvent,
   type Protocol,
   type ProtocolEvent,
 } from '../db/ProtocolRepository';
@@ -422,6 +423,8 @@ const Today: React.FC = () => {
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [setupComplete, setSetupComplete] = useState(false);
+  const [protocolLogBusy, setProtocolLogBusy] = useState(false);
+  const [protocolLogMessage, setProtocolLogMessage] = useState('');
 
   const today = useMemo(() => localYmd(), []);
 
@@ -609,6 +612,30 @@ const Today: React.FC = () => {
     : primaryProtocol?.name ?? null;
   const rhythmDays = primaryIsDaily ? rotateShortFromFull('Monday') : (rhythm?.anchorDays ?? rotateShortFromFull('Monday'));
   const protocolLoggedIds = new Set(protocolEvents.map((event) => event.protocol_id));
+  const primaryLoggedToday = primaryProtocol ? protocolLoggedIds.has(primaryProtocol.id) : false;
+
+  const handleLogPrimaryProtocol = async (): Promise<void> => {
+    if (!primaryProtocol || protocolLogBusy) return;
+    setProtocolLogBusy(true);
+    setProtocolLogMessage('');
+    try {
+      await logProtocolEvent(
+        primaryProtocol,
+        primaryIsDaily ? 'Daily pill logged from Today' : 'Dose logged from Today'
+      );
+      setProtocolLogMessage(primaryIsDaily ? 'Daily pill logged for today.' : 'Dose logged for today.');
+      window.dispatchEvent(new Event('protocols:changed'));
+      window.dispatchEvent(new Event('glp1:changed'));
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] protocol log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setProtocolLogMessage('Could not log that dose yet.');
+    } finally {
+      setProtocolLogBusy(false);
+    }
+  };
 
   const focusText = useMemo(() => {
     if (!stats) return 'Loading your day';
@@ -813,6 +840,38 @@ const Today: React.FC = () => {
                 <strong>{rhythm?.eatingLabel ?? 'Set in Profile'}</strong>
               </div>
             </div>
+
+            {primaryProtocol && (
+              <div className={styles.doseActionPanel}>
+                <div>
+                  <span>{primaryIsDaily ? '24-hour pill coverage' : 'Protocol dose'}</span>
+                  <strong>
+                    {primaryLoggedToday
+                      ? primaryIsDaily
+                        ? 'Pill logged today'
+                        : 'Dose logged today'
+                      : primaryIsDaily
+                        ? `Usual time ${primaryProtocol.dose_time ?? '08:00'}`
+                        : 'Not logged today'}
+                  </strong>
+                  <p>
+                    {primaryIsDaily
+                      ? 'Tap when you take the pill so effectiveness counts down from the real dose time.'
+                      : 'Tap when this dose happens so today and effectiveness stay in sync.'}
+                  </p>
+                </div>
+                <IonButton
+                  className={primaryLoggedToday ? styles.secondaryAction : styles.primaryAction}
+                  fill={primaryLoggedToday ? 'outline' : 'solid'}
+                  onClick={() => void handleLogPrimaryProtocol()}
+                  disabled={protocolLogBusy}
+                >
+                  {primaryLoggedToday ? 'Log again' : primaryIsDaily ? 'I took my pill' : 'Log dose'}
+                </IonButton>
+              </div>
+            )}
+
+            {protocolLogMessage && <p className={styles.protocolLogMessage}>{protocolLogMessage}</p>}
 
             {rhythm?.blocks.length ? (
               <>

@@ -26,8 +26,18 @@ function getString(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
+function getNumber(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
 function getRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+}
+
+function unwrapCustomerInfo(info: unknown): Record<string, unknown> {
+  const o = getRecord(info) ?? {};
+  const nested = getRecord(o.customerInfo);
+  return nested ?? o;
 }
 
 function getStringArray(v: unknown): string[] {
@@ -61,6 +71,31 @@ function getProductExpiration(
   return undefined;
 }
 
+function isoFromMillis(value: unknown): string | undefined {
+  const millis = getNumber(value);
+  if (millis === undefined || millis <= 0) return undefined;
+  const date = new Date(millis);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function getSubscriptionProduct(
+  subscriptionsByProductIdentifier: Record<string, unknown>,
+): { productId: string | null; subscription: Record<string, unknown> | undefined } {
+  for (const pid of PRO_PRODUCT_IDS) {
+    const subscription = getRecord(subscriptionsByProductIdentifier[pid]);
+    if (subscription) return { productId: pid, subscription };
+  }
+
+  const first = Object.entries(subscriptionsByProductIdentifier)
+    .map(([productId, value]) => ({ productId, subscription: getRecord(value) }))
+    .find((entry) => entry.subscription);
+
+  return {
+    productId: first?.productId ?? null,
+    subscription: first?.subscription,
+  };
+}
+
 function isFuture(value: string | undefined): boolean {
   if (!value) return false;
   const time = Date.parse(value);
@@ -76,7 +111,7 @@ export type RevenueCatEntitlementSnapshot = {
 };
 
 export function deriveEntitlementFromCustomerInfo(info: unknown): RevenueCatEntitlementSnapshot {
-  const o = (info ?? {}) as Record<string, unknown>;
+  const o = unwrapCustomerInfo(info);
   const entContainer = getRecord(o.entitlements) ?? getRecord(o.subscriber);
   const entActive = getRecord(entContainer?.active) ?? getRecord(entContainer?.activeEntitlements);
   const entAll = getRecord(entContainer?.all);
@@ -87,38 +122,54 @@ export function deriveEntitlementFromCustomerInfo(info: unknown): RevenueCatEnti
   const activeSubscriptions = getStringArray(o.activeSubscriptions);
   const purchased = getStringArray(o.allPurchasedProductIdentifiers);
   const allExpirationDates = getRecord(o.allExpirationDates) ?? {};
+  const subscriptionsByProductIdentifier = getRecord(o.subscriptionsByProductIdentifier) ?? {};
+  const subscriptionProduct = getSubscriptionProduct(subscriptionsByProductIdentifier);
 
   const productId =
     getString(entObj?.productIdentifier) ??
     getString(entObj?.productId) ??
     activeSubscriptions.find((pid) => PRO_PRODUCT_IDS.includes(pid as (typeof PRO_PRODUCT_IDS)[number])) ??
     purchased.find((pid) => PRO_PRODUCT_IDS.includes(pid as (typeof PRO_PRODUCT_IDS)[number])) ??
+    subscriptionProduct.productId ??
     null;
 
   const expiresAt =
     getString(entObj?.expirationDate) ??
     getString(entObj?.expiresDate) ??
+    getString(subscriptionProduct.subscription?.expiresDate) ??
+    getString(subscriptionProduct.subscription?.expirationDate) ??
     getProductExpiration(allExpirationDates, productId ?? undefined) ??
     getString(o.latestExpirationDate) ??
+    isoFromMillis(o.latestExpirationDateMillis) ??
     null;
 
   const latestPurchase =
     getString(entObj?.latestPurchaseDate) ??
     getString(entObj?.purchaseDate) ??
+    getString(subscriptionProduct.subscription?.purchaseDate) ??
+    getString(subscriptionProduct.subscription?.originalPurchaseDate) ??
     getString(o.originalPurchaseDate) ??
+    isoFromMillis(o.originalPurchaseDateMillis) ??
     null;
 
   const isSandbox =
     (typeof o.isSandbox === 'boolean' ? o.isSandbox : undefined) ??
+    (typeof subscriptionProduct.subscription?.isSandbox === 'boolean' ? subscriptionProduct.subscription.isSandbox : undefined) ??
     (typeof entObj?.isSandbox === 'boolean' ? entObj.isSandbox : undefined);
 
   const hasActiveEntitlement = Boolean(activeEnt);
   const hasActiveProSubscription = activeSubscriptions.some((pid) =>
     PRO_PRODUCT_IDS.includes(pid as (typeof PRO_PRODUCT_IDS)[number]),
   );
+  const hasFutureSubscriptionExpiry = isFuture(getString(subscriptionProduct.subscription?.expiresDate));
 
   return {
-    active: Boolean(hasActiveEntitlement || hasActiveProSubscription || isFuture(expiresAt ?? undefined)),
+    active: Boolean(
+      hasActiveEntitlement ||
+        hasActiveProSubscription ||
+        hasFutureSubscriptionExpiry ||
+        isFuture(expiresAt ?? undefined),
+    ),
     productId,
     expiresAt,
     latestPurchase,

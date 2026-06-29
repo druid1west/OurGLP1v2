@@ -108,10 +108,7 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true, setupOnly = false 
             <Link to="/profile" style={linkStyle}>Profile</Link>
             <Link to="/healthtracker" style={linkStyle}>Tracker</Link>
             {isPro ? (
-              <>
-                <Link to="/protocols" style={linkStyle}>Protocols</Link>
-                <Link to="/personalplan" style={linkStyle}>Plan</Link>
-              </>
+              <Link to="/personalplan" style={linkStyle}>Plan</Link>
             ) : (
               <Link to="/paywall?returnTo=/today" style={linkStyle}>Go Pro</Link>
             )}

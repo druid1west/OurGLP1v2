@@ -65,6 +65,16 @@ import { emitAuthChanged } from '../services/authBus';           // 👈 add
 
 import { getCurrentEffectiveness, type CurrentEffectiveness } from '../lib/effectiveness';
 import Glp1EffectivenessRing from '@/components/Glp1EffectivenessRing';
+import {
+  createProtocol,
+  getPrimaryProtocol,
+  type Protocol,
+} from '../db/ProtocolRepository';
+import {
+  getProtocolPreset,
+  PROTOCOL_PRESETS,
+  type ProtocolPreset,
+} from '../lib/protocolCatalog';
 
 // ---------- Debug flag ----------
 const DEBUG_PROFILE = false;
@@ -120,21 +130,16 @@ type ProfileBody = Partial<{
   bmi: string;
 }>;
 
-const MEDICATION_OPTIONS = [
-  'Semaglutide / Ozempic / Wegovy',
-  'Tirzepatide / Mounjaro / Zepbound',
-  'Liraglutide / Saxenda',
-  'Ozempic',
-  'Wegovy',
-  'Mounjaro',
-  'Zepbound',
-  'Saxenda',
-  'Copper peptide',
-  'BPC-157',
-  'TB-500',
-  'NAD+',
-  'Other peptide',
+const PROFILE_PRIMARY_PROTOCOL_IDS = [
+  'semaglutide',
+  'tirzepatide',
+  'liraglutide',
+  'daily-glp1-pill',
 ] as const;
+
+const PROFILE_PRIMARY_PROTOCOLS = PROFILE_PRIMARY_PROTOCOL_IDS.map((id) => getProtocolPreset(id));
+
+const MEDICATION_OPTIONS = PROFILE_PRIMARY_PROTOCOLS.map((preset) => preset.name);
 
 type Glp1MedicationFamily = 'semaglutide' | 'tirzepatide' | 'liraglutide';
 
@@ -164,15 +169,29 @@ function medicationFamily(name: string): Glp1MedicationFamily | null {
 }
 
 function doseOptionsForMedication(name: string): string[] {
+  return protocolPresetForProfileMedication(name)?.doseOptions?.filter((dose) => dose !== 'Other') ?? [];
+}
+
+function protocolPresetForProfileMedication(name: string): ProtocolPreset | null {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const exact = PROTOCOL_PRESETS.find((preset) => preset.name.toLowerCase() === normalized);
+  if (exact) return exact;
+
+  if (normalized.includes('pill') || normalized.includes('oral')) {
+    return getProtocolPreset('daily-glp1-pill');
+  }
+
   switch (medicationFamily(name)) {
     case 'semaglutide':
-      return ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2 mg', '2.4 mg'];
+      return getProtocolPreset('semaglutide');
     case 'tirzepatide':
-      return ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg'];
+      return getProtocolPreset('tirzepatide');
     case 'liraglutide':
-      return ['0.6 mg', '1.2 mg', '1.8 mg', '2.4 mg', '3 mg'];
+      return getProtocolPreset('liraglutide');
     default:
-      return [];
+      return null;
   }
 }
 
@@ -441,6 +460,7 @@ const Profile: React.FC = () => {
   const [brokenImage, setBrokenImage] = useState(false);
   const [currentEffectiveness, setCurrentEffectiveness] = useState<CurrentEffectiveness | null>(null);
   const [effectivenessRefreshKey, setEffectivenessRefreshKey] = useState(0);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -510,6 +530,14 @@ const Profile: React.FC = () => {
     () => (tzSource === 'device' ? deviceTimezone : (form.timezone || 'UTC')),
     [tzSource, deviceTimezone, form.timezone]
   );
+
+  const selectedProtocolPreset = useMemo(
+    () => protocolPresetForProfileMedication(form.medication_name),
+    [form.medication_name]
+  );
+
+  const selectedProtocolIsDaily = selectedProtocolPreset?.cadenceType === 'daily';
+  const selectedProtocolIsWeekly = selectedProtocolPreset?.cadenceType === 'weekly';
 
   useEffect(() => {
     let cancelled = false;
@@ -701,6 +729,42 @@ const Profile: React.FC = () => {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setPrimaryProtocol(null);
+      return;
+    }
+
+    void getPrimaryProtocol(user.id)
+      .then((protocol) => {
+        if (cancelled) return;
+        setPrimaryProtocol(protocol);
+        if (!protocol) return;
+
+        setForm((prev) => ({
+          ...prev,
+          medication_name: protocol.name || prev.medication_name,
+          medication_dose: protocol.dose_label || prev.medication_dose,
+          injection_day:
+            protocol.cadence_type === 'weekly'
+              ? toShortDay(protocol.anchor_day)
+              : '',
+          injection_time: safeHHMM(protocol.dose_time) || prev.injection_time,
+        }));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPrimaryProtocol(null);
+          dlog.warn('primary protocol load failed', error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectivenessRefreshKey, user?.id]);
 
   // Update ft/in display when metric height changes or unit toggles
   useEffect(() => {
@@ -1161,9 +1225,32 @@ useEffect(() => {
 
     try {
       const body: ProfileBody = {};
+      const protocolPreset = selectedProtocolPreset;
+      const protocolDose = form.medication_dose.trim();
+      const protocolTime = safeHHMM(form.injection_time) || '08:00';
+      const weeklyAnchorDay = shortToFullWeekday(form.injection_day);
+      const shouldSavePrimaryProtocol = Boolean(
+        protocolPreset &&
+          protocolDose &&
+          protocolTime &&
+          (protocolPreset.cadenceType !== 'weekly' || weeklyAnchorDay)
+      );
+      const nextProtocolAnchorDay = protocolPreset?.cadenceType === 'weekly' ? weeklyAnchorDay : null;
+      const primaryProtocolChanged = Boolean(
+        shouldSavePrimaryProtocol &&
+          (
+            !primaryProtocol ||
+            primaryProtocol.name !== protocolPreset?.name ||
+            (primaryProtocol.dose_label ?? '') !== protocolDose ||
+            (primaryProtocol.dose_time ?? '') !== protocolTime ||
+            (primaryProtocol.anchor_day ?? null) !== nextProtocolAnchorDay ||
+            primaryProtocol.cadence_type !== protocolPreset?.cadenceType ||
+            primaryProtocol.route_type !== protocolPreset?.routeType
+          )
+      );
 
       // Weekly Plan — always local
-      if (form.injection_day && form.injection_time) {
+      if (selectedProtocolIsWeekly && form.injection_day && form.injection_time) {
         dlog.debug('handleSubmit: postWeeklyPlanShort');
         await postWeeklyPlanShort({
           injection_day: toShortDay(form.injection_day),
@@ -1206,7 +1293,7 @@ useEffect(() => {
         height: body.height ? Number(body.height) : null,
         weight: body.weight ? Number(body.weight) : null,
         bmi: body.bmi ? Number(body.bmi) : null,
-        injection_day: toShortDay(form.injection_day) || null,
+        injection_day: selectedProtocolIsWeekly ? (toShortDay(form.injection_day) || null) : null,
         injection_time: safeHHMM(form.injection_time) || null,
         fasting_schedule: body.fasting_schedule ?? null,
         fasting_start: body.fasting_start ? safeHHMM(body.fasting_start) : null,
@@ -1229,6 +1316,28 @@ useEffect(() => {
       // 1) Persist profile to local DB
       await updateLocalUserProfile(user!.id, patch);
 
+      if (primaryProtocolChanged && protocolPreset) {
+        await createProtocol({
+          userId: user!.id,
+          kind: protocolPreset.kind,
+          name: protocolPreset.name,
+          doseLabel: protocolDose,
+          cadenceLabel: protocolPreset.defaultCadence,
+          routeLabel: protocolPreset.routeLabel,
+          routeType: protocolPreset.routeType,
+          cadenceType: protocolPreset.cadenceType,
+          doseTime: protocolTime,
+          anchorDay: nextProtocolAnchorDay,
+          reviewAnchorDay: protocolPreset.cadenceType === 'daily' ? 'Monday' : nextProtocolAnchorDay,
+          effectivenessModel: protocolPreset.effectivenessModel,
+          trackingFocus: protocolPreset.trackingFocus,
+          notes: protocolPreset.note,
+          isPrimary: true,
+        });
+        setPrimaryProtocol(await getPrimaryProtocol(user!.id));
+        window.dispatchEvent(new Event('protocols:changed'));
+      }
+
      // 2) Persist fasting/injection schedule to settings (so DayPage reads it)
       try {
         if (patch.fasting_schedule || patch.fasting_start) {
@@ -1236,7 +1345,7 @@ useEffect(() => {
           dlog.debug('handleSubmit: setFastingPlan saved to settings');
         }
 
-        const dayFull = shortToFullWeekday(patch.injection_day ?? null);
+        const dayFull = selectedProtocolIsWeekly ? shortToFullWeekday(patch.injection_day ?? null) : null;
         if (dayFull && patch.injection_time) {
           await setInjectionSchedule(dayFull, patch.injection_time);
           dlog.debug('handleSubmit: setInjectionSchedule saved to settings');
@@ -1271,7 +1380,7 @@ useEffect(() => {
       // === Update UI ===
       setForm((prev) => ({
         ...prev,
-        injection_day: patch.injection_day || prev.injection_day,
+        injection_day: selectedProtocolIsWeekly ? (patch.injection_day || prev.injection_day) : '',
         injection_time: patch.injection_time || prev.injection_time,
         fasting_schedule: patch.fasting_schedule ?? prev.fasting_schedule,
         fasting_start: patch.fasting_start ?? prev.fasting_start,
@@ -1313,6 +1422,11 @@ useEffect(() => {
     () => doseOptionsForMedication(form.medication_name),
     [form.medication_name]
   );
+  const visibleMedicationDoseOptions = useMemo(() => {
+    const currentDose = form.medication_dose.trim();
+    if (!currentDose || medicationDoseOptions.includes(currentDose)) return medicationDoseOptions;
+    return [currentDose, ...medicationDoseOptions];
+  }, [form.medication_dose, medicationDoseOptions]);
   const glp1Pct = currentEffectiveness?.percent ?? 0;
 
   
@@ -2058,7 +2172,7 @@ const mainUIView = (
 <label className={styles.strongLabel} id="medicationDoseLabel">
   Dose Label
 </label>
-{medicationDoseOptions.length > 0 ? (
+{visibleMedicationDoseOptions.length > 0 ? (
   <select
     value={form.medication_dose}
     onChange={(e) => setForm({ ...form, medication_dose: e.target.value })}
@@ -2068,7 +2182,7 @@ const mainUIView = (
     title="Dose label"
   >
     <option value="">Select Dose</option>
-    {medicationDoseOptions.map((dose) => (
+    {visibleMedicationDoseOptions.map((dose) => (
       <option key={dose} value={dose}>
         {dose}
       </option>
@@ -2089,29 +2203,49 @@ const mainUIView = (
 <br />
 <br />
 
-<label className={styles.strongLabel} id="injectionDayLabel">
-  Injection Day / Once Weekly
-</label>
-<select
-  value={form.injection_day}
-  onChange={(e) => setForm({ ...form, injection_day: e.target.value })}
-  className={styles.input}
-  aria-label="Injection day"
-  title="Injection day"
->
-  <option value="">Select Day</option>
-  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dow) => (
-    <option key={dow} value={dow}>
-      {dow}
-    </option>
-  ))}
-</select>
+{selectedProtocolIsDaily ? (
+  <>
+    <label className={styles.strongLabel}>Review Week</label>
+    <input
+      value="Monday to Sunday"
+      className={styles.input}
+      disabled
+      aria-label="Daily pill review week"
+      title="Daily pill review week"
+    />
+    <p className={styles.mutedSmall}>
+      Daily pill protocols use your usual daily dose time and a Monday-Sunday review week.
+    </p>
+    <br />
+  </>
+) : (
+  <>
+    <label className={styles.strongLabel} id="injectionDayLabel">
+      Injection Day / Once Weekly
+    </label>
+    <select
+      value={form.injection_day}
+      onChange={(e) => setForm({ ...form, injection_day: e.target.value })}
+      className={styles.input}
+      aria-label="Injection day"
+      title="Injection day"
+      disabled={!selectedProtocolIsWeekly}
+    >
+      <option value="">Select Day</option>
+      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dow) => (
+        <option key={dow} value={dow}>
+          {dow}
+        </option>
+      ))}
+    </select>
 
-<br />
-<br />
+    <br />
+    <br />
+  </>
+)}
 
 <label className={styles.strongLabel} id="injectionTimeLabel">
-  Injection Time
+  {selectedProtocolIsDaily ? 'Daily Pill Time' : 'Injection Time'}
 </label>
 <input
   type="time"
@@ -2119,8 +2253,8 @@ const mainUIView = (
   value={safeHHMM(form.injection_time)}
   onChange={(e) => setForm({ ...form, injection_time: e.target.value })}
   className={styles.input}
-  aria-label="Injection time"
-  title="Injection time"
+  aria-label={selectedProtocolIsDaily ? 'Daily pill time' : 'Injection time'}
+  title={selectedProtocolIsDaily ? 'Daily pill time' : 'Injection time'}
 />
 
 <button onClick={handleSubmit} disabled={isSubmitting} className={styles.button}>
