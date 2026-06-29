@@ -1,13 +1,34 @@
 // src/lib/nutrition.ts
-export type ProteinRange = { min: number; max: number };
+export type NutritionRange = { min: number; max: number };
+export type ProteinRange = NutritionRange;
 
-/** 1.2–1.6 g protein per kg body weight. */
+/** 1.6-2.2 g protein per kg body weight. */
 export function computeProteinRange(weightKg: number): ProteinRange | null {
   const w = Number(weightKg);
   if (!Number.isFinite(w) || w <= 0) return null;
-  const min = Math.round(Math.max(0, w * 1.2));
-  const max = Math.round(Math.max(min, w * 1.6));
+  const min = Math.round(Math.max(0, w * 1.6));
+  const max = Math.round(Math.max(min, w * 2.2));
   return { min, max };
+}
+
+export function computeFatRange(weightKg: number): NutritionRange | null {
+  const w = Number(weightKg);
+  if (!Number.isFinite(w) || w <= 0) return null;
+  const min = Math.round(Math.max(0, w * 0.6));
+  const max = Math.round(Math.max(min, w * 1.0));
+  return { min, max };
+}
+
+export function computeCalorieRange(weightKg: number): NutritionRange | null {
+  const w = Number(weightKg);
+  if (!Number.isFinite(w) || w <= 0) return null;
+  const min = Math.round(Math.max(0, w * 25));
+  const max = Math.round(Math.max(min, w * 35));
+  return { min, max };
+}
+
+export function computeCarbRange(): NutritionRange {
+  return { min: 50, max: 150 };
 }
 
 // Hydration (mL/day)
@@ -49,4 +70,3 @@ export function getSleepColor(avgHours: number): SleepColor {
   }
   return 'red';
 }
-

@@ -31,6 +31,7 @@ export type IncludePrefs = {
 };
 
 export type ArchiveInsert = {
+  userId?: string | null;
   fromUtc: string;
   toUtc: string;
   tz: string;
@@ -48,6 +49,7 @@ export type ArchiveInsert = {
 
 export type ArchiveRow = {
   id: number;
+  user_id: string | null;
   from_utc: string;
   to_utc: string;
   tz: string;
@@ -163,6 +165,7 @@ async function initWeeklySummaryTables(db: DB): Promise<void> {
   await db.run(`
     CREATE TABLE IF NOT EXISTS weekly_summary_archive (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT,
       from_utc TEXT NOT NULL,
       to_utc TEXT NOT NULL,
       tz TEXT NOT NULL,
@@ -209,6 +212,9 @@ async function initWeeklySummaryTables(db: DB): Promise<void> {
     }
     if (!cols.has('snapshot_json')) {
       await db.run(`ALTER TABLE weekly_summary_archive ADD COLUMN snapshot_json TEXT`);
+    }
+    if (!cols.has('user_id')) {
+      await db.run(`ALTER TABLE weekly_summary_archive ADD COLUMN user_id TEXT`);
     }
   }
 
@@ -294,12 +300,13 @@ export async function insertArchive(a: ArchiveInsert): Promise<number> {
 
   const r = await db.run(
     `INSERT INTO weekly_summary_archive
-      (from_utc, to_utc, tz,
+      (user_id, from_utc, to_utc, tz,
        anchor_type, anchor_used, anchor_taken_at, anchor_scheduled_at,
        summary_bullets_json,
        injection_taken_at, fasting_json, snapshot_json, archived_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
+      a.userId ?? null,
       a.fromUtc, a.toUtc, a.tz,
       an.type ?? null, an.used ?? null, an.takenAt ?? null, an.scheduledAt ?? null,
       bulletsJson,
@@ -309,6 +316,25 @@ export async function insertArchive(a: ArchiveInsert): Promise<number> {
 
   const fromRun = getLastIdFromRun(r);
   return fromRun !== null ? fromRun : await getLastInsertRowId(db);
+}
+
+export async function findArchiveByWindow(
+  fromUtc: string,
+  toUtc: string,
+  userId?: string | null
+): Promise<ArchiveRow | null> {
+  const db = await getDbInit();
+  const res = await db.query<ArchiveRow>(
+    `SELECT *
+       FROM weekly_summary_archive
+      WHERE from_utc = ?
+        AND to_utc = ?
+        AND (user_id = ? OR user_id IS NULL OR ? IS NULL)
+      ORDER BY COALESCE(archived_at, created_at) DESC
+      LIMIT 1`,
+    [fromUtc, toUtc, userId ?? null, userId ?? null]
+  );
+  return (res.values?.[0] as ArchiveRow) ?? null;
 }
 
 export async function listArchive(limit = 12): Promise<ArchiveRow[]> {

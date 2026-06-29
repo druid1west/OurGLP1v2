@@ -144,6 +144,76 @@ input[type="datetime-local"],
   flex-direction: column;
 }
 
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.foodReferenceList {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--background-secondary);
+  margin: 0.5rem 0 1.25rem;
+}
+
+.foodReferenceItem {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  padding: 10px 12px;
+  display: grid;
+  gap: 3px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.foodReferenceItem:last-child {
+  border-bottom: 0;
+}
+
+.foodReferenceItem span,
+.foodReferenceItem small,
+.nutritionPreview span,
+.nutritionPreview small {
+  color: var(--text-secondary);
+}
+
+.foodReferenceItemActive {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.stepperRow {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.stepperRow button {
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.nutritionPreview {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--background-secondary);
+}
+
 .label {
   font-weight: 700;
   margin-bottom: 0.5rem;
@@ -175,4 +245,3 @@ input[type="datetime-local"],
 .endSpacer {
   height: 12px;
 }
-

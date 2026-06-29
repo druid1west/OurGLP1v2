@@ -51,12 +51,16 @@ import {
 } from '../plugins/appleHealth';
 import { getSettings, type Settings as StoredSettings } from '../db/SettingsRepository';
 import { rotateShortFromFull, type WeekdayFull, type WeekdayShort } from '../lib/time';
+import { addNutritionTotals, nutritionFromLogData, roundNutritionTotals } from '../lib/nutritionLog';
 import { logger } from '../utils/logger';
 import { getCoachProfile } from '../db/CoachRepository';
 import styles from './Today.module.css';
 
 type TodayStats = {
   protein: number;
+  carbs: number;
+  fat: number;
+  calories: number;
   hydration: number;
   manualExerciseMinutes: number;
   manualSleepMinutes: number;
@@ -283,24 +287,28 @@ function buildTodayRhythm(settings: StoredSettings): TodayRhythm {
 
   const blocks: RhythmBlock[] = [];
 
-  if (fastingStart && fastingHours !== null) {
-    const fastingStartMinutes = hhmmToMinutes(fastingStart);
-    const fastingEndMinutes = (fastingStartMinutes + fastingHours * 60) % (24 * 60);
+  const hasFastingSchedule = Boolean(fastingStart && fastingHours !== null);
+  const fastingStartMinutes = hasFastingSchedule ? hhmmToMinutes(fastingStart as string) : 0;
+  const fastingEndMinutes = hasFastingSchedule && fastingHours !== null
+    ? (fastingStartMinutes + fastingHours * 60) % (24 * 60)
+    : 0;
 
-    for (let i = 0; i < 24 * 4; i += 1) {
-      const minutes = i * 15;
-      const isFasting =
+  for (let i = 0; i < 24 * 4; i += 1) {
+    const minutes = i * 15;
+    const isFasting = hasFastingSchedule && fastingHours !== null
+      ? (
         fastingStartMinutes < fastingEndMinutes
           ? minutes >= fastingStartMinutes && minutes < fastingEndMinutes
-          : minutes >= fastingStartMinutes || minutes < fastingEndMinutes;
+          : minutes >= fastingStartMinutes || minutes < fastingEndMinutes
+      )
+      : false;
 
-      blocks.push({
-        time: minutesToHHMM(minutes),
-        isFasting,
-        isCurrent: i === currentIndex,
-        isInjectionTime: i === injectionIndex,
-      });
-    }
+    blocks.push({
+      time: minutesToHHMM(minutes),
+      isFasting,
+      isCurrent: i === currentIndex,
+      isInjectionTime: i === injectionIndex,
+    });
   }
 
   const fastingEnd = fastingStart && fastingHours !== null
@@ -316,10 +324,10 @@ function buildTodayRhythm(settings: StoredSettings): TodayRhythm {
     todayShort,
     fastingLabel: fastingStart && fastingEnd && fastingHours !== null
       ? `${fastingHours}h ${fastingStart}-${fastingEnd}`
-      : 'Set in Profile',
+      : 'No fasting',
     eatingLabel: fastingStart && fastingEnd && eatingHours !== null
       ? `${eatingHours}h ${fastingEnd}-${fastingStart}`
-      : 'Set in Profile',
+      : '24h eating',
     nextInjectionLabel: nextInjection
       ? new Intl.DateTimeFormat(undefined, {
           weekday: 'short',
@@ -334,9 +342,9 @@ function buildTodayRhythm(settings: StoredSettings): TodayRhythm {
 
 function summarizeLogs(logs: HealthLog[]): Pick<
   TodayStats,
-  'protein' | 'hydration' | 'moodAverage' | 'latestBloodPressure' | 'latestBloodSugar'
+  'protein' | 'carbs' | 'fat' | 'calories' | 'hydration' | 'moodAverage' | 'latestBloodPressure' | 'latestBloodSugar'
 > {
-  let protein = 0;
+  let nutrition = { protein: 0, carbs: 0, fat: 0, calories: 0 };
   let hydration = 0;
   const mood: number[] = [];
   let latestBloodPressure: string | null = null;
@@ -347,7 +355,7 @@ function summarizeLogs(logs: HealthLog[]): Pick<
     if (!data) continue;
 
     if (log.entry_type === 'protein') {
-      protein += toNumber(data.grams) ?? 0;
+      nutrition = addNutritionTotals(nutrition, nutritionFromLogData(data));
     }
 
     if (log.entry_type === 'hydration') {
@@ -372,8 +380,12 @@ function summarizeLogs(logs: HealthLog[]): Pick<
     }
   }
 
+  const roundedNutrition = roundNutritionTotals(nutrition);
   return {
-    protein: Math.round(protein),
+    protein: roundedNutrition.protein,
+    carbs: roundedNutrition.carbs,
+    fat: roundedNutrition.fat,
+    calories: roundedNutrition.calories,
     hydration: Math.round(hydration),
     moodAverage: mood.length
       ? Math.round((mood.reduce((sum, n) => sum + n, 0) / mood.length) * 10) / 10
@@ -638,6 +650,39 @@ const Today: React.FC = () => {
               </div>
               <div className={styles.progressTrack}>
                 <i style={{ width: `${percentage(stats?.protein ?? 0, PROTEIN_TARGET_G)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.protein}`}>
+              <Utensils size={21} />
+              <div>
+                <span>Carbs</span>
+                <strong>{formatNumber(stats?.carbs ?? 0)}g</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(stats?.carbs ?? 0, 150)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.protein}`}>
+              <Flame size={21} />
+              <div>
+                <span>Fat</span>
+                <strong>{formatNumber(stats?.fat ?? 0)}g</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(stats?.fat ?? 0, 80)}%` }} />
+              </div>
+            </article>
+
+            <article className={`${styles.metricCard} ${styles.protein}`}>
+              <Flame size={21} />
+              <div>
+                <span>Calories</span>
+                <strong>{formatNumber(stats?.calories ?? 0)}</strong>
+              </div>
+              <div className={styles.progressTrack}>
+                <i style={{ width: `${percentage(stats?.calories ?? 0, 2200)}%` }} />
               </div>
             </article>
 

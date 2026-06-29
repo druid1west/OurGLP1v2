@@ -12,7 +12,7 @@ import { Loader2, Info } from "lucide-react";
 
 import styles from "./weeklySummaryPage.module.css";
 
-import { getAnchoredWeek } from "../lib/time";
+import { getAnchoredWeek, zonedLocalToUtcISO } from "../lib/time";
 import type { WeekdayFull } from "../lib/time";
 
 import TopNav from "../context/TopNav";
@@ -22,11 +22,13 @@ import { useAuth } from "../context/useAuth";
 // Local DB (weekly-summary)
 import {
   getPrefs,
+  findArchiveByWindow,
   insertArchive,
   upsertChart,
   getMoodWeekAmPmSeries,
   savePrefs,
 } from "../db/WeeklySummaryRepository";
+import { getPrimaryProtocol, type Protocol } from "../db/ProtocolRepository";
 
 // Health repo (local DB)
 import {
@@ -73,6 +75,19 @@ type WeekWindow = {
   start: string;
   end: string;
   tz: Tz;
+};
+
+type ProtocolWeekKind = "weekly" | "daily" | "fallback";
+
+type ProtocolWeekContext = {
+  window: WeekWindow;
+  kind: ProtocolWeekKind;
+  startDay: WeekdayFull;
+  startTime: string;
+  categoryLabel: string;
+  adherenceLabel: string;
+  windowNote: string;
+  protocol: Protocol | null;
 };
 
 type Charts = {
@@ -248,6 +263,15 @@ type Log = {
 
 type ArchiveSnapshot = {
   version: 1;
+  protocol?: {
+    id?: number;
+    name?: string;
+    cadenceType?: string;
+    routeType?: string;
+    doseTime?: string | null;
+    anchorDay?: string | null;
+    weekKind?: ProtocolWeekKind;
+  };
   protein?: {
     buckets: number[];
     labels?: DayKey[];
@@ -850,6 +874,83 @@ function toFullDay(s?: string | null): WeekdayFull | "" {
   };
   return map[t.slice(0, 3).toLowerCase()] || "";
 }
+
+function localDatePartsForTz(ref: Date, tz: string): { y: number; m: number; d: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(ref);
+  const get = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
+function getMondayReviewWeek(ref: Date, tz: string): { startUtc: string; endUtc: string } {
+  const localYmdRef = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(ref);
+  const localNoon = new Date(`${localYmdRef}T12:00:00`);
+  const daysBack = (localNoon.getDay() + 6) % 7;
+  const mondayNoon = new Date(localNoon.getTime() - daysBack * 86_400_000);
+  const { y, m, d } = localDatePartsForTz(mondayNoon, tz);
+  const startUtc = zonedLocalToUtcISO(y, m, d, 0, 0, tz);
+  const endUtc = new Date(Date.parse(startUtc) + 7 * 86_400_000).toISOString();
+  return { startUtc, endUtc };
+}
+
+function getProtocolWeekContext(
+  ref: Date,
+  user: { injection_day?: string | null; injection_time?: string | null; timezone?: string | null } | null,
+  protocol: Protocol | null
+): ProtocolWeekContext {
+  const tz = user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const doseTime = toHHMM(protocol?.dose_time ?? user?.injection_time);
+  const isDaily = protocol?.cadence_type === "daily";
+  const isWeekly = protocol?.cadence_type === "weekly";
+
+  if (isDaily) {
+    const { startUtc, endUtc } = getMondayReviewWeek(ref, tz);
+    return {
+      window: { start: startUtc, end: endUtc, tz },
+      kind: "daily",
+      startDay: "Monday",
+      startTime: "00:00",
+      categoryLabel: "Dose adherence",
+      adherenceLabel: "Dose",
+      windowNote: `Daily dose week. Reviews run Monday-Sunday${doseTime ? `; usual dose time ${doseTime}.` : "."}`,
+      protocol,
+    };
+  }
+
+  const anchorDay = (toFullDay(protocol?.anchor_day ?? user?.injection_day) || "Monday") as WeekdayFull;
+  const { startUtc, endUtc } = getAnchoredWeek(ref, anchorDay, doseTime, tz);
+
+  return {
+    window: { start: startUtc, end: endUtc, tz },
+    kind: isWeekly ? "weekly" : "fallback",
+    startDay: anchorDay,
+    startTime: doseTime,
+    categoryLabel: isWeekly ? "Injection adherence" : "Protocol adherence",
+    adherenceLabel: isWeekly ? "Injection" : "Protocol",
+    windowNote: isWeekly
+      ? "Anchored to your injection day & time."
+      : "Using your saved protocol review week.",
+    protocol,
+  };
+}
+
+function getPreviousProtocolWeekContext(
+  user: { injection_day?: string | null; injection_time?: string | null; timezone?: string | null } | null,
+  current: ProtocolWeekContext
+): ProtocolWeekContext {
+  const ref = new Date(Date.parse(current.window.start) - 1_000);
+  return getProtocolWeekContext(ref, user, current.protocol);
+}
 function resolveImgSrc(src?: string): string | undefined {
   if (!src) return undefined;
   const s = src.trim();
@@ -1228,6 +1329,8 @@ const WeeklySummaryPageContent: React.FC = () => {
 
   const [include, setInclude] = useState<Include | null>(null);
   const [winParams, setWinParams] = useState<WinParams | null>(null);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [weekContext, setWeekContext] = useState<ProtocolWeekContext | null>(null);
   const [fastingRows, setFastingRows] = useState<FastingRangeRow[] | null>(null);
   const [chartImgs, setChartImgs] = useState<Charts>({}); // live chart PNGs for preview
 
@@ -1357,6 +1460,7 @@ const WeeklySummaryPageContent: React.FC = () => {
   const [fastingRefreshKey, setFastingRefreshKey] = useState<number>(0);
   const [glp1RefreshKey, setGlp1RefreshKey] = useState<number>(0);
   const [profileRefreshKey, setProfileRefreshKey] = useState<number>(0);
+  const [protocolRefreshKey, setProtocolRefreshKey] = useState<number>(0);
 
   useEffect(() => {
     const onProfileSaved = (): void => {
@@ -1378,41 +1482,45 @@ const WeeklySummaryPageContent: React.FC = () => {
     const onGlp1Changed = (): void => {
       setGlp1RefreshKey((n) => n + 1);
     };
+    const onProtocolsChanged = (): void => {
+      setProtocolRefreshKey((n) => n + 1);
+      setGlp1RefreshKey((n) => n + 1);
+    };
     window.addEventListener("profile:saved", onProfileSaved);
     window.addEventListener("fasting:changed", onFastingChanged);
     window.addEventListener("glp1:changed", onGlp1Changed);
+    window.addEventListener("protocols:changed", onProtocolsChanged);
     return () => {
       window.removeEventListener("profile:saved", onProfileSaved);
       window.removeEventListener("fasting:changed", onFastingChanged);
       window.removeEventListener("glp1:changed", onGlp1Changed);
+      window.removeEventListener("protocols:changed", onProtocolsChanged);
     };
   }, [refreshUser]);
 
   // minimal preview payload (uses chartImgs)
   const payload: WeeklyPayload | null = useMemo(() => {
-    if (!include || !winParams) return null;
-    const tzLocal = winParams.tz;
-    const injDay = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-    const injHHMM = toHHMM(user?.injection_time);
+    if (!include || !winParams || !weekContext) return null;
+    const tzLocal = weekContext.window.tz;
     return {
-      window: { start: winParams.from, end: winParams.to, tz: tzLocal },
+      window: { start: weekContext.window.start, end: weekContext.window.end, tz: tzLocal },
       charts: chartImgs,
       includePrefs: include,
       summaryBullets: [],
       profile: {
-        injectionDay: injDay,
-        injectionTime: injHHMM,
+        injectionDay: weekContext.startDay,
+        injectionTime: weekContext.startTime,
         timezone: tzLocal,
         fastingSchedule: user?.fasting_schedule ?? null,
       },
       anchor: {
         type: "scheduled",
-        used: winParams.from,
+        used: weekContext.window.start,
         takenAt: null,
-        scheduledAt: `${injDay}T${injHHMM}`,
+        scheduledAt: `${weekContext.startDay}T${weekContext.startTime}`,
       },
     };
-  }, [include, winParams, user?.injection_day, user?.injection_time, user?.fasting_schedule, chartImgs]);
+  }, [include, winParams, weekContext, user?.fasting_schedule, chartImgs]);
 
   useEffect(() => {
     const onProteinChanged: () => void = () => {
@@ -1439,12 +1547,13 @@ const WeeklySummaryPageContent: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const tzLocal =
-          user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-        const injDay = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-        const injHHMM = toHHMM(user?.injection_time);
-        const { startUtc, endUtc } = getAnchoredWeek(new Date(), injDay, injHHMM, tzLocal);
-        if (mounted) setWinParams({ from: startUtc, to: endUtc, tz: tzLocal });
+        const protocol = user?.id ? await getPrimaryProtocol(user.id).catch(() => null) : null;
+        const context = getProtocolWeekContext(new Date(), user ?? null, protocol);
+        if (mounted) {
+          setPrimaryProtocol(protocol);
+          setWeekContext(context);
+          setWinParams({ from: context.window.start, to: context.window.end, tz: context.window.tz });
+        }
 
         // prefs
         const p = await getPrefs();
@@ -1473,7 +1582,7 @@ const WeeklySummaryPageContent: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [user?.timezone, user?.injection_day, user?.injection_time, profileRefreshKey]);
+  }, [user, profileRefreshKey, protocolRefreshKey]);
 
   // load fasting rows for this window (local DB)
   useEffect(() => {
@@ -1505,9 +1614,7 @@ const WeeklySummaryPageContent: React.FC = () => {
 
     (async () => {
       try {
-        // Compute the anchored start index from the user’s injection day
-        const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-        const startIdx = DAY_KEYS.indexOf(fullToDayKey(injFull));
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
 
         // Build charts with anchor-aware rotation so the bars match the weekday axis
         const imgs = await buildWeeklyCharts(
@@ -1546,7 +1653,7 @@ const WeeklySummaryPageContent: React.FC = () => {
     bpRefreshKey,
     bgRefreshKey,
     sleepRefreshKey,
-    user?.injection_day
+    weekContext?.startDay
   ]);
 
   useEffect(() => {
@@ -1558,8 +1665,7 @@ const WeeklySummaryPageContent: React.FC = () => {
 
     (async () => {
       try {
-        const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-        const startIdx = DAY_KEYS.indexOf(fullToDayKey(injFull));
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
         const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
         const toYmd = addDaysYmd(fromYmd, 6);
         const [exRaw, appleRows] = await Promise.all([
@@ -1586,7 +1692,7 @@ const WeeklySummaryPageContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [winParams, exerciseRefreshKey, user?.injection_day]);
+  }, [winParams, exerciseRefreshKey, weekContext?.startDay]);
 
   useEffect(() => {
     if (!winParams || !user?.id) {
@@ -1754,8 +1860,7 @@ if (needsFallback) {
 
 
 
-        const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-        const startIdx = DAY_KEYS.indexOf(fullToDayKey(injFull));
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
         const rotatedBuckets = rotateToStart(buckets, Math.max(0, startIdx));
         const rotatedLabels = rotateToStart(DAY_KEYS, Math.max(0, startIdx));
         if (!cancelled) {
@@ -1774,7 +1879,7 @@ if (needsFallback) {
     return () => {
       cancelled = true;
     };
- }, [winParams, user?.id, user?.injection_day, proteinRefreshKey]);
+ }, [winParams, user?.id, weekContext?.startDay, proteinRefreshKey]);
 
   // hydration weekly buckets
   useEffect(() => {
@@ -1835,8 +1940,7 @@ if (needsFallback) {
           }
         }
 
-        const injFull = (toFullDay(user?.injection_day) || "Monday") as WeekdayFull;
-        const startIdx = DAY_KEYS.indexOf(fullToDayKey(injFull));
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
         const rotatedBuckets = rotateToStart(buckets, Math.max(0, startIdx));
         const rotatedLabels = rotateToStart(DAY_KEYS, Math.max(0, startIdx));
         if (!cancelled) {
@@ -1852,7 +1956,7 @@ if (needsFallback) {
       }
     })();
     return () => { cancelled = true; };
-  }, [winParams, user?.id, user?.injection_day, hydrationRefreshKey]);
+  }, [winParams, user?.id, weekContext?.startDay, hydrationRefreshKey]);
 
   const rangeLabel = useMemo(
     () =>
@@ -1958,6 +2062,17 @@ try {
     });
 
     const snapshot: ArchiveSnapshot = { version: 1 };
+    if (primaryProtocol || weekContext) {
+      snapshot.protocol = {
+        id: primaryProtocol?.id,
+        name: primaryProtocol?.name,
+        cadenceType: primaryProtocol?.cadence_type,
+        routeType: primaryProtocol?.route_type,
+        doseTime: primaryProtocol?.dose_time ?? null,
+        anchorDay: primaryProtocol?.anchor_day ?? null,
+        weekKind: weekContext?.kind,
+      };
+    }
     if (Array.isArray(proteinBuckets) && proteinBuckets.length === 7) {
       snapshot.protein = {
         buckets: proteinBuckets,
@@ -1981,6 +2096,7 @@ try {
 
     // Insert archive row
     const archiveId = await insertArchive({
+      userId: user?.id ?? null,
       fromUtc: winParams.from,
       toUtc: winParams.to,
       tz: winParams.tz,
@@ -2033,8 +2149,95 @@ try {
     hydrationRange,
     activitySummary,
     glp1Summary,
+    primaryProtocol,
+    weekContext,
+    user?.id,
     openArchiveDialog
   ]);
+
+  const autoArchiveKeyRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || !include || !weekContext) return;
+    const previous = getPreviousProtocolWeekContext(user, weekContext);
+    const key = `${user.id}:${previous.window.start}:${previous.window.end}`;
+    if (autoArchiveKeyRef.current === key) return;
+    autoArchiveKeyRef.current = key;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await findArchiveByWindow(
+          previous.window.start,
+          previous.window.end,
+          user.id
+        );
+        if (existing || cancelled) return;
+
+        const startIdx = DAY_KEYS.indexOf(fullToDayKey(previous.startDay));
+        const imgs = await buildWeeklyCharts(
+          previous.window.start,
+          previous.window.end,
+          Math.max(0, startIdx),
+          previous.window.tz
+        );
+        if (cancelled) return;
+
+        const chartEntries = (Object.entries(imgs) as [keyof Charts, string | undefined][])
+          .flatMap(([metric, png]): [keyof Charts, string][] => {
+            if (!png || !include[metric as keyof Include]) return [];
+            return [[metric, png]];
+          });
+
+        const snapshot: ArchiveSnapshot = {
+          version: 1,
+          protocol: {
+            id: primaryProtocol?.id,
+            name: primaryProtocol?.name,
+            cadenceType: primaryProtocol?.cadence_type,
+            routeType: primaryProtocol?.route_type,
+            doseTime: primaryProtocol?.dose_time ?? null,
+            anchorDay: primaryProtocol?.anchor_day ?? null,
+            weekKind: previous.kind,
+          },
+        };
+
+        const archiveId = await insertArchive({
+          userId: user.id,
+          fromUtc: previous.window.start,
+          toUtc: previous.window.end,
+          tz: previous.window.tz,
+          anchor: {
+            type: "scheduled",
+            used: previous.window.start,
+            takenAt: null,
+            scheduledAt: `${previous.startDay}T${previous.startTime}`,
+          },
+          bullets: [],
+          injectionTakenAt: null,
+          fastingJson: null,
+          snapshotJson: JSON.stringify(snapshot),
+        });
+
+        for (const [metric, png] of chartEntries) {
+          const base64 = png.startsWith("data:image") ? png.split(",")[1] ?? "" : png;
+          if (base64) {
+            await upsertChart(archiveId, String(metric), base64);
+          }
+        }
+
+        toast.success("Last week was saved to Archive");
+      } catch (error) {
+        logger.warn("[weekly-summary] auto archive failed", {
+          msg: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [include, primaryProtocol, user, weekContext]);
 
   
 
@@ -2068,7 +2271,7 @@ try {
                   </CardHeader>
                   <CardContent className={`${styles.cardContent} ${styles.stackSm}`}>
                     <div className={`${styles.small} ${styles.muted}`}>
-                      Anchored to your injection day &amp; time.
+                      {weekContext?.windowNote ?? "Using your saved protocol review week."}
                     </div>
                     <div className={styles.small}>{rangeLabel}</div>
                   </CardContent>
@@ -2095,7 +2298,7 @@ try {
                       <div className={`${styles.cardContent} ${styles.stackSm}`}>
                         <div className={`${styles.tiny} ${styles.muted}`}>Categories</div>
 
-                        <CategoryRow label="Injection adherence" checked={include.injection} onChange={toggle("injection")} />
+                        <CategoryRow label={weekContext?.categoryLabel ?? "Protocol adherence"} checked={include.injection} onChange={toggle("injection")} />
 <CategoryRow label="Fasting window" checked={include.fasting} onChange={toggle("fasting")} />
 <CategoryRow label="Protein" checked={include.protein} onChange={toggle("protein")} />
 <CategoryRow label="Hydration" checked={include.hydration} onChange={toggle("hydration")} />
@@ -2173,6 +2376,7 @@ try {
                         hydrationRange={hydrationRange ?? undefined}
                         activitySummary={activitySummary}
                         glp1Summary={glp1Summary}
+                        adherenceLabel={weekContext?.adherenceLabel ?? "Protocol"}
                         onOpenEffectiveness={() => router.push("/effectiveness", "forward")}
                       />
                     )}
@@ -2273,6 +2477,7 @@ function EmailPreview({
   hydrationRange,
   activitySummary,
   glp1Summary,
+  adherenceLabel,
   onOpenEffectiveness,
 }: {
   charts: Charts;
@@ -2293,6 +2498,7 @@ function EmailPreview({
   hydrationRange?: HydrationRange;
   activitySummary?: WeeklyActivitySummary;
   glp1Summary?: WeeklyGlp1Summary;
+  adherenceLabel?: string;
   onOpenEffectiveness?: () => void;
 }) {
   const target = parseTargetFrom(fasting, fastingSchedule);
@@ -2335,6 +2541,7 @@ function EmailPreview({
             takenAt={injectionTakenAt}
             scheduledDay={injectionScheduledDay}
             scheduledTime={injectionScheduledTime}
+            label={adherenceLabel ?? "Injection"}
           />
         )}
         {include.fasting && (
@@ -2377,7 +2584,7 @@ function EmailPreview({
        </Card>
      )}
 
-      {/* Sleep chart (anchored to injection day) */}
+      {/* Sleep chart follows the active weekly/daily review start day. */}
       <SleepChartCard
         startUtc={win.start}
         tz={win.tz}
@@ -2780,10 +2987,12 @@ function InjectionSummary({
   takenAt,
   scheduledDay,
   scheduledTime,
+  label,
 }: {
   takenAt?: string | string[];
   scheduledDay?: string;
   scheduledTime?: string;
+  label: string;
 }) {
   const taken = Array.isArray(takenAt) ? takenAt[0] : takenAt;
   const takenLabel = taken
@@ -2793,7 +3002,7 @@ function InjectionSummary({
   return (
     <div className={styles.card}>
       <div className={styles.cardContent}>
-        <div className={`${styles.small} ${styles.muted}`}>Injection</div>
+        <div className={`${styles.small} ${styles.muted}`}>{label}</div>
         <div className={styles.small}>
           {takenLabel ? (
             <>

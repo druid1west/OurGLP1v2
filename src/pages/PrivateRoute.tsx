@@ -4,6 +4,7 @@ import { Route, Redirect, type RouteProps } from 'react-router-dom';
 import { IonSpinner } from '@ionic/react';
 import { useAuth } from '../context/useAuth';
 import { getSetupStatus, type SetupStatus } from '../lib/setupStatus';
+import { logger } from '../utils/logger';
 
 interface PrivateRouteProps extends RouteProps {
   component: React.ComponentType<Record<string, unknown>>;
@@ -55,6 +56,14 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...re
 
   if (user) {
     if (setupStatus && !setupStatus.complete) {
+      logger.info('[PrivateRoute] setup incomplete; redirecting to Coach', {
+        path: typeof rest.path === 'string' ? rest.path : 'private-route',
+        hasAccount: setupStatus.hasAccount,
+        hasPrimaryProtocol: setupStatus.hasPrimaryProtocol,
+        nextStep: setupStatus.nextStep,
+        protocolCadence: setupStatus.primaryProtocol?.cadence_type ?? null,
+        protocolName: setupStatus.primaryProtocol?.name ?? null,
+      });
       return <Redirect to="/coach" />;
     }
 

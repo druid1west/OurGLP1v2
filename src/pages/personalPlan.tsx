@@ -12,6 +12,7 @@ import { useAuth } from '../context/useAuth';
 import personalStyles from './personalPlan.module.css';
 import { rotateShortFromFull, FULL_DAYS } from '../lib/time';
 import type { WeekdayFull, WeekdayShort } from '../lib/time';
+import { nutritionFromLogData } from '../lib/nutritionLog';
 
 // Sleep — actual logs (went to bed / woke up)
 import { initSleepTables, listSleepLogsRange, deleteSleepLog } from '../db/SleepRepository';
@@ -164,8 +165,14 @@ function pickFirstNumber(obj: Record<string, unknown>, ...keys: string[]): numbe
 
 function formatProteinLine(log: HealthLog): string {
   const d = log.data as Record<string, unknown>;
-  const grams = pickFirstNumber(d, 'grams', 'protein_grams', 'value');
-  return grams != null ? `${grams} g` : '';
+  const foodName = typeof d.foodName === 'string' ? d.foodName : null;
+  const nutrition = nutritionFromLogData(d);
+  if (!nutrition.protein) return '';
+  const parts = [`Protein ${Math.round(nutrition.protein)} g`];
+  if (nutrition.carbs) parts.push(`Carbs ${Math.round(nutrition.carbs)} g`);
+  if (nutrition.fat) parts.push(`Fat ${Math.round(nutrition.fat)} g`);
+  if (nutrition.calories) parts.push(`${Math.round(nutrition.calories)} cal`);
+  return `${foodName ? `${foodName} - ` : ''}${parts.join(' · ')}`;
 }
 
 function formatHydrationLine(log: HealthLog): string {
@@ -1008,7 +1015,7 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           </div>
 
           <div className={personalStyles.infoBox}>
-            <h3 className={personalStyles.sectionTitle}>Protein Intake</h3>
+            <h3 className={personalStyles.sectionTitle}>Nutrition Intake</h3>
             {healthLogs
               .filter((log) => log.entry_type === 'protein')
               .map((log) => (
@@ -1141,8 +1148,6 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
 };
 
 export default PersonalPlan;
-
-
 
 
 

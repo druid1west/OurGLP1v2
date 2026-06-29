@@ -32,6 +32,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { IonPage, IonButton, IonContent } from '@ionic/react';
 import dayjs from 'dayjs';
 import styles from './HealthTracker.module.css';
+import { NUTRITION_FOODS, scaleFood } from '../lib/nutritionFoods';
 
 import { useAuth } from '../context/useAuth';
 import type { User } from '../context/authTypes';
@@ -160,17 +161,22 @@ type AllowedEntryType = (typeof ALLOWED_ENTRY_TYPES)[number];
 // Types
 // ---------------------------------------------------------------------------
 type ProteinSource =
-  | 'egg'
-  | 'chicken'
-  | 'yogurt'
-  | 'peanutButter'
-  | 'whey'
-  | 'lentils'
-  | 'tofu'
+  | string
   | 'other';
 
 type HydrationData = { amount: number; note?: string };
-type ProteinData = { grams: number; notes?: string };
+type ProteinData = {
+  grams: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  calories?: number;
+  servings?: number;
+  foodId?: string;
+  foodName?: string;
+  servingLabel?: string;
+  notes?: string;
+};
 type BloodSugarData = { value: number; unit: GlucoseUnit; note?: string };
 type BloodPressureData = { systolic: number; diastolic: number; pulse: number | null };
 
@@ -181,7 +187,7 @@ type HealthLogData =
   | BloodSugarData // blood_sugar
   | { systolic: number; diastolic: number; pulse: number | null } // blood_pressure
   | Record<string, never> // bowel
-  | { grams: number; notes?: string } // protein
+  | ProteinData // protein / nutrition
   | { amount: number; note?: string }; // hydration
 
 type Profile = { fasting_schedule?: string; fasting_start?: string };
@@ -241,6 +247,11 @@ const validateProtein = (u: unknown): Ok<ProteinData> | Bad => {
   const grams = Number(gramsRaw);
   if (!Number.isFinite(grams)) return bad('Protein must be a number.');
   if (!intBetween(grams, 0, 300)) return bad('Protein must be 0–300 g.');
+  const carbs = Math.max(0, Math.min(500, Number((u as ProteinData).carbs ?? 0) || 0));
+  const fat = Math.max(0, Math.min(300, Number((u as ProteinData).fat ?? 0) || 0));
+  const calories = Math.max(0, Math.min(5000, Number((u as ProteinData).calories ?? 0) || 0));
+  const servingsRaw = (u as ProteinData).servings;
+  const servings = servingsRaw == null ? undefined : Math.max(0.5, Math.min(10, Number(servingsRaw) || 1));
   const notesRaw = (u as ProteinData).notes;
   const notes =
     typeof notesRaw === 'string'
@@ -248,7 +259,24 @@ const validateProtein = (u: unknown): Ok<ProteinData> | Bad => {
       : notesRaw == null
         ? undefined
         : String(notesRaw).slice(0, 500);
-  return ok({ grams, notes });
+  const foodId = typeof (u as ProteinData).foodId === 'string' ? (u as ProteinData).foodId?.slice(0, 80) : undefined;
+  const foodName = typeof (u as ProteinData).foodName === 'string' ? (u as ProteinData).foodName?.slice(0, 120) : undefined;
+  const servingLabel =
+    typeof (u as ProteinData).servingLabel === 'string'
+      ? (u as ProteinData).servingLabel?.slice(0, 80)
+      : undefined;
+  return ok({
+    grams,
+    protein: grams,
+    carbs,
+    fat,
+    calories,
+    servings,
+    foodId,
+    foodName,
+    servingLabel,
+    notes,
+  });
 };
 
 const GLUCOSE_BOUNDS: Record<GlucoseUnit, { min: number; max: number }> = {
@@ -358,7 +386,11 @@ const HealthTracker: React.FC = () => {
 
   // Protein
   const [selectedProteinSource, setSelectedProteinSource] = useState<ProteinSource | ''>('');
+  const [nutritionServings, setNutritionServings] = useState<number>(1);
   const [proteinGrams, setProteinGrams] = useState<number | ''>('');
+  const [nutritionCarbs, setNutritionCarbs] = useState<number>(0);
+  const [nutritionFat, setNutritionFat] = useState<number>(0);
+  const [nutritionCalories, setNutritionCalories] = useState<number>(0);
   const [proteinNotes, setProteinNotes] = useState('');
   const [proteinTime, setProteinTime] = useState(
     dayjs().format('YYYY-MM-DDTHH:mm'),
@@ -370,6 +402,11 @@ const HealthTracker: React.FC = () => {
   const [hydrationTime, setHydrationTime] = useState(
     dayjs().format('YYYY-MM-DDTHH:mm'),
   );
+
+  const selectedNutritionFood = NUTRITION_FOODS.find((food) => food.id === selectedProteinSource) ?? null;
+  const scaledNutritionFood = selectedNutritionFood
+    ? scaleFood(selectedNutritionFood, nutritionServings)
+    : null;
 
   // Fasting (first/last meal)
   const [profile, setProfile] = useState<Profile>({});
@@ -1111,13 +1148,13 @@ const HealthTracker: React.FC = () => {
   </IonButton>
 </div>
 
-{/* Protein Intake */}
+{/* Nutrition Intake */}
 <div className={styles.infoBox}>
-  <h2 className={styles.subtitle}>Protein Intake</h2>
+  <h2 className={styles.subtitle}>Nutrition Intake</h2>
 
   <div className={styles.formGroup}>
     <label className={styles.label} htmlFor="protein-source">
-      Protein Source
+      Food
     </label>
     <select
       id="protein-source"
@@ -1129,42 +1166,52 @@ const HealthTracker: React.FC = () => {
       onChange={(e) => {
         const selected = e.target.value as ProteinSource;
         setSelectedProteinSource(selected);
-
-        // Map known sources to a default grams value:
-        const defaults: Partial<Record<ProteinSource, number>> = {
-          egg: 6,
-          chicken: 31,
-          yogurt: 10,
-          peanutButter: 7,
-          whey: 25,
-          lentils: 9,
-          tofu: 10,
-          // no entry for "other" on purpose
-        };
-
-        // If we have a default, use it; otherwise clear the field
-        const grams = defaults[selected] ?? '';
-
-        setProteinGrams(grams);
+        setNutritionServings(1);
+        const food = NUTRITION_FOODS.find((item) => item.id === selected);
+        setProteinGrams(food?.protein ?? '');
+        setNutritionCarbs(food?.carbs ?? 0);
+        setNutritionFat(food?.fat ?? 0);
+        setNutritionCalories(food?.calories ?? 0);
         setProteinNotes('');
       }}
     >
-      <option value="">Select protein source</option>
-      <option value="egg">Egg (1 large) – 6g</option>
-      <option value="chicken">Chicken breast (100g) – 31g</option>
-      <option value="yogurt">Greek yogurt (100g) – 10g</option>
-      <option value="peanutButter">Peanut butter (2 tbsp) – 7g</option>
-      <option value="whey">Whey protein (1 scoop) – 25g</option>
-      <option value="lentils">Lentils (100g cooked) – 9g</option>
-      <option value="tofu">Tofu (100g) – 10g</option>
+      <option value="">Select food</option>
+      {NUTRITION_FOODS.map((food) => (
+        <option key={food.id} value={food.id}>
+          {food.name} ({food.servingLabel}) - P {food.protein}g / C {food.carbs}g / F {food.fat}g / {food.calories} cal
+        </option>
+      ))}
       <option value="other">Other (custom)</option>
     </select>
+  </div>
+
+  <div className={styles.foodReferenceList} aria-label="Nutrition quick reference">
+    {NUTRITION_FOODS.map((food) => (
+      <button
+        key={food.id}
+        type="button"
+        className={`${styles.foodReferenceItem} ${selectedProteinSource === food.id ? styles.foodReferenceItemActive : ''}`}
+        onClick={() => {
+          setSelectedProteinSource(food.id);
+          setNutritionServings(1);
+          setProteinGrams(food.protein);
+          setNutritionCarbs(food.carbs);
+          setNutritionFat(food.fat);
+          setNutritionCalories(food.calories);
+          setProteinNotes('');
+        }}
+      >
+        <strong>{food.name}</strong>
+        <span>{food.servingLabel}</span>
+        <small>P {food.protein}g · C {food.carbs}g · F {food.fat}g · {food.calories} cal</small>
+      </button>
+    ))}
   </div>
 
   {selectedProteinSource === 'other' && (
     <div className={styles.formGroup}>
       <label className={styles.label} htmlFor="protein-custom-food">
-        Custom Food
+        Custom food
       </label>
       <input
         id="protein-custom-food"
@@ -1177,6 +1224,74 @@ const HealthTracker: React.FC = () => {
         title="Custom protein food"
         aria-label="Custom protein food"
       />
+    </div>
+  )}
+
+  {selectedProteinSource !== 'other' && selectedNutritionFood && (
+    <div className={styles.formGroup}>
+      <label className={styles.label} htmlFor="nutrition-servings">
+        Servings
+      </label>
+      <div className={styles.stepperRow}>
+        <button
+          type="button"
+          onClick={() => {
+            const next = Math.max(0.5, Number((nutritionServings - 0.5).toFixed(1)));
+            setNutritionServings(next);
+            const scaled = scaleFood(selectedNutritionFood, next);
+            setProteinGrams(scaled.protein);
+            setNutritionCarbs(scaled.carbs);
+            setNutritionFat(scaled.fat);
+            setNutritionCalories(scaled.calories);
+          }}
+        >
+          -
+        </button>
+        <input
+          id="nutrition-servings"
+          className={styles.inputField}
+          type="number"
+          min="0.5"
+          max="10"
+          step="0.5"
+          value={nutritionServings}
+          onChange={(event) => {
+            const next = Math.max(0.5, Math.min(10, Number(event.target.value) || 1));
+            setNutritionServings(next);
+            const scaled = scaleFood(selectedNutritionFood, next);
+            setProteinGrams(scaled.protein);
+            setNutritionCarbs(scaled.carbs);
+            setNutritionFat(scaled.fat);
+            setNutritionCalories(scaled.calories);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const next = Math.min(10, Number((nutritionServings + 0.5).toFixed(1)));
+            setNutritionServings(next);
+            const scaled = scaleFood(selectedNutritionFood, next);
+            setProteinGrams(scaled.protein);
+            setNutritionCarbs(scaled.carbs);
+            setNutritionFat(scaled.fat);
+            setNutritionCalories(scaled.calories);
+          }}
+        >
+          +
+        </button>
+      </div>
+      {scaledNutritionFood && (
+        <div className={styles.nutritionPreview}>
+          <strong>{scaledNutritionFood.name}</strong>
+          <span>
+            {scaledNutritionFood.servingOz ? `${scaledNutritionFood.servingOz} oz / ` : ''}
+            {scaledNutritionFood.servingGrams ? `${scaledNutritionFood.servingGrams} g total` : `${nutritionServings} serving${nutritionServings === 1 ? '' : 's'}`}
+          </span>
+          <small>
+            Protein {scaledNutritionFood.protein}g · Carbs {scaledNutritionFood.carbs}g · Fat {scaledNutritionFood.fat}g · {scaledNutritionFood.calories} cal
+          </small>
+        </div>
+      )}
     </div>
   )}
 
@@ -1208,6 +1323,40 @@ const HealthTracker: React.FC = () => {
       aria-label="Protein grams"
       placeholder="e.g. 25"
       inputMode="numeric"
+    />
+  </div>
+
+  <div className={styles.formRow}>
+    <div className={styles.formGroup}>
+      <label className={styles.label} htmlFor="nutrition-carbs">Carbs (grams)</label>
+      <input
+        id="nutrition-carbs"
+        className={styles.inputField}
+        type="number"
+        value={nutritionCarbs}
+        onChange={(e) => setNutritionCarbs(Math.max(0, Number(e.target.value) || 0))}
+      />
+    </div>
+    <div className={styles.formGroup}>
+      <label className={styles.label} htmlFor="nutrition-fat">Fat (grams)</label>
+      <input
+        id="nutrition-fat"
+        className={styles.inputField}
+        type="number"
+        value={nutritionFat}
+        onChange={(e) => setNutritionFat(Math.max(0, Number(e.target.value) || 0))}
+      />
+    </div>
+  </div>
+
+  <div className={styles.formGroup}>
+    <label className={styles.label} htmlFor="nutrition-calories">Calories</label>
+    <input
+      id="nutrition-calories"
+      className={styles.inputField}
+      type="number"
+      value={nutritionCalories}
+      onChange={(e) => setNutritionCalories(Math.max(0, Number(e.target.value) || 0))}
     />
   </div>
 
@@ -1244,18 +1393,27 @@ const HealthTracker: React.FC = () => {
         return;
       }
 
-      // From here, TS knows proteinGrams is a number
+      const selectedFood = NUTRITION_FOODS.find((food) => food.id === selectedProteinSource);
+      const foodName = proteinNotes || selectedFood?.name || selectedProteinSource || undefined;
       submitLog(
         'protein',
         {
           grams: proteinGrams,
-          notes: proteinNotes || selectedProteinSource || undefined,
+          protein: proteinGrams,
+          carbs: nutritionCarbs,
+          fat: nutritionFat,
+          calories: nutritionCalories,
+          servings: selectedProteinSource === 'other' ? undefined : nutritionServings,
+          foodId: selectedProteinSource === 'other' ? undefined : selectedProteinSource || undefined,
+          foodName,
+          servingLabel: selectedFood?.servingLabel,
+          notes: foodName,
         },
         proteinTime,
       );
     }}
   >
-    Submit Protein Intake
+    Submit Nutrition Intake
   </IonButton>
 </div>
 
@@ -1802,4 +1960,3 @@ alert('Error saving health data.');
 };
 
 export default HealthTracker;
-

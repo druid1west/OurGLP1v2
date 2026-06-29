@@ -21,6 +21,7 @@ import { iconFor } from '../utils/icons';
 import type { EntryType } from '../utils/icons';
 import { getAnchoredWeek, rotateShortFromFull } from '../lib/time';
 import type { WeekdayFull, WeekdayShort } from '../lib/time';
+import { nutritionFromLogData } from '../lib/nutritionLog';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local DB repositories
@@ -60,7 +61,7 @@ type UiReminder = Readonly<{
 }>;
 
 type HydrationData = { amount?: number; note?: string };
-type ProteinData = { grams?: number; notes?: string };
+type ProteinData = { grams?: number; protein?: number; carbs?: number; fat?: number; calories?: number; notes?: string };
 type GenericData = Record<string, unknown>;
 type MoodData = { score?: number; note?: string; context?: Record<string, unknown> };
 
@@ -256,11 +257,16 @@ function isHydrationData(d: unknown): d is { amount?: number; note?: string } {
     ('amount' in (d as Record<string, unknown>) || 'note' in (d as Record<string, unknown>))
   );
 }
-function isProteinData(d: unknown): d is { grams?: number; notes?: string } {
+function isProteinData(d: unknown): d is ProteinData {
   return (
     !!d &&
     typeof d === 'object' &&
-    ('grams' in (d as Record<string, unknown>) || 'notes' in (d as Record<string, unknown>))
+    ('grams' in (d as Record<string, unknown>) ||
+      'protein' in (d as Record<string, unknown>) ||
+      'carbs' in (d as Record<string, unknown>) ||
+      'fat' in (d as Record<string, unknown>) ||
+      'calories' in (d as Record<string, unknown>) ||
+      'notes' in (d as Record<string, unknown>))
   );
 }
 
@@ -539,17 +545,13 @@ const DayPage: React.FC = () => {
 
   // Build the 15-min blocks
   useEffect(() => {
-    if (!fastStartHHMM || !fastSchedule) {
-      setTimeBlocks([]);
-      return;
-    }
-
-    const fastingHours = parseInt(fastSchedule.split(':')[0], 10) || 0;
-    const [startHour, startMinute] = fastStartHHMM.split(':').map((x) => parseInt(x || '0', 10));
+    const isInjectionOnThisTab = (injDay || '').toLowerCase() === abbrevToFull[shortDay];
+    const hasFastingSchedule = Boolean(fastStartHHMM && fastSchedule);
+    const fastingHours = hasFastingSchedule ? parseInt(fastSchedule.split(':')[0], 10) || 0 : 0;
+    const [startHour, startMinute] = (fastStartHHMM || '00:00').split(':').map((x) => parseInt(x || '0', 10));
 
     const fastingStartMinutes = startHour * 60 + startMinute;
     const fastingEndMinutes = (fastingStartMinutes + fastingHours * 60) % (24 * 60);
-    const isInjectionOnThisTab = (injDay || '').toLowerCase() === abbrevToFull[shortDay];
 
     const blocks: TimeBlock[] = [];
     for (let i = 0; i < 24 * 4; i++) {
@@ -564,10 +566,11 @@ const DayPage: React.FC = () => {
         now.getMinutes() < parseInt(min, 10) + 15;
 
       const timeInMinutes = i * 15;
-      const isFasting =
-        fastingStartMinutes < fastingEndMinutes
+      const isFasting = hasFastingSchedule
+        ? fastingStartMinutes < fastingEndMinutes
           ? timeInMinutes >= fastingStartMinutes && timeInMinutes < fastingEndMinutes
-          : timeInMinutes >= fastingStartMinutes || timeInMinutes < fastingEndMinutes;
+          : timeInMinutes >= fastingStartMinutes || timeInMinutes < fastingEndMinutes
+        : false;
 
       const isInjectionTime = isInjectionOnThisTab && !!injHHMM && injHHMM.startsWith(blockTime);
 
@@ -688,23 +691,6 @@ const DayPage: React.FC = () => {
       !!injHHMM && injHHMM.startsWith(t) && (injDay || '').toLowerCase() === abbrevToFull[shortDay]
     );
   };
-
-  if (!fastStartHHMM || !fastSchedule) {
-    return (
-      <IonPage>
-        <TopNav showWhenAnon />
-        <IonContent fullscreen className={styles.contentPad}>
-          <div className={styles.container}>
-            <h1>Fasting Schedule Not Set</h1>
-            <p>
-              Please head to your <a href="/profile">profile</a> and choose a fasting plan to view the timeline.
-            </p>
-          </div>
-        </IonContent>
-        <BottomNav />
-      </IonPage>
-    );
-  }
 
   const todayStr = now.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -871,8 +857,13 @@ const DayPage: React.FC = () => {
                         let details = '';
                         if (l.entry_type === 'hydration' && isHydrationData(l.data) && typeof l.data.amount === 'number') {
                           details = `${l.data.amount} mL`;
-                        } else if (l.entry_type === 'protein' && isProteinData(l.data) && typeof l.data.grams === 'number') {
-                          details = `${l.data.grams} g`;
+                        } else if (l.entry_type === 'protein' && isProteinData(l.data)) {
+                          const nutrition = nutritionFromLogData(l.data);
+                          const parts = [`Protein ${Math.round(nutrition.protein)} g`];
+                          if (nutrition.carbs) parts.push(`Carbs ${Math.round(nutrition.carbs)} g`);
+                          if (nutrition.fat) parts.push(`Fat ${Math.round(nutrition.fat)} g`);
+                          if (nutrition.calories) parts.push(`${Math.round(nutrition.calories)} cal`);
+                          details = parts.join(' · ');
                         } else if (l.entry_type === 'mood') {
                           const sc = moodScoreFromData(l.data);
                           details = `${moodEmoji(sc)} ${sc ?? ''}/5`;

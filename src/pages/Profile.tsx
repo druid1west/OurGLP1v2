@@ -39,7 +39,16 @@ import {
   type HealthDailySummary,
 } from '../db/HealthRepository';
 import { listSleepLogsRange } from '../db/SleepRepository';
-import { computeProteinRange, computeHydrationRange, getSleepColor, SLEEP_RECOMMENDED } from '../lib/nutrition';
+import {
+  computeCalorieRange,
+  computeCarbRange,
+  computeFatRange,
+  computeProteinRange,
+  computeHydrationRange,
+  getSleepColor,
+  SLEEP_RECOMMENDED,
+} from '../lib/nutrition';
+import { addNutritionTotals, nutritionFromLogData, roundNutritionTotals } from '../lib/nutritionLog';
 import {
   AppleHealth,
   isAppleHealthSupportedPlatform,
@@ -54,10 +63,7 @@ import { Preferences } from '@capacitor/preferences';          // 👈 add
 import { dropAllLocalData } from '../db/_maintenance';           // 👈 add
 import { emitAuthChanged } from '../services/authBus';           // 👈 add
 
-import {
-computeGlp1Activity,
-glp1ActivityToPercent,
-} from '../lib/glp1';
+import { getCurrentEffectiveness, type CurrentEffectiveness } from '../lib/effectiveness';
 import Glp1EffectivenessRing from '@/components/Glp1EffectivenessRing';
 
 // ---------- Debug flag ----------
@@ -155,16 +161,6 @@ function medicationFamily(name: string): Glp1MedicationFamily | null {
   }
 
   return null;
-}
-
-function isGlp1Medication(name: string): boolean {
-  const normalized = name.trim().toLowerCase();
-
-  return (
-    medicationFamily(name) !== null ||
-    normalized.includes('glp-1') ||
-    normalized.includes('glp1')
-  );
 }
 
 function doseOptionsForMedication(name: string): string[] {
@@ -443,6 +439,8 @@ const Profile: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [bioResetSupported, setBioResetSupported] = useState(false);
   const [brokenImage, setBrokenImage] = useState(false);
+  const [currentEffectiveness, setCurrentEffectiveness] = useState<CurrentEffectiveness | null>(null);
+  const [effectivenessRefreshKey, setEffectivenessRefreshKey] = useState(0);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -461,10 +459,19 @@ const Profile: React.FC = () => {
   });
 
   const [proteinLoggedToday, setProteinLoggedToday] = useState<number>(0);
+  const [carbsLoggedToday, setCarbsLoggedToday] = useState<number>(0);
+  const [fatLoggedToday, setFatLoggedToday] = useState<number>(0);
+  const [caloriesLoggedToday, setCaloriesLoggedToday] = useState<number>(0);
   const [hydrationLoggedToday, setHydrationLoggedToday] = useState<number>(0);
 
   const [proteinMin, setProteinMin] = useState<string>('');
   const [proteinMax, setProteinMax] = useState<string>('');
+  const [carbsMin, setCarbsMin] = useState<string>('');
+  const [carbsMax, setCarbsMax] = useState<string>('');
+  const [fatMin, setFatMin] = useState<string>('');
+  const [fatMax, setFatMax] = useState<string>('');
+  const [caloriesMin, setCaloriesMin] = useState<string>('');
+  const [caloriesMax, setCaloriesMax] = useState<string>('');
 
   const [hydrationMin, setHydrationMin] = useState<string>('');
   const [hydrationMax, setHydrationMax] = useState<string>('');
@@ -503,6 +510,43 @@ const Profile: React.FC = () => {
     () => (tzSource === 'device' ? deviceTimezone : (form.timezone || 'UTC')),
     [tzSource, deviceTimezone, form.timezone]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setCurrentEffectiveness(null);
+      return;
+    }
+
+    const userForEffectiveness = {
+      ...user,
+      timezone: effectiveTimezone,
+    };
+
+    void getCurrentEffectiveness(userForEffectiveness)
+      .then((effectiveness) => {
+        if (!cancelled) setCurrentEffectiveness(effectiveness);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentEffectiveness(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveTimezone, effectivenessRefreshKey, user]);
+
+  useEffect(() => {
+    const refresh = (): void => setEffectivenessRefreshKey((n) => n + 1);
+    window.addEventListener('protocols:changed', refresh);
+    window.addEventListener('profile:saved', refresh);
+    window.addEventListener('glp1:changed', refresh);
+    return () => {
+      window.removeEventListener('protocols:changed', refresh);
+      window.removeEventListener('profile:saved', refresh);
+      window.removeEventListener('glp1:changed', refresh);
+    };
+  }, []);
 
   // Global error hooks (dev-only)
   useEffect(() => {
@@ -823,37 +867,7 @@ const syncExerciseAppleHealth = useCallback(async (): Promise<void> => {
   }
 }, [loadExerciseHealthSummary]);
 
-  // Load today's protein from local DB
-  useEffect(() => {
-    const loadToday = async (): Promise<void> => {
-      try {
-        const ymdUtc = new Date().toISOString().slice(0, 10);
-        const fromIso = `${ymdUtc}T00:00:00.000Z`;
-        const toIso   = `${ymdUtc}T23:59:59.999Z`;
-        const rows = await listHealthLogsRange(fromIso, toIso);
-        const gramsFrom = (data: unknown): number => {
-          if (data && typeof data === 'object') {
-            const o = data as Record<string, unknown>;
-            for (const k of ['grams', 'amount', 'protein', 'protein_grams', 'value'] as const) {
-              const v = o[k];
-              if (typeof v === 'number' && Number.isFinite(v)) return v;
-              if (typeof v === 'string' && Number.isFinite(Number(v))) return Number(v);
-            }
-          }
-          return 0;
-        };
-        const total = rows
-          .filter((r) => String(r.entry_type).toLowerCase() === 'protein')
-          .reduce<number>((sum, r) => sum + gramsFrom(r.data), 0);
-        setProteinLoggedToday(total);
-      } catch {
-        setProteinLoggedToday(0);
-      }
-    };
-    void loadToday();
-  }, []);
-
-  // Refresh protein/hydration totals when logs change elsewhere
+  // Refresh nutrition/hydration totals when logs change elsewhere
 useEffect(() => {
   const reload = async (): Promise<void> => {
     try {
@@ -874,20 +888,29 @@ useEffect(() => {
         return 0;
       };
 
-      const protein = rows
+      const nutrition = roundNutritionTotals(rows
         .filter((r) => String(r.entry_type).toLowerCase() === 'protein')
-        .reduce<number>((sum, r) => sum + numFrom(r.data, ['grams', 'amount', 'protein', 'protein_grams', 'value']), 0);
-      setProteinLoggedToday(protein);
+        .reduce((sum, r) => addNutritionTotals(sum, nutritionFromLogData(r.data)), {
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          calories: 0,
+        }));
+      setProteinLoggedToday(nutrition.protein);
+      setCarbsLoggedToday(nutrition.carbs);
+      setFatLoggedToday(nutrition.fat);
+      setCaloriesLoggedToday(nutrition.calories);
 
       const hydration = rows
         .filter((r) => String(r.entry_type).toLowerCase() === 'hydration')
         .reduce<number>((sum, r) => sum + numFrom(r.data, ['ml', 'milliliters', 'amount', 'value']), 0);
       setHydrationLoggedToday(hydration);
     } catch (e) {
-      dlog.warn('reload (protein/hydration) failed', e);
+      dlog.warn('reload (nutrition/hydration) failed', e);
     }
   };
 
+  void reload();
   window.addEventListener('protein:changed', reload);
   window.addEventListener('hydration:changed', reload);
   return () => {
@@ -909,12 +932,27 @@ useEffect(() => {
       const range = computeProteinRange(w);
       setProteinMin(range ? String(range.min) : '');
       setProteinMax(range ? String(range.max) : '');
+      const carbRange = computeCarbRange();
+      setCarbsMin(String(carbRange.min));
+      setCarbsMax(String(carbRange.max));
+      const fatRange = computeFatRange(w);
+      setFatMin(fatRange ? String(fatRange.min) : '');
+      setFatMax(fatRange ? String(fatRange.max) : '');
+      const calorieRange = computeCalorieRange(w);
+      setCaloriesMin(calorieRange ? String(calorieRange.min) : '');
+      setCaloriesMax(calorieRange ? String(calorieRange.max) : '');
 
       dlog.debug('bmi/protein effect', { h, w, bmi: nextBmi });
     } else {
       setBmi(0);
       setProteinMin('');
       setProteinMax('');
+      setCarbsMin('');
+      setCarbsMax('');
+      setFatMin('');
+      setFatMax('');
+      setCaloriesMin('');
+      setCaloriesMax('');
       dlog.debug('bmi/protein effect: reset (insufficient metrics)', { h, w });
     }
   }, [height, weight]);
@@ -1275,35 +1313,7 @@ useEffect(() => {
     () => doseOptionsForMedication(form.medication_name),
     [form.medication_name]
   );
-  const hasGlp1Medication = useMemo(() => isGlp1Medication(form.medication_name), [form.medication_name]);
-  const effectivenessMedicationName = form.medication_name || 'Weekly medication';
-
-  // ---------- GLP-1 activity (derived, hook-safe) ----------
-
-// Base decay (0–1)
-const glp1Base = computeGlp1Activity({
-injectionDay: form.injection_day,
-injectionTime: form.injection_time,
-timezone: effectiveTimezone,
-});
-
-
-// Optional BMI visual modifier (unchanged)
-const glp1Activity = Math.max(
-0,
-Math.min(
-1,
-glp1Base *
-(safeBmi > 0
-? Math.max(0.85, Math.min(1.05, 25 / safeBmi))
-: 1)
-)
-);
-
-
-const glp1Pct = glp1ActivityToPercent(glp1Activity);
-
-// Quantize into CSS classes (no inline styles)
+  const glp1Pct = currentEffectiveness?.percent ?? 0;
 
   
     const bmiClass =
@@ -1318,11 +1328,23 @@ const glp1Pct = glp1ActivityToPercent(glp1Activity);
 
   const proteinMinNum = toNum(proteinMin, 0);
   const proteinMaxNum = toNum(proteinMax, 0);
+  const carbsMinNum = toNum(carbsMin, 0);
+  const carbsMaxNum = toNum(carbsMax, 0);
+  const fatMinNum = toNum(fatMin, 0);
+  const fatMaxNum = toNum(fatMax, 0);
+  const caloriesMinNum = toNum(caloriesMin, 0);
+  const caloriesMaxNum = toNum(caloriesMax, 0);
   const hydrationMinNum = toNum(hydrationMin, 0);
   const hydrationMaxNum = toNum(hydrationMax, 0);
 
   const proteinRemainingMin = Math.max(0, proteinMinNum - proteinLoggedToday);
   const proteinRemainingMax = Math.max(0, proteinMaxNum - proteinLoggedToday);
+  const carbsRemainingMin = Math.max(0, carbsMinNum - carbsLoggedToday);
+  const carbsRemainingMax = Math.max(0, carbsMaxNum - carbsLoggedToday);
+  const fatRemainingMin = Math.max(0, fatMinNum - fatLoggedToday);
+  const fatRemainingMax = Math.max(0, fatMaxNum - fatLoggedToday);
+  const caloriesRemainingMin = Math.max(0, caloriesMinNum - caloriesLoggedToday);
+  const caloriesRemainingMax = Math.max(0, caloriesMaxNum - caloriesLoggedToday);
   const hydrationRemainingMin = Math.max(0, hydrationMinNum - hydrationLoggedToday);
   const hydrationRemainingMax = Math.max(0, hydrationMaxNum - hydrationLoggedToday);
 
@@ -1572,7 +1594,7 @@ const mainUIView = (
       }
     }}
   >
-    <div className={styles.statTitle}>Medication Effectiveness</div>
+    <div className={styles.statTitle}>{currentEffectiveness?.title ?? 'Medication Effectiveness'}</div>
     <div className={styles.mutedSmall}>Tap to view detailed effectiveness</div>
     <div aria-hidden className={styles.endSpacer} />
 
@@ -1584,13 +1606,11 @@ const mainUIView = (
 
       <div className={styles.glp1Text}>
         <div>
-          <strong>{effectivenessMedicationName}</strong>
+          <strong>{currentEffectiveness?.label ?? 'Weekly GLP-1'}</strong>
         </div>
 
         <div className={styles.muted}>
-          {hasGlp1Medication
-            ? 'Estimated GLP-1 activity since your last dose'
-            : 'Estimated weekly activity from your injection day and time'}
+          {currentEffectiveness?.detail ?? 'Estimated medication effectiveness'}
         </div>
       </div>
     </div>
@@ -1642,6 +1662,51 @@ const mainUIView = (
       </div>
       <div className={styles.mt6}>
         <strong>Remaining:</strong> {proteinRemainingMin}–{proteinRemainingMax} g
+      </div>
+    </div>
+  )}
+
+  {carbsMin && carbsMax && (
+    <div className={styles.statCard}>
+      <div className={styles.statTitle}>🌾 Carbs</div>
+      <div>
+        <strong>Target:</strong> {carbsMin}–{carbsMax} g/day
+      </div>
+      <div className={styles.mt6}>
+        <strong>Logged today:</strong> {carbsLoggedToday} g
+      </div>
+      <div className={styles.mt6}>
+        <strong>Remaining:</strong> {carbsRemainingMin}–{carbsRemainingMax} g
+      </div>
+    </div>
+  )}
+
+  {fatMin && fatMax && (
+    <div className={styles.statCard}>
+      <div className={styles.statTitle}>🥑 Fat</div>
+      <div>
+        <strong>Target:</strong> {fatMin}–{fatMax} g/day
+      </div>
+      <div className={styles.mt6}>
+        <strong>Logged today:</strong> {fatLoggedToday} g
+      </div>
+      <div className={styles.mt6}>
+        <strong>Remaining:</strong> {fatRemainingMin}–{fatRemainingMax} g
+      </div>
+    </div>
+  )}
+
+  {caloriesMin && caloriesMax && (
+    <div className={styles.statCard}>
+      <div className={styles.statTitle}>🔥 Calories</div>
+      <div>
+        <strong>Target:</strong> {caloriesMin}–{caloriesMax} cal/day
+      </div>
+      <div className={styles.mt6}>
+        <strong>Logged today:</strong> {caloriesLoggedToday} cal
+      </div>
+      <div className={styles.mt6}>
+        <strong>Remaining:</strong> {caloriesRemainingMin}–{caloriesRemainingMax} cal
       </div>
     </div>
   )}

@@ -16,17 +16,11 @@ import {
 } from '../db/EffectivenessRepository';
 
 import { saveGlp1GraphArchive } from '../db/Glp1GraphRepository';
-import {
-  getPrimaryProtocol,
-  listProtocolEventsForDay,
-  type Protocol,
-  type ProtocolEvent,
-} from '../db/ProtocolRepository';
 
 import styles from './Effectiveness.module.css';
 import { logger } from '../utils/logger';
 
-import { computeDailyDoseActivity, computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
+import { getCurrentEffectiveness, type CurrentEffectiveness } from '../lib/effectiveness';
 import Glp1EffectivenessRing from '../components/Glp1EffectivenessRing';
 import Glp1TrendGraph from '../components/Glp1TrendGraph';
 
@@ -61,14 +55,6 @@ function isoFromDatetimeLocalForTz(dtLocal: string, tz: string): string | null {
   const local = new Date(base.toLocaleString('en-US', { timeZone: tz }));
 
   return new Date(base.getTime() - (local.getTime() - base.getTime())).toISOString();
-}
-
-function localYmd(date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -191,56 +177,57 @@ const Effectiveness: React.FC = () => {
   const [note, setNote] = useState('');
   const [time, setTime] = useState(dayjs().format('YYYY-MM-DDTHH:mm'));
   const [graphPoints, setGraphPoints] = useState<Glp1GraphPoint[]>([]);
-  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
-  const [protocolEventsToday, setProtocolEventsToday] = useState<ProtocolEvent[]>([]);
+  const [currentEffectiveness, setCurrentEffectiveness] = useState<CurrentEffectiveness | null>(null);
+  const [protocolRefreshKey, setProtocolRefreshKey] = useState(0);
   const [archiving, setArchiving] = useState(false);
 
   const archivingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !user) {
       setGraphPoints([]);
+      setCurrentEffectiveness(null);
       return;
     }
 
+    let cancelled = false;
+
     const load = async (): Promise<void> => {
-      const [rows, protocol, events] = await Promise.all([
+      const [rows, effectiveness] = await Promise.all([
         listGlp1ExperienceForGraph(userId, 14),
-        getPrimaryProtocol(userId).catch(() => null),
-        listProtocolEventsForDay(userId, localYmd()).catch(() => []),
+        getCurrentEffectiveness(user),
       ]);
+      if (cancelled) return;
       setGraphPoints(rows);
-      setPrimaryProtocol(protocol);
-      setProtocolEventsToday(events);
+      setCurrentEffectiveness(effectiveness);
     };
 
     void load();
-  }, [userId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, userId, protocolRefreshKey]);
+
+  useEffect(() => {
+    const refresh = (): void => {
+      setProtocolRefreshKey((n) => n + 1);
+    };
+    window.addEventListener('protocols:changed', refresh);
+    window.addEventListener('profile:saved', refresh);
+    window.addEventListener('glp1:changed', refresh);
+    return () => {
+      window.removeEventListener('protocols:changed', refresh);
+      window.removeEventListener('profile:saved', refresh);
+      window.removeEventListener('glp1:changed', refresh);
+    };
+  }, []);
 
   const injectionDay = getStringProp(user, 'injection_day');
-  const injectionTime = getStringProp(user, 'injection_time')?.slice(0, 5);
-  const protocolIsDaily = primaryProtocol?.effectiveness_model === 'daily_24h';
-  const protocolIsWeekly = primaryProtocol?.effectiveness_model === 'weekly_glp1';
-  const medicationName =
-    primaryProtocol?.name ??
-    getStringProp(user, 'medication_name') ??
-    'Weekly GLP-1';
-  const latestPrimaryEvent = protocolEventsToday.find(
-    (event) => event.protocol_id === primaryProtocol?.id
-  );
-
-  const glp1Pct = glp1ActivityToPercent(
-    protocolIsDaily
-      ? computeDailyDoseActivity({
-          doseTime: primaryProtocol?.dose_time,
-          lastTakenAt: latestPrimaryEvent?.event_at,
-        })
-      : computeGlp1Activity({
-          injectionDay: toShortDay(primaryProtocol?.anchor_day ?? injectionDay),
-          injectionTime: primaryProtocol?.dose_time ?? injectionTime,
-          timezone,
-        })
-  );
+  const protocolIsDaily = currentEffectiveness?.model === 'daily';
+  const protocolIsWeekly = currentEffectiveness?.model === 'weekly';
+  const protocolAnchorDay = currentEffectiveness?.anchorDay ?? injectionDay ?? 'Monday';
+  const glp1Pct = currentEffectiveness?.percent ?? 0;
 
   async function submit(): Promise<void> {
     if (!userId) return;
@@ -335,8 +322,8 @@ const Effectiveness: React.FC = () => {
       sat: 6,
     };
 
-    const targetDay = injectionDay
-      ? dayMap[injectionDay.toLowerCase().slice(0, 3)] ?? 1
+    const targetDay = protocolAnchorDay
+      ? dayMap[protocolAnchorDay.toLowerCase().slice(0, 3)] ?? 1
       : 1;
 
     const fmt = new Intl.DateTimeFormat('en-US', {
@@ -370,7 +357,10 @@ const Effectiveness: React.FC = () => {
 
     const dataJson = JSON.stringify({
       timezone,
-      injectionDay,
+      injectionDay: protocolAnchorDay,
+      protocolCadence: currentEffectiveness?.protocol?.cadence_type ?? null,
+      protocolName: currentEffectiveness?.protocol?.name ?? null,
+      doseLabel: currentEffectiveness?.protocol?.dose_label ?? null,
       points: graphPoints,
     });
 
@@ -406,7 +396,7 @@ const Effectiveness: React.FC = () => {
     await saveGlp1GraphArchive(
       userId,
       timezone,
-      injectionDay || 'Monday',
+      protocolAnchorDay || 'Monday',
       fromDate,
       toDate,
       uri, // chart_uri
@@ -436,7 +426,7 @@ requestAnimationFrame(() => {
     setArchiving(false);
     archivingRef.current = false;
   }
-}, [userId, graphPoints, injectionDay, timezone, router]);
+}, [userId, graphPoints, protocolAnchorDay, timezone, currentEffectiveness, router]);
 
   const handleOpenArchive = useCallback((): void => {
     router.push('/glp1-graph/archive', 'forward');
@@ -454,7 +444,7 @@ requestAnimationFrame(() => {
     );
   }
 
-  const rotatedDays = rotateWeekFromInjectionDay(injectionDay);
+  const rotatedDays = rotateWeekFromInjectionDay(protocolAnchorDay);
 
   return (
     <IonPage>
@@ -535,7 +525,7 @@ requestAnimationFrame(() => {
             {/* ===================== EFFECTIVENESS CARD ===================== */}
             <div className={styles.card}>
               <div className={styles.cardTitle}>
-                {protocolIsDaily ? 'Daily Medication Effectiveness' : 'Medication Effectiveness'}
+                {currentEffectiveness?.title ?? 'Medication Effectiveness'}
               </div>
 
               <div className={styles.glp1Row}>
@@ -544,11 +534,9 @@ requestAnimationFrame(() => {
                   ariaLabel={`Estimated medication effectiveness ${glp1Pct} percent`}
                 />
                 <div className={styles.glp1Text}>
-                  <strong>{medicationName}</strong>
+                  <strong>{currentEffectiveness?.label ?? 'Weekly GLP-1'}</strong>
                   <div className={styles.muted}>
-                    {protocolIsDaily
-                      ? 'Estimated daily coverage since your selected pill time'
-                      : 'Estimated effectiveness in your body since last dose'}
+                    {currentEffectiveness?.detail ?? 'Estimated medication effectiveness'}
                   </div>
                 </div>
               </div>
@@ -561,7 +549,7 @@ requestAnimationFrame(() => {
               <div ref={graphRef}>
                 <Glp1TrendGraph
                   points={graphPoints}
-                  injectionDay={injectionDay}
+                  injectionDay={protocolAnchorDay}
                   timezone={timezone}
                 />
               </div>
@@ -624,10 +612,10 @@ requestAnimationFrame(() => {
 
             {protocolIsDaily && (
               <div className={styles.card}>
-                <div className={styles.cardTitle}>Daily rhythm</div>
+                <div className={styles.cardTitle}>Daily pill rhythm</div>
                 <p className={styles.helperText}>
-                  Daily protocols use a 24-hour tracking rhythm. Log each dose from Protocols
-                  when you take it, or the estimate uses your selected daily pill time.
+                  Daily pill protocols use a 24-hour tracking rhythm. Log the pill from Protocols
+                  when you take it, or the estimate uses your usual daily pill time.
                 </p>
               </div>
             )}

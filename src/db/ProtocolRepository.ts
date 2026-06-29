@@ -350,7 +350,7 @@ export async function hasCompletePrimaryProtocol(userId: string): Promise<boolea
   if (!primary) return false;
   if (!primary.name || !primary.dose_label || !primary.dose_time) return false;
   if (primary.cadence_type === 'weekly') return Boolean(primary.anchor_day);
-  if (primary.cadence_type === 'daily') return Boolean(primary.review_anchor_day);
+  if (primary.cadence_type === 'daily') return true;
   return false;
 }
 
@@ -413,4 +413,24 @@ export async function listProtocolEventsForDay(
     [userId, start.toISOString(), end.toISOString()]
   );
   return rows(result).map(mapEvent);
+}
+
+export async function getLatestProtocolEvent(
+  userId: string,
+  protocolId: number
+): Promise<ProtocolEvent | null> {
+  await initProtocolTables();
+  const db = await getDb();
+  const result = await db.query(
+    `
+    SELECT *
+    FROM protocol_events
+    WHERE user_id = ?
+      AND protocol_id = ?
+    ORDER BY datetime(event_at) DESC, id DESC
+    LIMIT 1
+    `,
+    [userId, protocolId]
+  );
+  return rows(result).map(mapEvent)[0] ?? null;
 }
