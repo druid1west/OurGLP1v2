@@ -134,8 +134,8 @@ const PROFILE_PRIMARY_PROTOCOL_IDS = [
   'semaglutide',
   'tirzepatide',
   'liraglutide',
-  'daily-glp1-pill',
 ] as const;
+type PrimaryProtocolRhythm = 'weekly_injection' | 'daily_pill';
 
 const PROFILE_PRIMARY_PROTOCOLS = PROFILE_PRIMARY_PROTOCOL_IDS.map((id) => getProtocolPreset(id));
 
@@ -178,10 +178,6 @@ function protocolPresetForProfileMedication(name: string): ProtocolPreset | null
 
   const exact = PROTOCOL_PRESETS.find((preset) => preset.name.toLowerCase() === normalized);
   if (exact) return exact;
-
-  if (normalized.includes('pill') || normalized.includes('oral')) {
-    return getProtocolPreset('daily-glp1-pill');
-  }
 
   switch (medicationFamily(name)) {
     case 'semaglutide':
@@ -461,6 +457,7 @@ const Profile: React.FC = () => {
   const [currentEffectiveness, setCurrentEffectiveness] = useState<CurrentEffectiveness | null>(null);
   const [effectivenessRefreshKey, setEffectivenessRefreshKey] = useState(0);
   const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [profileProtocolRhythm, setProfileProtocolRhythm] = useState<PrimaryProtocolRhythm>('weekly_injection');
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -536,8 +533,8 @@ const Profile: React.FC = () => {
     [form.medication_name]
   );
 
-  const selectedProtocolIsDaily = selectedProtocolPreset?.cadenceType === 'daily';
-  const selectedProtocolIsWeekly = selectedProtocolPreset?.cadenceType === 'weekly';
+  const selectedProtocolIsDaily = profileProtocolRhythm === 'daily_pill';
+  const selectedProtocolIsWeekly = profileProtocolRhythm === 'weekly_injection';
 
   useEffect(() => {
     let cancelled = false;
@@ -742,6 +739,11 @@ const Profile: React.FC = () => {
         if (cancelled) return;
         setPrimaryProtocol(protocol);
         if (!protocol) return;
+        setProfileProtocolRhythm(
+          protocol.cadence_type === 'daily' || protocol.route_type === 'oral'
+            ? 'daily_pill'
+            : 'weekly_injection'
+        );
 
         setForm((prev) => ({
           ...prev,
@@ -1233,9 +1235,14 @@ useEffect(() => {
         protocolPreset &&
           protocolDose &&
           protocolTime &&
-          (protocolPreset.cadenceType !== 'weekly' || weeklyAnchorDay)
+          (!selectedProtocolIsWeekly || weeklyAnchorDay)
       );
-      const nextProtocolAnchorDay = protocolPreset?.cadenceType === 'weekly' ? weeklyAnchorDay : null;
+      const nextProtocolAnchorDay = selectedProtocolIsWeekly ? weeklyAnchorDay : null;
+      const nextProtocolRouteLabel = selectedProtocolIsWeekly ? 'Injection' : 'Oral';
+      const nextProtocolRouteType = selectedProtocolIsWeekly ? 'injection' as const : 'oral' as const;
+      const nextProtocolCadenceLabel = selectedProtocolIsWeekly ? 'Weekly' : 'Daily';
+      const nextProtocolCadenceType = selectedProtocolIsWeekly ? 'weekly' as const : 'daily' as const;
+      const nextProtocolEffectivenessModel = selectedProtocolIsWeekly ? 'weekly_glp1' as const : 'daily_24h' as const;
       const primaryProtocolChanged = Boolean(
         shouldSavePrimaryProtocol &&
           (
@@ -1244,8 +1251,8 @@ useEffect(() => {
             (primaryProtocol.dose_label ?? '') !== protocolDose ||
             (primaryProtocol.dose_time ?? '') !== protocolTime ||
             (primaryProtocol.anchor_day ?? null) !== nextProtocolAnchorDay ||
-            primaryProtocol.cadence_type !== protocolPreset?.cadenceType ||
-            primaryProtocol.route_type !== protocolPreset?.routeType
+            primaryProtocol.cadence_type !== nextProtocolCadenceType ||
+            primaryProtocol.route_type !== nextProtocolRouteType
           )
       );
 
@@ -1322,16 +1329,18 @@ useEffect(() => {
           kind: protocolPreset.kind,
           name: protocolPreset.name,
           doseLabel: protocolDose,
-          cadenceLabel: protocolPreset.defaultCadence,
-          routeLabel: protocolPreset.routeLabel,
-          routeType: protocolPreset.routeType,
-          cadenceType: protocolPreset.cadenceType,
+          cadenceLabel: nextProtocolCadenceLabel,
+          routeLabel: nextProtocolRouteLabel,
+          routeType: nextProtocolRouteType,
+          cadenceType: nextProtocolCadenceType,
           doseTime: protocolTime,
           anchorDay: nextProtocolAnchorDay,
-          reviewAnchorDay: protocolPreset.cadenceType === 'daily' ? 'Monday' : nextProtocolAnchorDay,
-          effectivenessModel: protocolPreset.effectivenessModel,
+          reviewAnchorDay: selectedProtocolIsDaily ? 'Monday' : nextProtocolAnchorDay,
+          effectivenessModel: nextProtocolEffectivenessModel,
           trackingFocus: protocolPreset.trackingFocus,
-          notes: protocolPreset.note,
+          notes: selectedProtocolIsDaily
+            ? `${protocolPreset.note} Daily pill rhythm selected by the user.`
+            : protocolPreset.note,
           isPrimary: true,
         });
         setPrimaryProtocol(await getPrimaryProtocol(user!.id));
@@ -1726,6 +1735,45 @@ const mainUIView = (
         <div className={styles.muted}>
           {currentEffectiveness?.detail ?? 'Estimated medication effectiveness'}
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    className={`${styles.statCard} ${styles.clickableCard} ${styles.protocolSummaryCard}`}
+    role="button"
+    tabIndex={0}
+    aria-label="Change or add protocol"
+    onClick={() => history.push('/protocols')}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        history.push('/protocols');
+      }
+    }}
+  >
+    <div className={styles.statTitle}>Primary Protocol</div>
+    <div className={styles.mutedSmall}>Tap to change or add protocol</div>
+    <div className={styles.protocolSummaryRows}>
+      <div>
+        <span>Medication</span>
+        <strong>{primaryProtocol?.name || form.medication_name || 'Not selected'}</strong>
+      </div>
+      <div>
+        <span>Type</span>
+        <strong>{selectedProtocolIsDaily ? 'Daily pill' : 'Weekly injection'}</strong>
+      </div>
+      <div>
+        <span>Dose</span>
+        <strong>{primaryProtocol?.dose_label || form.medication_dose || 'Not set'}</strong>
+      </div>
+      <div>
+        <span>{selectedProtocolIsDaily ? 'Dose time' : 'Anchor'}</span>
+        <strong>
+          {selectedProtocolIsDaily
+            ? safeHHMM(primaryProtocol?.dose_time ?? form.injection_time) || '08:00'
+            : `${toShortDay(primaryProtocol?.anchor_day) || form.injection_day || 'Mon'} ${safeHHMM(primaryProtocol?.dose_time ?? form.injection_time) || '08:00'}`}
+        </strong>
       </div>
     </div>
   </div>
@@ -2165,6 +2213,49 @@ const mainUIView = (
     </option>
   ))}
 </select>
+
+<br />
+<br />
+
+<label className={styles.strongLabel}>
+  How do you take it?
+</label>
+<div className={styles.protocolRhythmGrid} role="radiogroup" aria-label="Primary protocol rhythm">
+  <button
+    type="button"
+    className={selectedProtocolIsWeekly ? styles.protocolRhythmActive : ''}
+    onClick={() => {
+      setProfileProtocolRhythm('weekly_injection');
+      setForm((prev) => ({
+        ...prev,
+        injection_day: prev.injection_day || 'Mon',
+        injection_time: prev.injection_time || '08:00',
+      }));
+    }}
+    role="radio"
+    aria-checked={selectedProtocolIsWeekly}
+  >
+    <strong>Weekly injection</strong>
+    <span>Uses injection day and time as the weekly anchor.</span>
+  </button>
+  <button
+    type="button"
+    className={selectedProtocolIsDaily ? styles.protocolRhythmActive : ''}
+    onClick={() => {
+      setProfileProtocolRhythm('daily_pill');
+      setForm((prev) => ({
+        ...prev,
+        injection_day: '',
+        injection_time: prev.injection_time || '08:00',
+      }));
+    }}
+    role="radio"
+    aria-checked={selectedProtocolIsDaily}
+  >
+    <strong>Daily pill</strong>
+    <span>Uses dose time for 24-hour effectiveness and Monday-Sunday reviews.</span>
+  </button>
+</div>
 
 <br />
 <br />

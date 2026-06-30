@@ -127,6 +127,77 @@
   color: var(--text-heading);
 }
 
+.protocolSummaryCard {
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.protocolSummaryRows {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.protocolSummaryRows div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.protocolSummaryRows span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.protocolSummaryRows strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.protocolRhythmGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.protocolRhythmGrid button {
+  min-height: 78px;
+  padding: 11px;
+  border: 2px solid var(--border-primary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.protocolRhythmGrid strong,
+.protocolRhythmGrid span {
+  display: block;
+}
+
+.protocolRhythmGrid strong {
+  color: var(--text-heading);
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.protocolRhythmGrid span {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.protocolRhythmActive {
+  border-color: var(--accent-primary, #2563eb) !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
 /* Badge pill */
 .badgePill {
   padding: 2px 8px;

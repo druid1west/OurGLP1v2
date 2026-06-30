@@ -32,7 +32,10 @@ import {
   getProtocolPreset,
   PROTOCOL_KIND_LABELS,
   PROTOCOL_PRESETS,
+  type ProtocolCadenceType,
+  type ProtocolEffectivenessModel,
   type ProtocolKind,
+  type ProtocolRouteType,
 } from '../lib/protocolCatalog';
 import { logger } from '../utils/logger';
 import styles from './Protocols.module.css';
@@ -48,6 +51,33 @@ type ProtocolDraft = {
   routeLabel: string;
   notes: string;
 };
+
+const ADD_PROTOCOL_PRESETS = PROTOCOL_PRESETS.filter((preset) => preset.id !== 'daily-glp1-pill');
+
+function routeTypeFromLabel(label: string): ProtocolRouteType {
+  const normalized = label.trim().toLowerCase();
+  if (normalized.includes('inject')) return 'injection';
+  if (normalized.includes('oral')) return 'oral';
+  if (normalized.includes('topical')) return 'topical';
+  if (normalized.includes('sublingual')) return 'sublingual';
+  return 'other';
+}
+
+function cadenceTypeFromLabel(label: string): ProtocolCadenceType {
+  const normalized = label.trim().toLowerCase();
+  if (normalized.includes('twice')) return 'twice_weekly';
+  if (normalized.includes('daily')) return 'daily';
+  if (normalized.includes('weekly')) return 'weekly';
+  if (normalized.includes('cycle') || normalized.includes('custom')) return 'custom';
+  return 'as_directed';
+}
+
+function effectivenessModelForDraft(kind: ProtocolKind, cadenceType: ProtocolCadenceType): ProtocolEffectivenessModel {
+  if (kind !== 'glp1') return 'none';
+  if (cadenceType === 'daily') return 'daily_24h';
+  if (cadenceType === 'weekly') return 'weekly_glp1';
+  return 'none';
+}
 
 function localYmd(date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -136,6 +166,9 @@ const Protocols: React.FC = () => {
     setMessage('');
     try {
       const preset = getProtocolPreset(draft.presetId);
+      const routeType = routeTypeFromLabel(draft.routeLabel);
+      const cadenceType = cadenceTypeFromLabel(draft.cadenceLabel);
+      const effectivenessModel = effectivenessModelForDraft(draft.kind, cadenceType);
       await createProtocol({
         userId: user.id,
         kind: draft.kind,
@@ -143,10 +176,10 @@ const Protocols: React.FC = () => {
         doseLabel: draft.doseLabel,
         cadenceLabel: draft.cadenceLabel,
         routeLabel: draft.routeLabel,
-        routeType: preset.routeType,
-        cadenceType: preset.cadenceType,
-        reviewAnchorDay: preset.cadenceType === 'daily' ? 'Monday' : null,
-        effectivenessModel: preset.effectivenessModel,
+        routeType,
+        cadenceType,
+        reviewAnchorDay: cadenceType === 'daily' ? 'Monday' : null,
+        effectivenessModel,
         trackingFocus: preset.trackingFocus,
         notes: draft.notes,
         isPrimary: activeProtocols.length === 0,
@@ -370,13 +403,41 @@ const Protocols: React.FC = () => {
                   value={draft.presetId}
                   onChange={(event) => handlePresetChange(event.target.value)}
                 >
-                  {PROTOCOL_PRESETS.map((preset) => (
+                  {ADD_PROTOCOL_PRESETS.map((preset) => (
                     <option key={preset.id} value={preset.id}>
                       {preset.name}
                     </option>
                   ))}
                 </select>
               </label>
+
+              {draft.kind === 'glp1' && (
+                <div className={styles.protocolRhythmField}>
+                  <span>How do you take it?</span>
+                  <div className={styles.protocolRhythmGrid} role="radiogroup" aria-label="Protocol rhythm">
+                    <button
+                      type="button"
+                      className={draft.cadenceLabel === 'Weekly' && draft.routeLabel === 'Injection' ? styles.protocolRhythmActive : ''}
+                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Weekly', routeLabel: 'Injection' })}
+                      role="radio"
+                      aria-checked={draft.cadenceLabel === 'Weekly' && draft.routeLabel === 'Injection'}
+                    >
+                      <strong>Weekly injection</strong>
+                      <span>Weekly anchor and injection timing.</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={draft.cadenceLabel === 'Daily' && draft.routeLabel === 'Oral' ? styles.protocolRhythmActive : ''}
+                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Daily', routeLabel: 'Oral' })}
+                      role="radio"
+                      aria-checked={draft.cadenceLabel === 'Daily' && draft.routeLabel === 'Oral'}
+                    >
+                      <strong>Daily pill</strong>
+                      <span>Daily dose time and 24-hour effectiveness.</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <label>
                 <span>Protocol name</span>

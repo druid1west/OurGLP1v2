@@ -147,7 +147,8 @@ const weekdayOptions: WeekdayFull[] = [
   'Sunday',
 ];
 
-const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide', 'daily-glp1-pill'] as const;
+const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide'] as const;
+type PrimaryProtocolRhythm = 'weekly_injection' | 'daily_pill';
 
 function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liraglutide' | null {
   const normalized = name.trim().toLowerCase();
@@ -300,6 +301,7 @@ const Coach: React.FC = () => {
   const [savedAccountLoading, setSavedAccountLoading] = useState(true);
   const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
   const [protocolPresetId, setProtocolPresetId] = useState<string>('semaglutide');
+  const [protocolRhythm, setProtocolRhythm] = useState<PrimaryProtocolRhythm>('weekly_injection');
   const [protocolDose, setProtocolDose] = useState<string>('');
   const [customProtocolDose, setCustomProtocolDose] = useState<string>('');
   const [protocolDoseTime, setProtocolDoseTime] = useState<string>('08:00');
@@ -333,6 +335,8 @@ const Coach: React.FC = () => {
   const selectedProtocolPreset: ProtocolPreset = getProtocolPreset(protocolPresetId);
   const selectedProtocolDose = protocolDose === 'Other' ? customProtocolDose.trim() : protocolDose.trim();
   const canSavePrimaryProtocol = Boolean(selectedProtocolDose && protocolDoseTime);
+  const weeklyProtocol = protocolRhythm === 'weekly_injection';
+  const dailyProtocol = protocolRhythm === 'daily_pill';
 
   const isSetupStepSatisfied = useCallback((step: SetupStep): boolean => {
     if (!coachProfile && step !== 'account') return false;
@@ -720,25 +724,30 @@ const Coach: React.FC = () => {
     setProtocolSetupMessage('');
     try {
       const preset = selectedProtocolPreset;
-      const isWeekly = preset.cadenceType === 'weekly';
+      const isWeekly = weeklyProtocol;
       const reviewAnchorDay = isWeekly ? protocolAnchorDay : 'Monday';
       const anchorDay = isWeekly ? protocolAnchorDay : null;
+      const routeLabel = isWeekly ? 'Injection' : 'Oral';
+      const routeType = isWeekly ? 'injection' as const : 'oral' as const;
+      const cadenceLabel = isWeekly ? 'Weekly' : 'Daily';
+      const cadenceType = isWeekly ? 'weekly' as const : 'daily' as const;
+      const effectivenessModel = isWeekly ? 'weekly_glp1' as const : 'daily_24h' as const;
 
       await createProtocol({
         userId,
         kind: preset.kind,
         name: preset.name,
         doseLabel: selectedProtocolDose,
-        cadenceLabel: preset.defaultCadence,
-        routeLabel: preset.routeLabel,
-        routeType: preset.routeType,
-        cadenceType: preset.cadenceType,
+        cadenceLabel,
+        routeLabel,
+        routeType,
+        cadenceType,
         doseTime: protocolDoseTime,
         anchorDay,
         reviewAnchorDay,
-        effectivenessModel: preset.effectivenessModel,
+        effectivenessModel,
         trackingFocus: preset.trackingFocus,
-        notes: preset.note,
+        notes: isWeekly ? preset.note : `${preset.note} Daily pill rhythm selected by the user.`,
         isPrimary: true,
       });
 
@@ -940,7 +949,7 @@ const Coach: React.FC = () => {
     setProtocolDoseTime('08:00');
     setProtocolAnchorDay('Monday');
     setProtocolTakenToday(false);
-    setProtocolSetupMessage(preset.cadenceType === 'daily' ? 'Daily routines use Monday-Sunday review weeks by default.' : '');
+    setProtocolSetupMessage(preset.note);
   };
 
   if (setupStatusLoading || savedAccountLoading) {
@@ -968,7 +977,6 @@ const Coach: React.FC = () => {
     const needsAccount = !setupStatus?.hasAccount;
     const needsProtocol = setupStatus?.hasAccount && !setupStatus.hasPrimaryProtocol;
     const doseOptions = selectedProtocolPreset.doseOptions ?? ['Other'];
-    const weeklyProtocol = selectedProtocolPreset.cadenceType === 'weekly';
 
     return (
       <IonPage>
@@ -1114,6 +1122,40 @@ const Coach: React.FC = () => {
                         </option>
                       ))}
                     </select>
+
+                    <label className={styles.setupLabel}>
+                      How do you take it?
+                    </label>
+                    <div className={styles.protocolRhythmGrid} role="radiogroup" aria-label="Primary protocol rhythm">
+                      <button
+                        type="button"
+                        className={weeklyProtocol ? styles.protocolRhythmActive : ''}
+                        onClick={() => {
+                          setProtocolRhythm('weekly_injection');
+                          setProtocolAnchorDay('Monday');
+                          setProtocolSetupMessage('Weekly injection uses your injection day as the anchor for Today, reminders, effectiveness, and reviews.');
+                        }}
+                        role="radio"
+                        aria-checked={weeklyProtocol}
+                      >
+                        <strong>Weekly injection</strong>
+                        <span>Use injection day and time as the weekly anchor.</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={dailyProtocol ? styles.protocolRhythmActive : ''}
+                        onClick={() => {
+                          setProtocolRhythm('daily_pill');
+                          setProtocolAnchorDay('Monday');
+                          setProtocolSetupMessage('Daily pill uses the dose time for 24-hour effectiveness and Monday-Sunday reviews.');
+                        }}
+                        role="radio"
+                        aria-checked={dailyProtocol}
+                      >
+                        <strong>Daily pill</strong>
+                        <span>Use daily dose time and a Monday-Sunday review week.</span>
+                      </button>
+                    </div>
 
                     <label className={styles.setupLabel} htmlFor="primaryProtocolDose">
                       Dose label
