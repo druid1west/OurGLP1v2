@@ -1,6 +1,6 @@
 // BottomNav.tsx
 import React from 'react';
-import { Link, useHistory, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useIonRouter, type RouterDirection } from '@ionic/react';
 import { useAuth } from '../context/useAuth';
 
@@ -42,7 +42,6 @@ const baseLinkStyle: React.CSSProperties = {
 const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = false }) => {
   const { user, isPro, logout } = useAuth();
   const ion = useIonRouter();
-  const history = useHistory();
   const location = useLocation();
   const isLoggedInNav = Boolean(user && !setupOnly);
   const isSetupNav = Boolean(setupOnly);
@@ -77,13 +76,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = 
     (path: string, replace = false): void => {
       const dir: NavDirection = replace ? 'root' : 'forward';
       ion.push(path, dir);
-      if (replace) {
-        history.replace(path);
-      } else {
-        history.push(path);
-      }
     },
-    [ion, history]
+    [ion]
   );
 
   const handleLogout = async (): Promise<void> => {

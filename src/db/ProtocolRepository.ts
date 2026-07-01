@@ -56,6 +56,10 @@ export type CreateProtocolInput = {
   isPrimary?: boolean;
 };
 
+export type UpdateProtocolInput = CreateProtocolInput & {
+  protocolId: number;
+};
+
 type QueryRow = Record<string, unknown>;
 type QueryResult = { values?: unknown[] } | null | undefined;
 
@@ -323,6 +327,63 @@ export async function createProtocol(input: CreateProtocolInput): Promise<void> 
       input.isPrimary ? 1 : 0,
       now,
       now,
+    ]
+  );
+}
+
+export async function updateProtocol(input: UpdateProtocolInput): Promise<void> {
+  await initProtocolTables();
+  const db = await getDb();
+  const focus = JSON.stringify(input.trackingFocus ?? []);
+  const now = new Date().toISOString();
+
+  if (input.isPrimary) {
+    await db.run(
+      `UPDATE protocols SET is_primary = 0, updated_at = ? WHERE user_id = ? AND id != ?`,
+      [now, input.userId, input.protocolId]
+    );
+  }
+
+  await db.run(
+    `
+    UPDATE protocols
+    SET
+      kind = ?,
+      name = ?,
+      dose_label = ?,
+      cadence_label = ?,
+      route_label = ?,
+      route_type = ?,
+      cadence_type = ?,
+      dose_time = ?,
+      anchor_day = ?,
+      review_anchor_day = ?,
+      effectiveness_model = ?,
+      tracking_focus_json = ?,
+      notes = ?,
+      is_primary = ?,
+      updated_at = ?
+    WHERE id = ?
+      AND user_id = ?
+    `,
+    [
+      input.kind,
+      input.name.trim(),
+      input.doseLabel?.trim() || null,
+      input.cadenceLabel?.trim() || null,
+      input.routeLabel?.trim() || null,
+      input.routeType ?? 'other',
+      input.cadenceType ?? 'as_directed',
+      input.doseTime?.trim() || null,
+      input.anchorDay?.trim() || null,
+      input.reviewAnchorDay?.trim() || null,
+      input.effectivenessModel ?? 'none',
+      focus,
+      input.notes?.trim() || null,
+      input.isPrimary ? 1 : 0,
+      now,
+      input.protocolId,
+      input.userId,
     ]
   );
 }

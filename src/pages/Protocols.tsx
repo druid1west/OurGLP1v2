@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Pause,
+  Pencil,
   PlayCircle,
   Plus,
   RefreshCw,
@@ -25,6 +26,7 @@ import {
   listProtocols,
   logProtocolEvent,
   setProtocolActive,
+  updateProtocol,
   type Protocol,
   type ProtocolEvent,
 } from '../db/ProtocolRepository';
@@ -49,10 +51,13 @@ type ProtocolDraft = {
   doseLabel: string;
   cadenceLabel: string;
   routeLabel: string;
+  doseTime: string;
+  anchorDay: string;
   notes: string;
 };
 
 const ADD_PROTOCOL_PRESETS = PROTOCOL_PRESETS.filter((preset) => preset.id !== 'daily-glp1-pill');
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
 function routeTypeFromLabel(label: string): ProtocolRouteType {
   const normalized = label.trim().toLowerCase();
@@ -96,7 +101,43 @@ function draftFromPreset(presetId: string): ProtocolDraft {
     doseLabel: '',
     cadenceLabel: preset.defaultCadence,
     routeLabel: preset.routeLabel,
+    doseTime: '08:00',
+    anchorDay: preset.cadenceType === 'weekly' ? 'Monday' : '',
     notes: preset.note,
+  };
+}
+
+function presetIdForProtocol(protocol: Protocol): string {
+  const exact = PROTOCOL_PRESETS.find((preset) => preset.name === protocol.name);
+  if (exact) return exact.id;
+  const sameKind = ADD_PROTOCOL_PRESETS.find((preset) => preset.kind === protocol.kind);
+  return sameKind?.id ?? 'custom';
+}
+
+function draftFromProtocol(protocol: Protocol): ProtocolDraft {
+  const presetId = presetIdForProtocol(protocol);
+  return {
+    presetId,
+    kind: protocol.kind,
+    name: protocol.name,
+    doseLabel: protocol.dose_label ?? '',
+    cadenceLabel:
+      protocol.cadence_label ??
+      (protocol.cadence_type === 'daily'
+        ? 'Daily'
+        : protocol.cadence_type === 'weekly'
+          ? 'Weekly'
+          : 'As directed'),
+    routeLabel:
+      protocol.route_label ??
+      (protocol.route_type === 'oral'
+        ? 'Oral'
+        : protocol.route_type === 'injection'
+          ? 'Injection'
+          : 'As directed'),
+    doseTime: protocol.dose_time?.slice(0, 5) || '08:00',
+    anchorDay: protocol.anchor_day ?? '',
+    notes: protocol.notes ?? getProtocolPreset(presetId).note,
   };
 }
 
@@ -113,6 +154,7 @@ const Protocols: React.FC = () => {
   const [protocols, setProtocols] = useState<Protocol[]>([]);
   const [eventsToday, setEventsToday] = useState<ProtocolEvent[]>([]);
   const [draft, setDraft] = useState<ProtocolDraft>(() => draftFromPreset('semaglutide'));
+  const [editingProtocolId, setEditingProtocolId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -154,7 +196,18 @@ const Protocols: React.FC = () => {
     setDraft(draftFromPreset(presetId));
   };
 
-  const handleAddProtocol = async (): Promise<void> => {
+  const resetDraft = (): void => {
+    setEditingProtocolId(null);
+    setDraft(draftFromPreset('semaglutide'));
+  };
+
+  const handleEditProtocol = (protocol: Protocol): void => {
+    setEditingProtocolId(protocol.id);
+    setDraft(draftFromProtocol(protocol));
+    setMessage(`Editing ${protocol.name}.`);
+  };
+
+  const handleSaveProtocol = async (): Promise<void> => {
     if (!user?.id || busy) return;
     const name = draft.name.trim();
     if (!name) {
@@ -162,14 +215,26 @@ const Protocols: React.FC = () => {
       return;
     }
 
+    const routeType = routeTypeFromLabel(draft.routeLabel);
+    const cadenceType = cadenceTypeFromLabel(draft.cadenceLabel);
+    const isWeeklyGlp1 = draft.kind === 'glp1' && cadenceType === 'weekly';
+    const isDailyGlp1 = draft.kind === 'glp1' && cadenceType === 'daily';
+    if ((isWeeklyGlp1 || isDailyGlp1) && !draft.doseTime) {
+      setMessage('Add the usual dose time first.');
+      return;
+    }
+    if (isWeeklyGlp1 && !draft.anchorDay) {
+      setMessage('Choose the weekly anchor day first.');
+      return;
+    }
+
     setBusy(true);
     setMessage('');
     try {
       const preset = getProtocolPreset(draft.presetId);
-      const routeType = routeTypeFromLabel(draft.routeLabel);
-      const cadenceType = cadenceTypeFromLabel(draft.cadenceLabel);
       const effectivenessModel = effectivenessModelForDraft(draft.kind, cadenceType);
-      await createProtocol({
+      const isEditing = editingProtocolId !== null;
+      const protocolInput = {
         userId: user.id,
         kind: draft.kind,
         name,
@@ -178,21 +243,36 @@ const Protocols: React.FC = () => {
         routeLabel: draft.routeLabel,
         routeType,
         cadenceType,
+        doseTime: isWeeklyGlp1 || isDailyGlp1 ? draft.doseTime : null,
+        anchorDay: isWeeklyGlp1 ? draft.anchorDay : null,
         reviewAnchorDay: cadenceType === 'daily' ? 'Monday' : null,
         effectivenessModel,
         trackingFocus: preset.trackingFocus,
         notes: draft.notes,
         isPrimary: activeProtocols.length === 0,
-      });
-      setDraft(draftFromPreset(draft.presetId));
-      setMessage('Protocol added.');
+      };
+
+      if (isEditing) {
+        const existing = protocols.find((protocol) => protocol.id === editingProtocolId);
+        await updateProtocol({
+          ...protocolInput,
+          protocolId: editingProtocolId,
+          isPrimary: existing?.is_primary ?? false,
+        });
+        setMessage('Protocol updated.');
+      } else {
+        await createProtocol(protocolInput);
+        setMessage('Protocol added.');
+      }
+
+      resetDraft();
       window.dispatchEvent(new Event('protocols:changed'));
       await loadProtocols();
     } catch (error) {
-      logger.warn('[Protocols] add failed', {
+      logger.warn('[Protocols] save failed', {
         msg: error instanceof Error ? error.message : String(error),
       });
-      setMessage('Could not add that protocol yet.');
+      setMessage('Could not save that protocol yet.');
     } finally {
       setBusy(false);
     }
@@ -284,11 +364,25 @@ const Protocols: React.FC = () => {
     [eventsToday]
   );
 
-  const renderProtocolCard = (protocol: Protocol): React.ReactNode => (
-    <article
-      className={`${styles.protocolCard} ${protocol.is_active ? '' : styles.pausedProtocolCard}`}
-      key={protocol.id}
-    >
+  const renderProtocolCard = (protocol: Protocol): React.ReactNode => {
+    const timingLabel =
+      protocol.cadence_type === 'weekly'
+        ? 'Anchor'
+        : protocol.cadence_type === 'daily'
+          ? 'Dose time'
+          : 'Timing';
+    const timingValue =
+      protocol.cadence_type === 'weekly'
+        ? `${protocol.anchor_day ?? 'Not set'} ${protocol.dose_time ?? ''}`.trim()
+        : protocol.cadence_type === 'daily'
+          ? protocol.dose_time ?? 'Not set'
+          : protocol.dose_time ?? protocol.anchor_day ?? 'As directed';
+
+    return (
+      <article
+        className={`${styles.protocolCard} ${protocol.is_active ? '' : styles.pausedProtocolCard}`}
+        key={protocol.id}
+      >
       <div className={styles.protocolTop}>
         <span>{PROTOCOL_KIND_LABELS[protocol.kind] ?? 'Protocol'}</span>
         {protocol.is_active ? (
@@ -319,6 +413,10 @@ const Protocols: React.FC = () => {
           <span>Route</span>
           <strong>{protocol.route_label || 'As directed'}</strong>
         </div>
+        <div>
+          <span>{timingLabel}</span>
+          <strong>{timingValue}</strong>
+        </div>
       </div>
 
       {protocol.tracking_focus.length > 0 && (
@@ -335,6 +433,10 @@ const Protocols: React.FC = () => {
             <button type="button" onClick={() => void handleLog(protocol)} disabled={busy}>
               <Activity size={16} />
               Log today
+            </button>
+            <button type="button" onClick={() => handleEditProtocol(protocol)} disabled={busy}>
+              <Pencil size={16} />
+              Edit
             </button>
             <button type="button" onClick={() => void handlePause(protocol)} disabled={busy}>
               <Pause size={16} />
@@ -363,7 +465,8 @@ const Protocols: React.FC = () => {
         </button>
       </div>
     </article>
-  );
+    );
+  };
 
   return (
     <IonPage>
@@ -391,8 +494,12 @@ const Protocols: React.FC = () => {
           <section className={styles.formPanel}>
             <div className={styles.sectionHeader}>
               <div>
-                <h2>Add protocol</h2>
-                <p>Pick a preset, then record the exact label your routine uses.</p>
+                <h2>{editingProtocolId ? 'Edit protocol' : 'Add protocol'}</h2>
+                <p>
+                  {editingProtocolId
+                    ? 'Correct the active protocol without removing its history.'
+                    : 'Pick a preset, then record the exact label your routine uses.'}
+                </p>
               </div>
             </div>
 
@@ -418,7 +525,7 @@ const Protocols: React.FC = () => {
                     <button
                       type="button"
                       className={draft.cadenceLabel === 'Weekly' && draft.routeLabel === 'Injection' ? styles.protocolRhythmActive : ''}
-                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Weekly', routeLabel: 'Injection' })}
+                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Weekly', routeLabel: 'Injection', anchorDay: draft.anchorDay || 'Monday' })}
                       role="radio"
                       aria-checked={draft.cadenceLabel === 'Weekly' && draft.routeLabel === 'Injection'}
                     >
@@ -428,7 +535,7 @@ const Protocols: React.FC = () => {
                     <button
                       type="button"
                       className={draft.cadenceLabel === 'Daily' && draft.routeLabel === 'Oral' ? styles.protocolRhythmActive : ''}
-                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Daily', routeLabel: 'Oral' })}
+                      onClick={() => setDraft({ ...draft, cadenceLabel: 'Daily', routeLabel: 'Oral', anchorDay: '' })}
                       role="radio"
                       aria-checked={draft.cadenceLabel === 'Daily' && draft.routeLabel === 'Oral'}
                     >
@@ -485,6 +592,35 @@ const Protocols: React.FC = () => {
                 </select>
               </label>
 
+              {draft.kind === 'glp1' &&
+                ['daily', 'weekly'].includes(cadenceTypeFromLabel(draft.cadenceLabel)) && (
+                <label>
+                  <span>Dose time</span>
+                  <input
+                    type="time"
+                    value={draft.doseTime}
+                    onChange={(event) => setDraft({ ...draft, doseTime: event.target.value })}
+                  />
+                </label>
+              )}
+
+              {draft.kind === 'glp1' && cadenceTypeFromLabel(draft.cadenceLabel) === 'weekly' && (
+                <label>
+                  <span>Weekly anchor day</span>
+                  <select
+                    value={draft.anchorDay}
+                    onChange={(event) => setDraft({ ...draft, anchorDay: event.target.value })}
+                  >
+                    <option value="">Select day</option>
+                    {WEEKDAYS.map((day) => (
+                      <option key={day} value={day}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+
               <label className={styles.fullField}>
                 <span>Notes</span>
                 <textarea
@@ -498,12 +634,22 @@ const Protocols: React.FC = () => {
 
             <IonButton
               className={styles.primaryButton}
-              onClick={() => void handleAddProtocol()}
+              onClick={() => void handleSaveProtocol()}
               disabled={busy}
             >
-              <Plus size={17} />
-              Add protocol
+              {editingProtocolId ? <Pencil size={17} /> : <Plus size={17} />}
+              {editingProtocolId ? 'Save changes' : 'Add protocol'}
             </IonButton>
+            {editingProtocolId && (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={resetDraft}
+                disabled={busy}
+              >
+                Cancel edit
+              </button>
+            )}
           </section>
 
           <section className={styles.listPanel}>

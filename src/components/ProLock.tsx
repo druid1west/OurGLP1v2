@@ -1,6 +1,7 @@
 // src/components/ProLock.tsx
 import React from 'react';
 import { LockKeyhole } from 'lucide-react';
+import { useHistory } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import styles from './ProLock.module.css';
 
@@ -10,6 +11,7 @@ export function ProLock({
   onClick
 }: { children: React.ReactNode; cta?: string; onClick?: () => void }) {
   const { isPro } = useAuth();
+  const history = useHistory();
   if (isPro) return <>{children}</>;
 
   return (
@@ -17,7 +19,7 @@ export function ProLock({
       <div className={styles.dimmedContent}>{children}</div>
       <button
         type="button"
-        onClick={onClick ?? (() => (window.location.href = '/paywall'))}
+        onClick={onClick ?? (() => history.push('/paywall'))}
         className={styles.lockButton}
       >
         <LockKeyhole size={16} aria-hidden />

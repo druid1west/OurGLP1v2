@@ -139,21 +139,19 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Initial hydration
+  // Initial hydration. Keep this independent from entitlement refreshes so
+  // native SQLite reads cannot re-trigger session hydration on every user merge.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       logger.debug('🚀 [AuthContext] mount → hydrate');
       await refreshUser();
-      if (!cancelled) {
-        // After user is known, sync entitlements from DB
-        await refreshEntitlements();
-      }
+      if (cancelled) return;
     })();
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, refreshEntitlements]);
+  }, [refreshUser]);
 
   // Re-hydrate on login/register/logout via event bus
   useEffect(() => onAuthChanged(async () => {
@@ -230,5 +228,4 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default AuthProvider;
-
 

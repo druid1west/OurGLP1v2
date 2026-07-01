@@ -12,6 +12,8 @@ interface PrivateRouteProps extends RouteProps {
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...rest }) => {
   const { user, loading, refreshUser } = useAuth();
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? '';
   const [requestedRefresh, setRequestedRefresh] = useState<boolean>(false);
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [setupLoading, setSetupLoading] = useState<boolean>(false);
@@ -25,14 +27,15 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...re
 
   useEffect(() => {
     let cancelled = false;
-    if (!user?.id || loading) {
+    if (!userId || loading) {
       setSetupStatus(null);
       setSetupLoading(false);
       return;
     }
 
     setSetupLoading(true);
-    void getSetupStatus(user)
+    const setupUser = { id: userId, email: userEmail } as Parameters<typeof getSetupStatus>[0];
+    void getSetupStatus(setupUser)
       .then((status) => {
         if (!cancelled) setSetupStatus(status);
       })
@@ -43,7 +46,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component, ...re
     return () => {
       cancelled = true;
     };
-  }, [loading, user]);
+  }, [loading, userId, userEmail]);
 
   if (loading || (!user && requestedRefresh) || setupLoading || (user && setupStatus === null)) {
     return (

@@ -1208,7 +1208,7 @@ useEffect(() => {
     emitAuthChanged(null);
     if (result.ok) {
       alert('Your account and all data on this device have been deleted.');
-      window.location.replace('/welcome');
+      history.replace('/welcome');
     } else {
       alert(`Deletion completed with issues:\n\n${result.errors.join('\n')}`);
     }
@@ -1441,6 +1441,28 @@ useEffect(() => {
     return [currentDose, ...medicationDoseOptions];
   }, [form.medication_dose, medicationDoseOptions]);
   const glp1Pct = currentEffectiveness?.percent ?? 0;
+  const effectivenessIsDaily =
+    currentEffectiveness?.model === 'daily' ||
+    primaryProtocol?.effectiveness_model === 'daily_24h' ||
+    selectedProtocolIsDaily;
+  const effectivenessFallbackTitle = effectivenessIsDaily
+    ? 'Daily Pill Effectiveness'
+    : 'Weekly Injection Effectiveness';
+  const effectivenessFallbackLabel = effectivenessIsDaily
+    ? `Daily pill${form.medication_dose ? ` - ${form.medication_dose}` : ''}`
+    : `${form.medication_name || 'Weekly GLP-1'}${form.medication_dose ? ` - ${form.medication_dose}` : ''}`;
+  const effectivenessFallbackDetail = effectivenessIsDaily
+    ? `Estimated 24-hour coverage from your usual ${safeHHMM(primaryProtocol?.dose_time ?? form.injection_time) || '08:00'} pill time`
+    : 'Estimated weekly injection effectiveness since the scheduled dose';
+  const effectivenessTitle = currentEffectiveness?.title ?? effectivenessFallbackTitle;
+  const effectivenessLabel =
+    currentEffectiveness && currentEffectiveness.model === (effectivenessIsDaily ? 'daily' : 'weekly')
+      ? currentEffectiveness.label
+      : effectivenessFallbackLabel;
+  const effectivenessDetail =
+    currentEffectiveness && currentEffectiveness.model === (effectivenessIsDaily ? 'daily' : 'weekly')
+      ? currentEffectiveness.detail
+      : effectivenessFallbackDetail;
 
   
     const bmiClass =
@@ -1721,7 +1743,7 @@ const mainUIView = (
       }
     }}
   >
-    <div className={styles.statTitle}>{currentEffectiveness?.title ?? 'Medication Effectiveness'}</div>
+    <div className={styles.statTitle}>{effectivenessTitle}</div>
     <div className={styles.mutedSmall}>Tap to view detailed effectiveness</div>
     <div aria-hidden className={styles.endSpacer} />
 
@@ -1733,11 +1755,11 @@ const mainUIView = (
 
       <div className={styles.glp1Text}>
         <div>
-          <strong>{currentEffectiveness?.label ?? 'Weekly GLP-1'}</strong>
+          <strong>{effectivenessLabel}</strong>
         </div>
 
         <div className={styles.muted}>
-          {currentEffectiveness?.detail ?? 'Estimated medication effectiveness'}
+          {effectivenessDetail}
         </div>
       </div>
     </div>
