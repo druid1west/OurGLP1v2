@@ -1428,8 +1428,12 @@ useEffect(() => {
   // Derived values
   const safeBmi = toNum(bmi, 0);
   const medicationDoseOptions = useMemo(
-    () => doseOptionsForMedication(form.medication_name),
-    [form.medication_name]
+    () => (
+      selectedProtocolIsDaily
+        ? getProtocolPreset('daily-glp1-pill').doseOptions?.filter((dose) => dose !== 'Other') ?? []
+        : doseOptionsForMedication(form.medication_name)
+    ),
+    [form.medication_name, selectedProtocolIsDaily]
   );
   const visibleMedicationDoseOptions = useMemo(() => {
     const currentDose = form.medication_dose.trim();

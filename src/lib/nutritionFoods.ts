@@ -2,6 +2,7 @@ export type NutritionFood = {
   id: string;
   name: string;
   servingLabel: string;
+  category?: string;
   servingOz?: number;
   servingGrams?: number;
   protein: number;
@@ -41,6 +42,29 @@ export const NUTRITION_FOODS: NutritionFood[] = [
   { id: 'protein-bar', name: 'Protein bar', servingLabel: '1 bar / approx. 60 g', servingGrams: 60, protein: 20, carbs: 20, fat: 7, calories: 220 },
   { id: 'jerky-30g', name: 'Beef jerky', servingLabel: '1 oz / 30 g', servingOz: 1, servingGrams: 30, protein: 10, carbs: 3, fat: 1, calories: 70 },
   { id: 'rotisserie-chicken-100g', name: 'Rotisserie chicken', servingLabel: '100 g / 3.5 oz', servingOz: 3.5, servingGrams: 100, protein: 27, carbs: 0, fat: 9, calories: 190 },
+];
+
+export const NUTRITION_MEALS: NutritionFood[] = [
+  { id: 'meal-greek-yogurt-berries-chia', category: 'Light meal', name: 'Greek yogurt, berries & chia', servingLabel: '1 bowl', protein: 24, carbs: 24, fat: 5, calories: 240 },
+  { id: 'meal-protein-shake-banana', category: 'Easy protein', name: 'Protein shake & banana', servingLabel: '1 shake', protein: 30, carbs: 32, fat: 3, calories: 270 },
+  { id: 'meal-egg-bites-cottage-cheese', category: 'Low carb', name: 'Egg bites & cottage cheese', servingLabel: '1 small plate', protein: 28, carbs: 6, fat: 14, calories: 270 },
+  { id: 'meal-chicken-salad-bowl', category: 'Low carb', name: 'Chicken salad bowl', servingLabel: '1 bowl', protein: 35, carbs: 12, fat: 16, calories: 340 },
+  { id: 'meal-salmon-veg-plate', category: 'Main meal', name: 'Salmon & vegetables', servingLabel: '1 plate', protein: 34, carbs: 12, fat: 20, calories: 380 },
+  { id: 'meal-tuna-jacket-potato', category: 'Balanced meal', name: 'Tuna jacket potato', servingLabel: '1 medium potato', protein: 32, carbs: 45, fat: 8, calories: 390 },
+  { id: 'meal-chicken-soup-extra-chicken', category: 'Gentle meal', name: 'Chicken soup with extra chicken', servingLabel: '1 large bowl', protein: 30, carbs: 18, fat: 7, calories: 260 },
+  { id: 'meal-turkey-rollups', category: 'Low appetite', name: 'Turkey roll-ups', servingLabel: '1 plate', protein: 28, carbs: 4, fat: 9, calories: 210 },
+  { id: 'meal-lean-beef-chilli-bowl', category: 'Main meal', name: 'Lean beef chilli bowl', servingLabel: '1 bowl', protein: 34, carbs: 24, fat: 14, calories: 360 },
+  { id: 'meal-chicken-fajita-bowl', category: 'Balanced meal', name: 'Chicken fajita bowl', servingLabel: '1 bowl', protein: 38, carbs: 28, fat: 12, calories: 380 },
+  { id: 'meal-cheese-omelette', category: 'Low carb', name: 'Cheese omelette', servingLabel: '3 egg omelette', protein: 26, carbs: 3, fat: 22, calories: 320 },
+  { id: 'meal-grilled-chicken-salad', category: 'Eating out', name: 'Grilled chicken & salad', servingLabel: '1 plate', protein: 42, carbs: 10, fat: 14, calories: 340 },
+  { id: 'meal-chicken-kebab-salad', category: 'Eating out', name: 'Chicken kebab box, no chips', servingLabel: '1 box', protein: 40, carbs: 16, fat: 18, calories: 390 },
+  { id: 'meal-lentil-soup-yogurt', category: 'Fibre support', name: 'Lentil soup + Greek yogurt', servingLabel: '1 bowl + 100 g yogurt', protein: 24, carbs: 42, fat: 5, calories: 310 },
+  { id: 'meal-chia-protein-pudding', category: 'Prep ahead', name: 'Chia protein pudding', servingLabel: '1 pot', protein: 25, carbs: 18, fat: 12, calories: 280 },
+];
+
+export const NUTRITION_OPTIONS: NutritionFood[] = [
+  ...NUTRITION_MEALS,
+  ...NUTRITION_FOODS,
 ];
 
 export function scaleFood(food: NutritionFood, servings: number): NutritionFood {

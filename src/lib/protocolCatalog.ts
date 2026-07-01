@@ -80,7 +80,7 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     routeType: 'oral',
     cadenceType: 'daily',
     effectivenessModel: 'daily_24h',
-    doseOptions: ['1 mg', '3 mg', '7 mg', '14 mg', 'Other'],
+    doseOptions: ['1 mg', '1.5 mg', '3 mg', '4 mg', '7 mg', '9 mg', '14 mg', '25 mg', 'Other'],
     trackingFocus: ['Dose adherence', 'Appetite', 'Nausea', 'Hydration', 'Protein', 'Bowel changes'],
     note: 'Use this for a daily oral GLP-1 routine exactly as prescribed.',
   },

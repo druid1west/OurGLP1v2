@@ -32,7 +32,12 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { IonPage, IonButton, IonContent } from '@ionic/react';
 import dayjs from 'dayjs';
 import styles from './HealthTracker.module.css';
-import { NUTRITION_FOODS, scaleFood } from '../lib/nutritionFoods';
+import {
+  NUTRITION_FOODS,
+  NUTRITION_MEALS,
+  NUTRITION_OPTIONS,
+  scaleFood,
+} from '../lib/nutritionFoods';
 
 import { useAuth } from '../context/useAuth';
 import type { User } from '../context/authTypes';
@@ -403,7 +408,8 @@ const HealthTracker: React.FC = () => {
     dayjs().format('YYYY-MM-DDTHH:mm'),
   );
 
-  const selectedNutritionFood = NUTRITION_FOODS.find((food) => food.id === selectedProteinSource) ?? null;
+  const selectedNutritionFood =
+    NUTRITION_OPTIONS.find((food) => food.id === selectedProteinSource) ?? null;
   const scaledNutritionFood = selectedNutritionFood
     ? scaleFood(selectedNutritionFood, nutritionServings)
     : null;
@@ -1152,6 +1158,41 @@ const HealthTracker: React.FC = () => {
 <div className={styles.infoBox}>
   <h2 className={styles.subtitle}>Nutrition Intake</h2>
 
+  <div className={styles.mealSuggestionHeader}>
+    <div>
+      <strong>Meal suggestions</strong>
+      <span>Quick estimates for common GLP-1 friendly meals.</span>
+    </div>
+  </div>
+
+  <div className={styles.mealSuggestionGrid} aria-label="Nutrition meal suggestions">
+    {NUTRITION_MEALS.map((meal) => (
+      <button
+        key={meal.id}
+        type="button"
+        className={`${styles.mealSuggestionCard} ${
+          selectedProteinSource === meal.id ? styles.mealSuggestionCardActive : ''
+        }`}
+        onClick={() => {
+          setSelectedProteinSource(meal.id);
+          setNutritionServings(1);
+          setProteinGrams(meal.protein);
+          setNutritionCarbs(meal.carbs);
+          setNutritionFat(meal.fat);
+          setNutritionCalories(meal.calories);
+          setProteinNotes('');
+        }}
+      >
+        <span className={styles.mealSuggestionCategory}>{meal.category}</span>
+        <strong>{meal.name}</strong>
+        <span>{meal.servingLabel}</span>
+        <small>
+          P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g · {meal.calories} cal
+        </small>
+      </button>
+    ))}
+  </div>
+
   <div className={styles.formGroup}>
     <label className={styles.label} htmlFor="protein-source">
       Food
@@ -1167,7 +1208,7 @@ const HealthTracker: React.FC = () => {
         const selected = e.target.value as ProteinSource;
         setSelectedProteinSource(selected);
         setNutritionServings(1);
-        const food = NUTRITION_FOODS.find((item) => item.id === selected);
+        const food = NUTRITION_OPTIONS.find((item) => item.id === selected);
         setProteinGrams(food?.protein ?? '');
         setNutritionCarbs(food?.carbs ?? 0);
         setNutritionFat(food?.fat ?? 0);
@@ -1176,13 +1217,29 @@ const HealthTracker: React.FC = () => {
       }}
     >
       <option value="">Select food</option>
-      {NUTRITION_FOODS.map((food) => (
-        <option key={food.id} value={food.id}>
-          {food.name} ({food.servingLabel}) - P {food.protein}g / C {food.carbs}g / F {food.fat}g / {food.calories} cal
-        </option>
-      ))}
+      <optgroup label="Meal suggestions">
+        {NUTRITION_MEALS.map((meal) => (
+          <option key={meal.id} value={meal.id}>
+            {meal.name} ({meal.servingLabel}) - P {meal.protein}g / C {meal.carbs}g / F{' '}
+            {meal.fat}g / {meal.calories} cal
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Food reference">
+        {NUTRITION_FOODS.map((food) => (
+          <option key={food.id} value={food.id}>
+            {food.name} ({food.servingLabel}) - P {food.protein}g / C {food.carbs}g / F{' '}
+            {food.fat}g / {food.calories} cal
+          </option>
+        ))}
+      </optgroup>
       <option value="other">Other (custom)</option>
     </select>
+  </div>
+
+  <div className={styles.foodReferenceHeader}>
+    <strong>Food reference</strong>
+    <span>Single foods for quick logging or building your own meal.</span>
   </div>
 
   <div className={styles.foodReferenceList} aria-label="Nutrition quick reference">
@@ -1393,8 +1450,10 @@ const HealthTracker: React.FC = () => {
         return;
       }
 
-      const selectedFood = NUTRITION_FOODS.find((food) => food.id === selectedProteinSource);
-      const foodName = proteinNotes || selectedFood?.name || selectedProteinSource || undefined;
+      const selectedNutritionOption = NUTRITION_OPTIONS.find(
+        (food) => food.id === selectedProteinSource,
+      );
+      const foodName = proteinNotes || selectedNutritionOption?.name || selectedProteinSource || undefined;
       submitLog(
         'protein',
         {
@@ -1406,7 +1465,7 @@ const HealthTracker: React.FC = () => {
           servings: selectedProteinSource === 'other' ? undefined : nutritionServings,
           foodId: selectedProteinSource === 'other' ? undefined : selectedProteinSource || undefined,
           foodName,
-          servingLabel: selectedFood?.servingLabel,
+          servingLabel: selectedNutritionOption?.servingLabel,
           notes: foodName,
         },
         proteinTime,

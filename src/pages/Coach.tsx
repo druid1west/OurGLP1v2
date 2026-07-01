@@ -161,7 +161,21 @@ function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liragl
 function doseOptionsForMedication(name: string): string[] {
   switch (medicationFamily(name)) {
     case 'semaglutide':
-      return ['0.25 mg', '0.5 mg', '1 mg', '1.7 mg', '2 mg', '2.4 mg'];
+      return [
+        '0.25 mg',
+        '0.5 mg',
+        '1 mg',
+        '1.5 mg',
+        '1.7 mg',
+        '2 mg',
+        '2.4 mg',
+        '3 mg',
+        '4 mg',
+        '7 mg',
+        '9 mg',
+        '14 mg',
+        '25 mg',
+      ];
     case 'tirzepatide':
       return ['2.5 mg', '5 mg', '7.5 mg', '10 mg', '12.5 mg', '15 mg'];
     case 'liraglutide':
@@ -976,7 +990,9 @@ const Coach: React.FC = () => {
   if (!setupStatus?.complete) {
     const needsAccount = !setupStatus?.hasAccount;
     const needsProtocol = setupStatus?.hasAccount && !setupStatus.hasPrimaryProtocol;
-    const doseOptions = selectedProtocolPreset.doseOptions ?? ['Other'];
+    const doseOptions = dailyProtocol
+      ? getProtocolPreset('daily-glp1-pill').doseOptions ?? ['Other']
+      : selectedProtocolPreset.doseOptions ?? ['Other'];
 
     return (
       <IonPage>
