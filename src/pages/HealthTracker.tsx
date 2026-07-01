@@ -785,6 +785,334 @@ const HealthTracker: React.FC = () => {
     return total;
   }
 
+  const nutritionIntakeSection = (
+    <div className={styles.infoBox}>
+      <h2 className={styles.subtitle}>Nutrition Intake</h2>
+
+      <div className={styles.mealSuggestionHeader}>
+        <div>
+          <strong>Meal suggestions</strong>
+          <span>Quick estimates for common GLP-1 friendly meals.</span>
+        </div>
+      </div>
+
+      <div className={styles.mealSuggestionGrid} aria-label="Nutrition meal suggestions">
+        {NUTRITION_MEALS.map((meal) => (
+          <button
+            key={meal.id}
+            type="button"
+            className={`${styles.mealSuggestionCard} ${
+              selectedProteinSource === meal.id ? styles.mealSuggestionCardActive : ''
+            }`}
+            onClick={() => {
+              setSelectedProteinSource(meal.id);
+              setNutritionServings(1);
+              setProteinGrams(meal.protein);
+              setNutritionCarbs(meal.carbs);
+              setNutritionFat(meal.fat);
+              setNutritionCalories(meal.calories);
+              setProteinNotes('');
+            }}
+          >
+            <span className={styles.mealSuggestionCategory}>{meal.category}</span>
+            <strong>{meal.name}</strong>
+            <span>{meal.servingLabel}</span>
+            <small>
+              P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g · {meal.calories} cal
+            </small>
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.foodReferenceHeader}>
+        <strong>Food reference</strong>
+        <span>Single foods for quick logging or building your own meal.</span>
+      </div>
+
+      <div className={styles.foodReferenceList} aria-label="Nutrition quick reference">
+        {NUTRITION_FOODS.map((food) => (
+          <button
+            key={food.id}
+            type="button"
+            className={`${styles.foodReferenceItem} ${
+              selectedProteinSource === food.id ? styles.foodReferenceItemActive : ''
+            }`}
+            onClick={() => {
+              setSelectedProteinSource(food.id);
+              setNutritionServings(1);
+              setProteinGrams(food.protein);
+              setNutritionCarbs(food.carbs);
+              setNutritionFat(food.fat);
+              setNutritionCalories(food.calories);
+              setProteinNotes('');
+            }}
+          >
+            <strong>{food.name}</strong>
+            <span>{food.servingLabel}</span>
+            <small>
+              P {food.protein}g · C {food.carbs}g · F {food.fat}g · {food.calories} cal
+            </small>
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.label} htmlFor="protein-source">
+          Food
+        </label>
+        <select
+          id="protein-source"
+          name="selectedProteinSource"
+          className={styles.inputField}
+          value={selectedProteinSource}
+          title="Protein source"
+          aria-label="Protein source"
+          onChange={(e) => {
+            const selected = e.target.value as ProteinSource;
+            setSelectedProteinSource(selected);
+            setNutritionServings(1);
+            const food = NUTRITION_OPTIONS.find((item) => item.id === selected);
+            setProteinGrams(food?.protein ?? '');
+            setNutritionCarbs(food?.carbs ?? 0);
+            setNutritionFat(food?.fat ?? 0);
+            setNutritionCalories(food?.calories ?? 0);
+            setProteinNotes('');
+          }}
+        >
+          <option value="">Select food</option>
+          <optgroup label="Meal suggestions">
+            {NUTRITION_MEALS.map((meal) => (
+              <option key={meal.id} value={meal.id}>
+                {meal.name} ({meal.servingLabel}) - P {meal.protein}g / C {meal.carbs}g / F{' '}
+                {meal.fat}g / {meal.calories} cal
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Food reference">
+            {NUTRITION_FOODS.map((food) => (
+              <option key={food.id} value={food.id}>
+                {food.name} ({food.servingLabel}) - P {food.protein}g / C {food.carbs}g / F{' '}
+                {food.fat}g / {food.calories} cal
+              </option>
+            ))}
+          </optgroup>
+          <option value="other">Other (custom)</option>
+        </select>
+      </div>
+
+      {selectedProteinSource === 'other' && (
+        <div className={styles.formGroup}>
+          <label className={styles.label} htmlFor="protein-custom-food">
+            Custom food
+          </label>
+          <input
+            id="protein-custom-food"
+            name="proteinNotes"
+            type="text"
+            className={styles.inputField}
+            placeholder="e.g. Salmon, Protein bar"
+            value={proteinNotes}
+            onChange={(e) => setProteinNotes(e.target.value)}
+            title="Custom protein food"
+            aria-label="Custom protein food"
+          />
+        </div>
+      )}
+
+      {selectedProteinSource !== 'other' && selectedNutritionFood && (
+        <div className={styles.formGroup}>
+          <label className={styles.label} htmlFor="nutrition-servings">
+            Servings
+          </label>
+          <div className={styles.stepperRow}>
+            <button
+              type="button"
+              onClick={() => {
+                const next = Math.max(0.5, Number((nutritionServings - 0.5).toFixed(1)));
+                setNutritionServings(next);
+                const scaled = scaleFood(selectedNutritionFood, next);
+                setProteinGrams(scaled.protein);
+                setNutritionCarbs(scaled.carbs);
+                setNutritionFat(scaled.fat);
+                setNutritionCalories(scaled.calories);
+              }}
+            >
+              -
+            </button>
+            <input
+              id="nutrition-servings"
+              className={styles.inputField}
+              type="number"
+              min="0.5"
+              max="10"
+              step="0.5"
+              value={nutritionServings}
+              onChange={(event) => {
+                const next = Math.max(0.5, Math.min(10, Number(event.target.value) || 1));
+                setNutritionServings(next);
+                const scaled = scaleFood(selectedNutritionFood, next);
+                setProteinGrams(scaled.protein);
+                setNutritionCarbs(scaled.carbs);
+                setNutritionFat(scaled.fat);
+                setNutritionCalories(scaled.calories);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const next = Math.min(10, Number((nutritionServings + 0.5).toFixed(1)));
+                setNutritionServings(next);
+                const scaled = scaleFood(selectedNutritionFood, next);
+                setProteinGrams(scaled.protein);
+                setNutritionCarbs(scaled.carbs);
+                setNutritionFat(scaled.fat);
+                setNutritionCalories(scaled.calories);
+              }}
+            >
+              +
+            </button>
+          </div>
+          {scaledNutritionFood && (
+            <div className={styles.nutritionPreview}>
+              <strong>{scaledNutritionFood.name}</strong>
+              <span>
+                {scaledNutritionFood.servingOz ? `${scaledNutritionFood.servingOz} oz / ` : ''}
+                {scaledNutritionFood.servingGrams
+                  ? `${scaledNutritionFood.servingGrams} g total`
+                  : `${nutritionServings} serving${nutritionServings === 1 ? '' : 's'}`}
+              </span>
+              <small>
+                Protein {scaledNutritionFood.protein}g · Carbs {scaledNutritionFood.carbs}g ·
+                Fat {scaledNutritionFood.fat}g · {scaledNutritionFood.calories} cal
+              </small>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={styles.formGroup}>
+        <label className={styles.label} htmlFor="protein-grams">
+          Protein (grams)
+        </label>
+        <input
+          id="protein-grams"
+          name="proteinGrams"
+          type="number"
+          className={styles.inputField}
+          value={proteinGrams}
+          onChange={(e) => {
+            const raw = e.target.value;
+
+            if (raw === '') {
+              setProteinGrams('');
+              return;
+            }
+
+            const n = Number(raw);
+            if (Number.isFinite(n)) {
+              setProteinGrams(n);
+            }
+          }}
+          title="Protein grams"
+          aria-label="Protein grams"
+          placeholder="e.g. 25"
+          inputMode="numeric"
+        />
+      </div>
+
+      <div className={styles.formRow}>
+        <div className={styles.formGroup}>
+          <label className={styles.label} htmlFor="nutrition-carbs">Carbs (grams)</label>
+          <input
+            id="nutrition-carbs"
+            className={styles.inputField}
+            type="number"
+            value={nutritionCarbs}
+            onChange={(e) => setNutritionCarbs(Math.max(0, Number(e.target.value) || 0))}
+          />
+        </div>
+        <div className={styles.formGroup}>
+          <label className={styles.label} htmlFor="nutrition-fat">Fat (grams)</label>
+          <input
+            id="nutrition-fat"
+            className={styles.inputField}
+            type="number"
+            value={nutritionFat}
+            onChange={(e) => setNutritionFat(Math.max(0, Number(e.target.value) || 0))}
+          />
+        </div>
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.label} htmlFor="nutrition-calories">Calories</label>
+        <input
+          id="nutrition-calories"
+          className={styles.inputField}
+          type="number"
+          value={nutritionCalories}
+          onChange={(e) => setNutritionCalories(Math.max(0, Number(e.target.value) || 0))}
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label className={styles.label} htmlFor="protein-time">
+          Timestamp
+        </label>
+        <input
+          id="protein-time"
+          name="proteinTime"
+          type="datetime-local"
+          className={styles.inputField}
+          value={proteinTime}
+          onChange={(e) => setProteinTime(e.target.value)}
+          title="Protein intake timestamp"
+          aria-label="Protein intake timestamp"
+          placeholder="YYYY-MM-DDThh:mm"
+        />
+      </div>
+
+      <IonButton
+        className="custom-button"
+        expand="block"
+        onClick={() => {
+          if (proteinGrams === '') {
+            alert('Please enter protein grams');
+            return;
+          }
+
+          if (!proteinTime) {
+            alert('Please choose a timestamp.');
+            return;
+          }
+
+          const selectedNutritionOption = NUTRITION_OPTIONS.find(
+            (food) => food.id === selectedProteinSource,
+          );
+          const foodName =
+            proteinNotes || selectedNutritionOption?.name || selectedProteinSource || undefined;
+          submitLog(
+            'protein',
+            {
+              grams: proteinGrams,
+              protein: proteinGrams,
+              carbs: nutritionCarbs,
+              fat: nutritionFat,
+              calories: nutritionCalories,
+              servings: selectedProteinSource === 'other' ? undefined : nutritionServings,
+              foodId: selectedProteinSource === 'other' ? undefined : selectedProteinSource || undefined,
+              foodName,
+              servingLabel: selectedNutritionOption?.servingLabel,
+              notes: foodName,
+            },
+            proteinTime,
+          );
+        }}
+      >
+        Submit Nutrition Intake
+      </IonButton>
+    </div>
+  );
+
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -795,6 +1123,8 @@ const HealthTracker: React.FC = () => {
       <IonContent fullscreen className={styles.contentPad}>
         <div className={styles.trackerContainer}>
           <h1 className={`${styles.subtitle} ${styles.pageTitle}`}>Health Tracker</h1>
+
+          {nutritionIntakeSection}
 
           {/* Fasting (first / last meal) */}
           <div className={styles.infoBox}>
@@ -1151,328 +1481,6 @@ const HealthTracker: React.FC = () => {
     }
   >
     Submit Blood Pressure
-  </IonButton>
-</div>
-
-{/* Nutrition Intake */}
-<div className={styles.infoBox}>
-  <h2 className={styles.subtitle}>Nutrition Intake</h2>
-
-  <div className={styles.mealSuggestionHeader}>
-    <div>
-      <strong>Meal suggestions</strong>
-      <span>Quick estimates for common GLP-1 friendly meals.</span>
-    </div>
-  </div>
-
-  <div className={styles.mealSuggestionGrid} aria-label="Nutrition meal suggestions">
-    {NUTRITION_MEALS.map((meal) => (
-      <button
-        key={meal.id}
-        type="button"
-        className={`${styles.mealSuggestionCard} ${
-          selectedProteinSource === meal.id ? styles.mealSuggestionCardActive : ''
-        }`}
-        onClick={() => {
-          setSelectedProteinSource(meal.id);
-          setNutritionServings(1);
-          setProteinGrams(meal.protein);
-          setNutritionCarbs(meal.carbs);
-          setNutritionFat(meal.fat);
-          setNutritionCalories(meal.calories);
-          setProteinNotes('');
-        }}
-      >
-        <span className={styles.mealSuggestionCategory}>{meal.category}</span>
-        <strong>{meal.name}</strong>
-        <span>{meal.servingLabel}</span>
-        <small>
-          P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g · {meal.calories} cal
-        </small>
-      </button>
-    ))}
-  </div>
-
-  <div className={styles.formGroup}>
-    <label className={styles.label} htmlFor="protein-source">
-      Food
-    </label>
-    <select
-      id="protein-source"
-      name="selectedProteinSource"
-      className={styles.inputField}
-      value={selectedProteinSource}
-      title="Protein source"
-      aria-label="Protein source"
-      onChange={(e) => {
-        const selected = e.target.value as ProteinSource;
-        setSelectedProteinSource(selected);
-        setNutritionServings(1);
-        const food = NUTRITION_OPTIONS.find((item) => item.id === selected);
-        setProteinGrams(food?.protein ?? '');
-        setNutritionCarbs(food?.carbs ?? 0);
-        setNutritionFat(food?.fat ?? 0);
-        setNutritionCalories(food?.calories ?? 0);
-        setProteinNotes('');
-      }}
-    >
-      <option value="">Select food</option>
-      <optgroup label="Meal suggestions">
-        {NUTRITION_MEALS.map((meal) => (
-          <option key={meal.id} value={meal.id}>
-            {meal.name} ({meal.servingLabel}) - P {meal.protein}g / C {meal.carbs}g / F{' '}
-            {meal.fat}g / {meal.calories} cal
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label="Food reference">
-        {NUTRITION_FOODS.map((food) => (
-          <option key={food.id} value={food.id}>
-            {food.name} ({food.servingLabel}) - P {food.protein}g / C {food.carbs}g / F{' '}
-            {food.fat}g / {food.calories} cal
-          </option>
-        ))}
-      </optgroup>
-      <option value="other">Other (custom)</option>
-    </select>
-  </div>
-
-  <div className={styles.foodReferenceHeader}>
-    <strong>Food reference</strong>
-    <span>Single foods for quick logging or building your own meal.</span>
-  </div>
-
-  <div className={styles.foodReferenceList} aria-label="Nutrition quick reference">
-    {NUTRITION_FOODS.map((food) => (
-      <button
-        key={food.id}
-        type="button"
-        className={`${styles.foodReferenceItem} ${selectedProteinSource === food.id ? styles.foodReferenceItemActive : ''}`}
-        onClick={() => {
-          setSelectedProteinSource(food.id);
-          setNutritionServings(1);
-          setProteinGrams(food.protein);
-          setNutritionCarbs(food.carbs);
-          setNutritionFat(food.fat);
-          setNutritionCalories(food.calories);
-          setProteinNotes('');
-        }}
-      >
-        <strong>{food.name}</strong>
-        <span>{food.servingLabel}</span>
-        <small>P {food.protein}g · C {food.carbs}g · F {food.fat}g · {food.calories} cal</small>
-      </button>
-    ))}
-  </div>
-
-  {selectedProteinSource === 'other' && (
-    <div className={styles.formGroup}>
-      <label className={styles.label} htmlFor="protein-custom-food">
-        Custom food
-      </label>
-      <input
-        id="protein-custom-food"
-        name="proteinNotes"
-        type="text"
-        className={styles.inputField}
-        placeholder="e.g. Salmon, Protein bar"
-        value={proteinNotes}
-        onChange={(e) => setProteinNotes(e.target.value)}
-        title="Custom protein food"
-        aria-label="Custom protein food"
-      />
-    </div>
-  )}
-
-  {selectedProteinSource !== 'other' && selectedNutritionFood && (
-    <div className={styles.formGroup}>
-      <label className={styles.label} htmlFor="nutrition-servings">
-        Servings
-      </label>
-      <div className={styles.stepperRow}>
-        <button
-          type="button"
-          onClick={() => {
-            const next = Math.max(0.5, Number((nutritionServings - 0.5).toFixed(1)));
-            setNutritionServings(next);
-            const scaled = scaleFood(selectedNutritionFood, next);
-            setProteinGrams(scaled.protein);
-            setNutritionCarbs(scaled.carbs);
-            setNutritionFat(scaled.fat);
-            setNutritionCalories(scaled.calories);
-          }}
-        >
-          -
-        </button>
-        <input
-          id="nutrition-servings"
-          className={styles.inputField}
-          type="number"
-          min="0.5"
-          max="10"
-          step="0.5"
-          value={nutritionServings}
-          onChange={(event) => {
-            const next = Math.max(0.5, Math.min(10, Number(event.target.value) || 1));
-            setNutritionServings(next);
-            const scaled = scaleFood(selectedNutritionFood, next);
-            setProteinGrams(scaled.protein);
-            setNutritionCarbs(scaled.carbs);
-            setNutritionFat(scaled.fat);
-            setNutritionCalories(scaled.calories);
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            const next = Math.min(10, Number((nutritionServings + 0.5).toFixed(1)));
-            setNutritionServings(next);
-            const scaled = scaleFood(selectedNutritionFood, next);
-            setProteinGrams(scaled.protein);
-            setNutritionCarbs(scaled.carbs);
-            setNutritionFat(scaled.fat);
-            setNutritionCalories(scaled.calories);
-          }}
-        >
-          +
-        </button>
-      </div>
-      {scaledNutritionFood && (
-        <div className={styles.nutritionPreview}>
-          <strong>{scaledNutritionFood.name}</strong>
-          <span>
-            {scaledNutritionFood.servingOz ? `${scaledNutritionFood.servingOz} oz / ` : ''}
-            {scaledNutritionFood.servingGrams ? `${scaledNutritionFood.servingGrams} g total` : `${nutritionServings} serving${nutritionServings === 1 ? '' : 's'}`}
-          </span>
-          <small>
-            Protein {scaledNutritionFood.protein}g · Carbs {scaledNutritionFood.carbs}g · Fat {scaledNutritionFood.fat}g · {scaledNutritionFood.calories} cal
-          </small>
-        </div>
-      )}
-    </div>
-  )}
-
-  <div className={styles.formGroup}>
-    <label className={styles.label} htmlFor="protein-grams">
-      Protein (grams)
-    </label>
-    <input
-      id="protein-grams"
-      name="proteinGrams"
-      type="number"
-      className={styles.inputField}
-      value={proteinGrams}
-      onChange={(e) => {
-        const raw = e.target.value;
-
-        if (raw === '') {
-          // user cleared the field – keep it empty
-          setProteinGrams('');
-          return;
-        }
-
-        const n = Number(raw);
-        if (Number.isFinite(n)) {
-          setProteinGrams(n);
-        }
-      }}
-      title="Protein grams"
-      aria-label="Protein grams"
-      placeholder="e.g. 25"
-      inputMode="numeric"
-    />
-  </div>
-
-  <div className={styles.formRow}>
-    <div className={styles.formGroup}>
-      <label className={styles.label} htmlFor="nutrition-carbs">Carbs (grams)</label>
-      <input
-        id="nutrition-carbs"
-        className={styles.inputField}
-        type="number"
-        value={nutritionCarbs}
-        onChange={(e) => setNutritionCarbs(Math.max(0, Number(e.target.value) || 0))}
-      />
-    </div>
-    <div className={styles.formGroup}>
-      <label className={styles.label} htmlFor="nutrition-fat">Fat (grams)</label>
-      <input
-        id="nutrition-fat"
-        className={styles.inputField}
-        type="number"
-        value={nutritionFat}
-        onChange={(e) => setNutritionFat(Math.max(0, Number(e.target.value) || 0))}
-      />
-    </div>
-  </div>
-
-  <div className={styles.formGroup}>
-    <label className={styles.label} htmlFor="nutrition-calories">Calories</label>
-    <input
-      id="nutrition-calories"
-      className={styles.inputField}
-      type="number"
-      value={nutritionCalories}
-      onChange={(e) => setNutritionCalories(Math.max(0, Number(e.target.value) || 0))}
-    />
-  </div>
-
-  <div className={styles.formGroup}>
-    <label className={styles.label} htmlFor="protein-time">
-      Timestamp
-    </label>
-    <input
-      id="protein-time"
-      name="proteinTime"
-      type="datetime-local"
-      className={styles.inputField}
-      value={proteinTime}
-      onChange={(e) => setProteinTime(e.target.value)}
-      title="Protein intake timestamp"
-      aria-label="Protein intake timestamp"
-      placeholder="YYYY-MM-DDThh:mm"
-    />
-  </div>
-
-  <IonButton
-    className="custom-button"
-    expand="block"
-    onClick={() => {
-      // 1) Make sure grams is filled
-      if (proteinGrams === '') {
-        alert('Please enter protein grams');
-        return;
-      }
-
-      // 2) (Optional) make sure timestamp is filled too
-      if (!proteinTime) {
-        alert('Please choose a timestamp.');
-        return;
-      }
-
-      const selectedNutritionOption = NUTRITION_OPTIONS.find(
-        (food) => food.id === selectedProteinSource,
-      );
-      const foodName = proteinNotes || selectedNutritionOption?.name || selectedProteinSource || undefined;
-      submitLog(
-        'protein',
-        {
-          grams: proteinGrams,
-          protein: proteinGrams,
-          carbs: nutritionCarbs,
-          fat: nutritionFat,
-          calories: nutritionCalories,
-          servings: selectedProteinSource === 'other' ? undefined : nutritionServings,
-          foodId: selectedProteinSource === 'other' ? undefined : selectedProteinSource || undefined,
-          foodName,
-          servingLabel: selectedNutritionOption?.servingLabel,
-          notes: foodName,
-        },
-        proteinTime,
-      );
-    }}
-  >
-    Submit Nutrition Intake
   </IonButton>
 </div>
 
