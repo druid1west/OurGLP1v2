@@ -21,7 +21,7 @@ import BottomNav from '../context/BottomNav';
 // Local DB account storage (biometrics + password hash)
 import {
   initLocalAccountTable,
-  getLocalAccount,
+  getLatestEmailPasswordAccount,
   verifyAndLoginLocal,
 } from '@/db/LocalAccountRepository';
 
@@ -94,7 +94,7 @@ const Login: React.FC = () => {
 
   const reloadAccounts = useCallback(async (): Promise<void> => {
     await initLocalAccountTable();
-    const acct = await getLocalAccount();
+    const acct = await getLatestEmailPasswordAccount();
     const bio = await isBiometricReady();
     setState({
       id: acct?.id ?? null,
@@ -225,7 +225,7 @@ const Login: React.FC = () => {
     setPwInput('');
 
     try {
-      const acct = await getLocalAccount();
+      const acct = await getLatestEmailPasswordAccount();
       if (!acct?.password_hash || !acct?.id || !acct?.email) {
         show('No password set or account missing. Please create an account.');
         return;
@@ -432,7 +432,6 @@ const Login: React.FC = () => {
 };
 
 export default Login;
-
 
 
 

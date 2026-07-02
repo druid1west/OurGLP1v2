@@ -36,7 +36,7 @@ import {
   type WeightUnit,
 } from '@/db/CoachRepository';
 import { insertHealthLog } from '@/db/HealthRepository';
-import { getLocalAccount, upsertLocalAccount } from '@/db/LocalAccountRepository';
+import { getLatestEmailPasswordAccount, upsertLocalAccount } from '@/db/LocalAccountRepository';
 import {
   createProtocol,
   getPrimaryProtocol,
@@ -458,7 +458,7 @@ const Coach: React.FC = () => {
     }
 
     setSavedAccountLoading(true);
-    void getLocalAccount()
+    void getLatestEmailPasswordAccount()
       .then((account) => {
         if (cancelled) return;
         const email = account?.email?.trim() ?? '';

@@ -3,6 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useIonRouter, type RouterDirection } from '@ionic/react';
 import { useAuth } from '../context/useAuth';
+import { getLatestEmailPasswordAccount } from '../db/LocalAccountRepository';
 
 interface BottomNavProps {
   showWhenAnon?: boolean;
@@ -81,10 +82,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = 
   );
 
   const handleLogout = async (): Promise<void> => {
+    let hasSavedLogin = false;
     try {
+      hasSavedLogin = Boolean(await getLatestEmailPasswordAccount());
       await logout();
     } finally {
-      navigateTo('/coach', true);
+      navigateTo(hasSavedLogin ? '/login' : '/coach', true);
     }
   };
 

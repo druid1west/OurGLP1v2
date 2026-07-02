@@ -38,8 +38,8 @@ const barStyle: React.CSSProperties = {
 const rowStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: 'clamp(12px, 3.1vw, 20px)',
+  justifyContent: 'flex-start',
+  gap: 'clamp(14px, 3.4vw, 22px)',
   width: '100%',
   minHeight: 34,
   marginTop: 0,
@@ -48,6 +48,8 @@ const rowStyle: React.CSSProperties = {
   overflowY: 'hidden',
   WebkitOverflowScrolling: 'touch',
   scrollbarWidth: 'none',
+  paddingInline: 18,
+  scrollPaddingInline: 18,
 };
 
 
@@ -98,9 +100,7 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true, setupOnly = false 
             <Link to="/home" style={linkStyle}>Home</Link>
             <Link to="/information" style={linkStyle}>Info</Link>
             <Link to="/medical-sources" style={linkStyle}>Sources</Link>
-            <Link to="/support" style={linkStyle}>Support</Link>
             {!user && <Link to="/login" style={linkStyle}>Login</Link>}
-            {!user && <Link to="/register" style={linkStyle}>Register</Link>}
           </>
         ) : user ? (
           <>

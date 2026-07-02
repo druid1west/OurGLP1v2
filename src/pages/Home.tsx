@@ -1,6 +1,6 @@
 // src/pages/Home.tsx
 import { checkBiometricAvailable, verifyIdentity } from '../utils/biometric';
-import { getLocalAccount, hasSavedEmailPasswordAccount } from '../db/LocalAccountRepository';
+import { getLatestEmailPasswordAccount, hasSavedEmailPasswordAccount } from '../db/LocalAccountRepository';
 import { markUserAsLoggedIn, getUserByEmail, registerLocalUser } from '../services/localAuth';
 
 import React, { useEffect, useState } from 'react';
@@ -162,7 +162,7 @@ const Home: React.FC = () => {
   }, [location.pathname, router, user]);
 
   const completeLocalLogin = async (): Promise<void> => {
-    const acctRaw = await getLocalAccount();
+    const acctRaw = await getLatestEmailPasswordAccount();
     const acct = (acctRaw ?? {}) as LocalAccount;
     if (!acct.id) {
       setErrorMsg('No local account found. Please register.');

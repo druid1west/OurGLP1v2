@@ -62,11 +62,6 @@ export default function WeeklySummaryArchive(): React.ReactElement {
       ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
       : '—';
   };
-  const fmtDateOnly = (iso?: string | null): string => {
-    const d = parseISO(iso);
-    return d ? d.toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—';
-  };
-
   const deleteRow = async (id: number): Promise<void> => {
     if (!id) return;
     const ok = window.confirm('Delete this archived summary?');
@@ -178,4 +173,3 @@ export default function WeeklySummaryArchive(): React.ReactElement {
     </IonPage>
   );
 }
-

@@ -15,7 +15,12 @@ function useCoachPrompt(): CoachPrompt | null {
   const { user, isPro } = useAuth();
 
   return useMemo(() => {
-    if (pathname === '/login' || pathname === '/register' || pathname === '/paywall') {
+    if (
+      pathname === '/login' ||
+      pathname === '/register' ||
+      pathname === '/paywall' ||
+      pathname === '/medical-sources'
+    ) {
       return null;
     }
 

@@ -106,6 +106,37 @@ export async function getLocalAccount(): Promise<LocalAccount | null> {
   };
 }
 
+export async function getLatestEmailPasswordAccount(): Promise<LocalAccount | null> {
+  const db = await getDb();
+  const res = await db.query(`
+    SELECT id, email, email_lower, first_name, last_name, last_login_at,
+           auth_provider, provider_sub, password_hash
+    FROM users
+    WHERE deleted_at IS NULL
+      AND email IS NOT NULL
+      AND email NOT LIKE '%@local.ourglp1'
+      AND password_hash IS NOT NULL
+      AND password_hash <> ''
+    ORDER BY datetime(last_login_at) DESC, datetime(updated_at) DESC
+    LIMIT 1
+  `);
+
+  const row = mapSingleRow(res);
+  if (!row) return null;
+
+  return {
+    id: String(row.id ?? ''),
+    email: row.email == null ? null : String(row.email),
+    email_lower: row.email_lower == null ? null : String(row.email_lower),
+    first_name: row.first_name == null ? null : String(row.first_name),
+    last_name: row.last_name == null ? null : String(row.last_name),
+    last_login_at: row.last_login_at == null ? null : String(row.last_login_at),
+    auth_provider: row.auth_provider == null ? null : String(row.auth_provider),
+    provider_sub: row.provider_sub == null ? null : String(row.provider_sub),
+    password_hash: row.password_hash == null ? null : String(row.password_hash),
+  };
+}
+
 export async function hasSavedEmailPasswordAccount(): Promise<boolean> {
   const db = await getDb();
   const res = await db.query(`
