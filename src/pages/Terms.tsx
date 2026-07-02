@@ -1,6 +1,7 @@
 // src/pages/Terms.tsx
 import React from 'react';
 import { IonPage, IonContent } from '@ionic/react';
+import { Link } from 'react-router-dom';
 import styles from './PrivacyPolicy.module.css';
 import { Browser } from '@capacitor/browser';
 
@@ -137,6 +138,19 @@ const Terms: React.FC = () => {
               active calories, exercise minutes, sleep, heart rate, and workouts. This may include
               data recorded by Apple Watch through Apple Health. Apple Health sync is optional and
               can be controlled in iOS Health permissions.
+            </p>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Medical Sources</h3>
+            <p className={styles.body}>
+              The App is for tracking and organization only and should not be used to make
+              medical decisions without a qualified clinician. Health information sources are
+              listed on the{' '}
+              <Link className={styles.link} to="/medical-sources">
+                Medical Sources &amp; Citations
+              </Link>{' '}
+              page.
             </p>
           </section>
 

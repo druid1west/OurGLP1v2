@@ -86,8 +86,9 @@ className={styles.swiper}
                   <li>low energy from under-eating.</li>
                 </ul>
                 <strong>Best practice:</strong> start low, go slow, and wait at
-                least 4 weeks between dose increases. If side effects spike,
-                pause at the current dose (or step down) and stabilize.
+                least 4 weeks between dose increases when your prescription
+                instructions say to do so. If side effects spike, ask your
+                prescriber before changing dose timing or amount.
               </div>
 
               <div className={styles.card}>
@@ -249,8 +250,8 @@ className={styles.swiper}
                   <li>prioritize fiber from plants (and/or a gentle supplement),</li>
                   <li>limit big, greasy meals and large late-night snacks.</li>
                 </ul>
-                If constipation or reflux persists, pause dose escalation and
-                talk to your clinician about options.
+                If constipation or reflux persists, talk to your clinician about
+                safe options before changing your medication routine.
               </div>
             </div>
             </div>
@@ -278,13 +279,14 @@ className={styles.swiper}
                   <li>see which meals spike you most,</li>
                   <li>confirm progress as appetite and weight change.</li>
                 </ul>
-                If you do get lows (shaky, sweaty, foggy), follow the 15-15 rule:
-                take ~15 g fast carbs, recheck in 15 min.
+                If you do get lows (shaky, sweaty, foggy), follow the treatment
+                plan your clinician gave you or seek medical guidance.
               </div>
 
               <div className={styles.card}>
-                <strong>When to check:</strong> before breakfast, 2 hours after
-                meals, or any time you feel “off.”
+                <strong>When to check:</strong> follow your clinician's blood
+                sugar monitoring plan, especially if you use diabetes medication
+                that can cause low blood sugar.
               </div>
             </div>
             </div>
@@ -378,6 +380,9 @@ className={styles.swiper}
                 <ul className={styles.bullets}>
                   <li>
                     <Link to="/information">More Information</Link>
+                  </li>
+                  <li>
+                    <Link to="/medical-sources">Medical Sources &amp; Citations</Link>
                   </li>
                   <li>
                     <Link to="/privacy">Privacy Policy</Link>

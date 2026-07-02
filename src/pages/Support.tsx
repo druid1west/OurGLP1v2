@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { IonButton, IonPage, IonContent } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import styles from './Support.module.css';
 
 import TopNav from '@/context/TopNav';
@@ -183,6 +183,19 @@ const Support: React.FC = () => {
             </p>
           </section>
 
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Medical Sources</h3>
+            <p className={styles.body}>
+              OurGLP1 is for tracking and organization only. It does not diagnose,
+              prescribe, recommend dose changes, or replace professional medical advice.
+              Review the app's cited health information here:{' '}
+              <Link className={styles.link} to="/medical-sources">
+                Medical Sources &amp; Citations
+              </Link>
+              .
+            </p>
+          </section>
+
           {/* Remaining sections unchanged */}
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>Contact Us</h3>
@@ -222,5 +235,3 @@ const Support: React.FC = () => {
 };
 
 export default Support;
-
-

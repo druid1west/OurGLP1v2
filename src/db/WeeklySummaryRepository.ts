@@ -132,10 +132,21 @@ export type MoodWeekAmPmSeries = {
 // -----------------------------
 export function archiveFilename(fromUtc: string, toUtc: string) {
   const d = (s: string) => new Date(s).toISOString().slice(0, 10);
-  return `weekly_${d(fromUtc)}_to_${d(toUtc)}`;
+  return `weekly-summary-${d(fromUtc)}-to-${d(toUtc)}`;
 }
 export function toArchiveFilename(row: Pick<ArchiveRow, 'from_utc' | 'to_utc'>) {
   return archiveFilename(row.from_utc, row.to_utc);
+}
+
+export function archiveDisplayLabel(fromUtc: string, toUtc: string) {
+  const fmt = (s: string) =>
+    new Date(s).toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  const end = new Date(Date.parse(toUtc) - 1);
+  return `${fmt(fromUtc)} - ${fmt(end.toISOString())}`;
 }
 
 // -----------------------------

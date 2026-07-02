@@ -97,6 +97,7 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true, setupOnly = false 
             <Link to="/coach" style={linkStyle}>Coach</Link>
             <Link to="/home" style={linkStyle}>Home</Link>
             <Link to="/information" style={linkStyle}>Info</Link>
+            <Link to="/medical-sources" style={linkStyle}>Sources</Link>
             <Link to="/support" style={linkStyle}>Support</Link>
             {!user && <Link to="/login" style={linkStyle}>Login</Link>}
             {!user && <Link to="/register" style={linkStyle}>Register</Link>}
@@ -128,9 +129,10 @@ const TopNav: React.FC<TopNavProps> = ({ showWhenAnon = true, setupOnly = false 
               <Link to="/home" style={linkStyle}>Home</Link>
               <Link to="/login" style={linkStyle}>Login</Link>
               <Link to="/register" style={linkStyle}>Register</Link>
-              <Link to="/information" style={linkStyle}>Info</Link>
-              
-            </>
+            <Link to="/information" style={linkStyle}>Info</Link>
+            <Link to="/medical-sources" style={linkStyle}>Sources</Link>
+            
+          </>
           )
         )}
       </div>

@@ -991,7 +991,7 @@ const Today: React.FC = () => {
                 <p>
                   {activeProtocols.length
                     ? `${activeProtocols.length} active routine${activeProtocols.length === 1 ? '' : 's'}`
-                    : 'GLP-1 and peptide tracking'}
+                    : 'Medication tracking'}
                 </p>
               </div>
               <IonButton
@@ -1006,7 +1006,8 @@ const Today: React.FC = () => {
 
             {activeProtocols.length === 0 ? (
               <p className={styles.protocolEmpty}>
-                Add GLP-1, copper peptide, or another protocol to keep timing, dose labels, and observations together.
+                Add your medication or another prescribed routine to keep timing,
+                dose labels, and observations together.
               </p>
             ) : (
               <div className={styles.protocolList}>

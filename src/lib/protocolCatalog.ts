@@ -85,6 +85,19 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     note: 'Use this for a daily oral GLP-1 routine exactly as prescribed.',
   },
   {
+    id: 'other-medication',
+    name: 'Other Medication',
+    kind: 'glp1',
+    defaultCadence: 'As directed',
+    routeLabel: 'As directed',
+    routeType: 'other',
+    cadenceType: 'as_directed',
+    effectivenessModel: 'none',
+    doseOptions: ['Other'],
+    trackingFocus: ['Dose adherence', 'Appetite', 'Hydration', 'Protein', 'Side effects', 'Notes'],
+    note: 'Use this when your medication is not listed. Keep dose and timing based on your prescriber or medication label.',
+  },
+  {
     id: 'copper-peptide',
     name: 'Copper peptide',
     kind: 'copper_peptide',
@@ -146,6 +159,23 @@ export const PROTOCOL_PRESETS: ProtocolPreset[] = [
     note: 'Use this for anything not listed. Keep dose and timing based on your own instructions.',
   },
 ];
+
+export const PUBLIC_PROTOCOL_PRESET_IDS = [
+  'semaglutide',
+  'tirzepatide',
+  'liraglutide',
+  'other-medication',
+] as const;
+
+const PUBLIC_PROTOCOL_PRESET_ID_SET = new Set<string>(PUBLIC_PROTOCOL_PRESET_IDS);
+
+export function isPublicProtocolPreset(id: string): boolean {
+  return PUBLIC_PROTOCOL_PRESET_ID_SET.has(id);
+}
+
+export function getPublicProtocolPresets(): ProtocolPreset[] {
+  return PROTOCOL_PRESETS.filter((preset) => isPublicProtocolPreset(preset.id));
+}
 
 export function getProtocolPreset(id: string): ProtocolPreset {
   return PROTOCOL_PRESETS.find((preset) => preset.id === id) ?? PROTOCOL_PRESETS[PROTOCOL_PRESETS.length - 1];

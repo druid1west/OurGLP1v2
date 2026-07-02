@@ -263,6 +263,13 @@ type Log = {
 
 type ArchiveSnapshot = {
   version: 1;
+  profile?: {
+    weight?: number | null;
+    bmi?: number | null;
+    weightUnit?: string | null;
+    medicationName?: string | null;
+    medicationDose?: string | null;
+  };
   protocol?: {
     id?: number;
     name?: string;
@@ -276,11 +283,13 @@ type ArchiveSnapshot = {
     buckets: number[];
     labels?: DayKey[];
     range?: ProteinRange | null;
+    total?: number;
   };
   hydration?: {
     buckets: number[];
     labels?: DayKey[];
     range?: HydrationRange | null;
+    total?: number;
   };
   activity?: WeeklyActivitySummary;
   glp1?: WeeklyGlp1Summary;
@@ -1323,6 +1332,9 @@ class WeeklySummaryErrorBoundary extends React.Component<
 const WeeklySummaryPageContent: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const router = useIonRouter();
+  const userRecord = user as unknown as Record<string, unknown> | null;
+  const currentWeightUnit =
+    typeof userRecord?.weight_unit === "string" ? userRecord.weight_unit : null;
 
   // state
   const [loading, setLoading] = useState(true);
@@ -2061,7 +2073,16 @@ try {
       days: computedDays ?? null,
     });
 
-    const snapshot: ArchiveSnapshot = { version: 1 };
+    const snapshot: ArchiveSnapshot = {
+      version: 1,
+      profile: {
+        weight: typeof user?.weight === "number" ? user.weight : user?.weight != null ? Number(user.weight) : null,
+        bmi: typeof user?.bmi === "number" ? user.bmi : user?.bmi != null ? Number(user.bmi) : null,
+        weightUnit: currentWeightUnit,
+        medicationName: user?.medication_name ?? null,
+        medicationDose: user?.medication_dose ?? null,
+      },
+    };
     if (primaryProtocol || weekContext) {
       snapshot.protocol = {
         id: primaryProtocol?.id,
@@ -2078,6 +2099,7 @@ try {
         buckets: proteinBuckets,
         labels: proteinLabels && proteinLabels.length === 7 ? proteinLabels : undefined,
         range: proteinRange,
+        total: proteinBuckets.reduce((sum, value) => sum + value, 0),
       };
     }
     if (Array.isArray(hydrationBuckets) && hydrationBuckets.length === 7) {
@@ -2085,6 +2107,7 @@ try {
         buckets: hydrationBuckets,
         labels: hydrationLabels && hydrationLabels.length === 7 ? hydrationLabels : undefined,
         range: hydrationRange,
+        total: hydrationBuckets.reduce((sum, value) => sum + value, 0),
       };
     }
     if (activitySummary) {
@@ -2152,8 +2175,140 @@ try {
     primaryProtocol,
     weekContext,
     user?.id,
+    user?.weight,
+    user?.bmi,
+    currentWeightUnit,
+    user?.medication_name,
+    user?.medication_dose,
     openArchiveDialog
   ]);
+
+  const buildArchiveSnapshotForContext = useCallback(
+    async (context: ProtocolWeekContext): Promise<{ snapshot: ArchiveSnapshot; fastingJson: string | null }> => {
+      const weightValue = typeof user?.weight === "number" ? user.weight : user?.weight != null ? Number(user.weight) : null;
+      const userId = typeof user?.id === "string" ? user.id : user?.id != null ? String(user.id) : "";
+      const fromYmd = localYmdFromIso(context.window.start, context.window.tz);
+      const toYmd = addDaysYmd(fromYmd, 6);
+      const startIdx = DAY_KEYS.indexOf(fullToDayKey(context.startDay));
+      const rotate = <T,>(values: readonly T[]) => rotateToStart(values, Math.max(0, startIdx));
+
+      const snapshot: ArchiveSnapshot = {
+        version: 1,
+        profile: {
+          weight: weightValue,
+          bmi: typeof user?.bmi === "number" ? user.bmi : user?.bmi != null ? Number(user.bmi) : null,
+          weightUnit: currentWeightUnit,
+          medicationName: user?.medication_name ?? null,
+          medicationDose: user?.medication_dose ?? null,
+        },
+        protocol: {
+          id: context.protocol?.id,
+          name: context.protocol?.name,
+          cadenceType: context.protocol?.cadence_type,
+          routeType: context.protocol?.route_type,
+          doseTime: context.protocol?.dose_time ?? null,
+          anchorDay: context.protocol?.anchor_day ?? null,
+          weekKind: context.kind,
+        },
+      };
+
+      const proteinRows = userId ? await getWeeklyProteinIntake(userId, fromYmd) : [];
+      const proteinRaw = zeros();
+      for (const row of proteinRows) {
+        const dateStr = String((row as { date?: unknown }).date ?? "");
+        const idx = DAY_KEYS.indexOf(ymdToDayKey(dateStr));
+        if (idx >= 0) {
+          const gramsVal = (row as { protein_grams?: unknown }).protein_grams;
+          const grams = typeof gramsVal === "number" ? gramsVal : Number(gramsVal ?? 0);
+          proteinRaw[idx] += Number.isFinite(grams) ? grams : 0;
+        }
+      }
+      const proteinSnapshotBuckets = rotate(proteinRaw);
+      snapshot.protein = {
+        buckets: proteinSnapshotBuckets,
+        labels: rotate(DAY_KEYS) as DayKey[],
+        range: weightValue ? computeProteinRange(weightValue) : null,
+        total: proteinSnapshotBuckets.reduce((sum, value) => sum + value, 0),
+      };
+
+      const hydrationRows = userId ? await getWeeklyHydrationIntake(userId, fromYmd) : [];
+      const hydrationRaw = zeros();
+      for (const row of hydrationRows) {
+        const dateStr = String(row.date ?? "");
+        const idx = DAY_KEYS.indexOf(ymdToDayKey(dateStr));
+        if (idx >= 0) {
+          const mlVal = row.hydration_ml;
+          const ml = typeof mlVal === "number" ? mlVal : Number(mlVal ?? 0);
+          hydrationRaw[idx] += Number.isFinite(ml) ? ml : 0;
+        }
+      }
+      const hydrationSnapshotBuckets = rotate(hydrationRaw);
+      snapshot.hydration = {
+        buckets: hydrationSnapshotBuckets,
+        labels: rotate(DAY_KEYS) as DayKey[],
+        range: weightValue ? computeHydrationRange(weightValue) : null,
+        total: hydrationSnapshotBuckets.reduce((sum, value) => sum + value, 0),
+      };
+
+      const [exerciseRowsRaw, appleRows] = await Promise.all([
+        listExercises(),
+        listHealthDailySummariesRange(fromYmd, toYmd),
+      ]);
+      const exerciseRows = Array.isArray(exerciseRowsRaw)
+        ? exerciseRowsRaw.map(toExerciseRow).filter((row): row is ExerciseRow => row !== null)
+        : [];
+      snapshot.activity = buildWeeklyActivitySummary(
+        context.window.start,
+        context.window.tz,
+        Math.max(0, startIdx),
+        exerciseRows,
+        appleRows
+      );
+
+      if (userId) {
+        const rows = await listGlp1ExperienceRange(userId, fromYmd, toYmd);
+        snapshot.glp1 = {
+          points: rows
+            .map((row) => ({
+              recordedAt: row.recorded_at,
+              hunger: row.hunger,
+              nausea: row.nausea,
+            }))
+            .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()),
+        };
+      }
+
+      const target = parseTargetFrom(undefined, user?.fasting_schedule ?? null);
+      const rows = await getFastingRange(fromYmd, toYmd).catch(() => []);
+      const fastingDays = Array.isArray(rows)
+        ? rows.map((row) => {
+            const hrs = fastingHoursBetween(row.first_meal_at, row.last_meal_at);
+            const met = typeof hrs === "number" ? hrs >= target : false;
+            return { day: row.day, met, hours: hrs ?? undefined };
+          })
+        : [];
+      const avg = fastingDays.length
+        ? fastingDays.reduce((sum, day) => sum + (day.hours ?? 0), 0) / fastingDays.length
+        : undefined;
+      const fastingJson = JSON.stringify({
+        targetHours: target,
+        avgHours: typeof avg === "number" ? Number(avg.toFixed(2)) : null,
+        daysMetTarget: fastingDays.filter((day) => day.met).length,
+        days: fastingDays,
+      });
+
+      return { snapshot, fastingJson };
+    },
+    [
+      currentWeightUnit,
+      user?.bmi,
+      user?.fasting_schedule,
+      user?.id,
+      user?.medication_dose,
+      user?.medication_name,
+      user?.weight,
+    ]
+  );
 
   const autoArchiveKeyRef = React.useRef<string | null>(null);
 
@@ -2189,18 +2344,7 @@ try {
             return [[metric, png]];
           });
 
-        const snapshot: ArchiveSnapshot = {
-          version: 1,
-          protocol: {
-            id: primaryProtocol?.id,
-            name: primaryProtocol?.name,
-            cadenceType: primaryProtocol?.cadence_type,
-            routeType: primaryProtocol?.route_type,
-            doseTime: primaryProtocol?.dose_time ?? null,
-            anchorDay: primaryProtocol?.anchor_day ?? null,
-            weekKind: previous.kind,
-          },
-        };
+        const { snapshot, fastingJson } = await buildArchiveSnapshotForContext(previous);
 
         const archiveId = await insertArchive({
           userId: user.id,
@@ -2215,7 +2359,7 @@ try {
           },
           bullets: [],
           injectionTakenAt: null,
-          fastingJson: null,
+          fastingJson,
           snapshotJson: JSON.stringify(snapshot),
         });
 
@@ -2237,7 +2381,7 @@ try {
     return () => {
       cancelled = true;
     };
-  }, [include, primaryProtocol, user, weekContext]);
+  }, [buildArchiveSnapshotForContext, include, primaryProtocol, user, weekContext]);
 
   
 

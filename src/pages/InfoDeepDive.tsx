@@ -1,6 +1,7 @@
 // src/pages/InfoDeepDive.tsx
 import React from 'react';
 import { IonPage, IonContent } from '@ionic/react';
+import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import 'swiper/css';
@@ -33,12 +34,13 @@ const InfoDeepDive: React.FC = () => {
               <div className={styles.card}>
                 ⭐ GLP-1s and Inflammation
                 <br />
-                ✅ Early research shows anti-inflammatory effects — helpful in
-                autoimmune and gut conditions.
+                Research is exploring anti-inflammatory and metabolic effects of
+                GLP-1 medicines.
                 <br />
-                ✅ Less inflammation = better recovery, energy, and joint comfort.
+                Evidence varies by condition and medication, so this is general
+                education only.
                 <br />
-                ⚠️ Still early evidence — not a substitute for medical treatment.
+                ⚠️ Not a substitute for medical treatment.
                 <br />
                 💪 Keep your basics strong: nutrition, protein, movement, hydration.
               </div>
@@ -48,11 +50,8 @@ const InfoDeepDive: React.FC = () => {
               <div className={styles.card}>
                 💖 GLP-1s and Breast Cancer Support
                 <br />
-                🌿 Studies are exploring GLP-1s to help manage weight and insulin
-                during or after treatment.
-                <br />
-                ✅ May support hormone balance and reduce recurrence risk via
-                metabolic control.
+                Studies are exploring weight, insulin, and metabolic health during
+                or after treatment.
                 <br />
                 ⚠️ Not a cancer therapy — always coordinate with your oncology team.
               </div>
@@ -62,11 +61,8 @@ const InfoDeepDive: React.FC = () => {
               <div className={styles.card}>
                 ❤️️ GLP-1s After a Heart Attack
                 <br />
-                💪 Clinical trials show fewer heart attacks and strokes in high-risk
-                patients on GLP-1s.
-                <br />
-                ✅ They improve cholesterol, reduce inflammation, and stabilise
-                blood sugar.
+                Some GLP-1 medicines have cardiovascular indications or trial data
+                in specific high-risk groups.
                 <br />
                 ⚠️ Works best with cardiac rehab, medication, and strength training.
               </div>
@@ -76,9 +72,8 @@ const InfoDeepDive: React.FC = () => {
               <div className={styles.card}>
                 🍷 GLP-1s and Alcohol Cravings
                 <br />
-                ✨ Early studies: GLP-1s reduce alcohol intake and craving.
-                <br />
-                ✅ Help reset reward pathways in the brain.
+                Early research is exploring whether GLP-1 medicines affect craving
+                and reward pathways.
                 <br />
                 ⚠️ They make it easier to change — they don’t replace support,
                 therapy, or accountability.
@@ -89,12 +84,11 @@ const InfoDeepDive: React.FC = () => {
               <div className={styles.card}>
                 🌟 What’s Next
                 <br />
-                🚀 New incretin drugs coming:
+                New incretin drugs are being studied:
                 <ul className={styles.bullets}>
-                  <li>Amycretin (GLP-1 + amylin) — strong early results.</li>
+                  <li>Amycretin (GLP-1 + amylin) — under clinical study.</li>
                   <li>
-                    Retatrutide (GLP-1 + GIP + glucagon) — even greater metabolic
-                    effect in trials.
+                    Retatrutide (GLP-1 + GIP + glucagon) — under clinical study.
                   </li>
                 </ul>
                 💡 These next-gen versions are powerful — but the foundation remains
@@ -147,14 +141,12 @@ const InfoDeepDive: React.FC = () => {
                 Using GLP-1s Safely
                 <ul className={styles.bullets}>
                   <li>
-                    Start low and increase slowly — too high a dose causes rapid
-                    weight loss and all the knock-on effects: fatigue, hair loss,
-                    muscle loss, and that gaunt “Ozempic face.” (see next page)
+                    Follow your prescription instructions and ask your prescriber
+                    before changing dose timing or amount.
                   </li>
                   <li>
-                    Starving yourself will make you lose weight faster — but at the
-                    cost of muscle, energy, hormones, and skin health. It’s not
-                    worth the damage.
+                    Very low intake can make nutrition, hydration, and energy harder
+                    to maintain. Ask your clinician if eating feels difficult.
                   </li>
                   <li>
                     Prioritise protein, but don’t live on it — your body also needs
@@ -170,8 +162,8 @@ const InfoDeepDive: React.FC = () => {
                   </li>
                   <li>Track energy, mood, and strength — not just the number on the scale.</li>
                   <li>
-                    When the dose feels right, stay consistent; when it feels wrong,
-                    don’t push through side effects.
+                    If side effects feel hard to manage, do not push through alone:
+                    contact your prescriber or clinician.
                   </li>
                 </ul>
               </div>
@@ -214,8 +206,8 @@ const InfoDeepDive: React.FC = () => {
                   </li>
                   <li>💧 Take electrolytes every day — especially when eating less.</li>
                   <li>Your metabolism slows, so your body burns fewer calories.</li>
-                  <li>Short term: you’ll need bigger doses of GLP-1 medication to get the same effect.</li>
-                  <li>Long term: you become dependent on the drug instead of changing habits.</li>
+                  <li>Your prescriber can help review whether your current routine is still appropriate.</li>
+                  <li>Habits around food, hydration, movement, and sleep still matter for long-term maintenance.</li>
                   <li>
                     You start relying on appetite suppression rather than learning to
                     make the changes needed to fix your insulin resistance and learn
@@ -229,12 +221,10 @@ const InfoDeepDive: React.FC = () => {
               </div>
 
               <div className={styles.card}>
-                💡 The medication isn’t failing — your approach is.
+                💡 Medication is only one part of the picture.
                 <br />
-                The goal is to take a dose that helps you implement the lifestyle
-                changes that will allow your body to adapt and heal so you can reduce
-                or come off the medication once you reach your target weight. This is
-                possible and we are here to help you.
+                Your prescriber can help you use your medication safely while you
+                build habits that support nutrition, movement, hydration, and sleep.
               </div>
             </div>
             </div>
@@ -309,18 +299,19 @@ const InfoDeepDive: React.FC = () => {
                 Here’s how to reset safely:
                 <ul className={styles.bullets}>
                   <li>
-                    Pause the drop. Stay at your current dose or speak to your prescriber
-                    before increasing.
+                    Speak to your prescriber if weight loss feels too fast or side
+                    effects are hard to manage.
                   </li>
                   <li>
                     Rehydrate. Take electrolytes daily — dehydration makes everything feel worse.
                   </li>
                   <li>
-                    Start rebuilding muscle. Aim for 1g of protein per 1lb of your ideal body weight.
+                    Rebuild muscle with protein and strength work. Ask your clinician
+                    or dietitian for a personal protein target.
                   </li>
                   <li>
-                    If you can’t face protein, your dose is too high — reduce your GLP-1 medication
-                    until eating feels manageable.
+                    If you cannot tolerate protein or fluids, contact your clinician
+                    before changing medication.
                   </li>
                   <li>
                     Prioritise muscle-building over cardio. Strength training protects your metabolism,
@@ -348,23 +339,25 @@ const InfoDeepDive: React.FC = () => {
               <h2 className={styles.h2}>Fasting + GLP-1 = Smarter Metabolism</h2>
 
               <div className={styles.card}>
-                Fasting isn’t about eating less — it’s about giving your body space to reset insulin sensitivity and
-                regain metabolic balance.
+                Fasting is a timing tool some people use, but it is not required and
+                is not right for everyone.
                 <br />
-                GLP-1 medication makes this easier by reducing hunger and stabilising blood sugar.
+                If you use insulin, sulfonylureas, have diabetes, are pregnant, have
+                a history of eating disorder, or have another medical condition, ask
+                your clinician before fasting.
               </div>
 
               <div className={styles.card}>
                 Here’s how to do it right:
                 <ul className={styles.bullets}>
-                  <li>Start with 14:10 or 16:8 — that’s enough to start improving insulin control and blood sugar stability.</li>
+                  <li>If you choose to try fasting, start gently and use a schedule you can repeat safely.</li>
                   <li>Remember, most people taking GLP-1s were used to eating every few hours — your body needs time to adapt.</li>
                   <li>If fasting feels tough, shorten the window (4–6 hours) and build up slowly.</li>
                   <li>The goal is steady progress, not endurance.</li>
                   <li>When you eat, focus on protein, healthy fats, and complex carbs — proper fuel keeps your metabolism healthy.</li>
                   <li>Stay hydrated and take electrolytes during fasting hours.</li>
                   <li>If you feel light-headed or foggy, hydrate first and take electrolytes, then reassess before eating.</li>
-                  <li>Deep cell repair (autophagy) only happens with much longer fasts — typically after 48–72 hours, and that’s not the goal here.</li>
+                  <li>Avoid prolonged fasts unless specifically guided by a qualified clinician.</li>
                   <li>Combine fasting with strength or resistance training to protect muscle and stabilise metabolism.</li>
                 </ul>
               </div>
@@ -386,27 +379,28 @@ const InfoDeepDive: React.FC = () => {
               <h2 className={styles.h2}>Latest Research &amp; Proven Benefits of GLP-1s</h2>
 
               <div className={styles.card}>
-                The evidence is stronger than ever — GLP-1 medications do far more than just help with weight loss.
+                GLP-1 medications have different approved uses and evidence depending
+                on the specific medicine and person.
               </div>
 
               <div className={styles.card}>
-                Here’s what current research shows:
+                Useful points to track and discuss with your care team:
                 <ul className={styles.bullets}>
-                  <li>Improved insulin sensitivity — your body handles sugar better, reducing diabetes risk.</li>
-                  <li>Lower inflammation — GLP-1s calm inflammatory markers linked to heart disease and fatigue.</li>
-                  <li>Heart protection — studies show reduced risk of cardiovascular events, independent of weight loss.</li>
-                  <li>Liver health — lower fat in the liver (NAFLD/NASH improvement).</li>
-                  <li>Better energy regulation — steadier blood sugar = fewer crashes and cravings.</li>
-                  <li>Possible brain protection — early data suggests lower risk of Alzheimer’s and cognitive decline.</li>
-                  <li>Sustainable results — people who combine GLP-1s with protein, hydration, and strength training maintain up to 80% of their loss long term.</li>
-                  <li>Psychological benefits — calmer appetite, better focus, improved relationship with food.</li>
+                  <li>Some medicines are approved for type 2 diabetes, chronic weight management, or cardiovascular risk reduction in specific groups.</li>
+                  <li>Commonly tracked effects include appetite changes, nausea, vomiting, diarrhea, constipation, and hydration challenges.</li>
+                  <li>Medication guides and clinician advice should lead decisions about missed doses, side effects, and safety concerns.</li>
+                  <li>Protein, hydration, movement, and sleep tracking can help users prepare better care-team conversations.</li>
                 </ul>
               </div>
 
               <div className={styles.card}>
-                💡 GLP-1s aren’t just for weight loss — they’re a metabolic reset tool.
-                <br />
-                When paired with the right habits, they help you stay healthy, strong, and clear-minded for life.
+                OurGLP1 helps you organize observations. It does not diagnose,
+                prescribe, or recommend medication changes.
+              </div>
+
+              <div className={styles.card}>
+                <strong>Sources:</strong>{' '}
+                <Link to="/medical-sources">Medical Sources &amp; Citations</Link>
               </div>
 
               <div aria-hidden className={styles.endSpacer} />

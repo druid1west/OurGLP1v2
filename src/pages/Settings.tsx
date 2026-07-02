@@ -325,7 +325,7 @@ const Settings: React.FC = () => {
             <h3 className={styles.dangerTitle}>Delete Account</h3>
             <p className={styles.muted}>
               Permanently delete your account and all data stored on this device. This action
-              cannot be undone.
+              cannot be undone. This does not cancel your Apple subscription.
             </p>
 
             <IonButton
@@ -341,7 +341,7 @@ const Settings: React.FC = () => {
               isOpen={confirmEraseOpen}
               onDidDismiss={() => setConfirmEraseOpen(false)}
               header="Delete account?"
-              message="This permanently deletes your account and all data stored on this device. This cannot be undone."
+              message="This permanently deletes your account and all data stored on this device. This cannot be undone. It does not cancel your Apple subscription."
               buttons={[
                 { text: 'Cancel', role: 'cancel' },
                 {
@@ -365,6 +365,4 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-
-
 

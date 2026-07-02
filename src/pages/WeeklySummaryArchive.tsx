@@ -14,6 +14,7 @@ import {
   listArchive,
   type ArchiveRow,
   archiveFilename,
+  archiveDisplayLabel,
 } from '@/db/WeeklySummaryRepository';
 
 /** ---------- date helpers ---------- */
@@ -123,7 +124,7 @@ export default function WeeklySummaryArchive(): React.ReactElement {
                         {rows.map((r) => {
                           const busy = deletingId === r.id;
                           const filename = archiveFilename(r.from_utc, r.to_utc);
-                          const weekRange = `${fmtDateOnly(r.from_utc)} → ${fmtDateOnly(r.to_utc)}`;
+                          const weekRange = archiveDisplayLabel(r.from_utc, r.to_utc);
                           const archivedOn = fmtDateTime(r.archived_at || r.sent_at || r.created_at);
 
                           return (
@@ -135,7 +136,7 @@ export default function WeeklySummaryArchive(): React.ReactElement {
                                     className={styles.filenameLink}
                                     title={filename}
                                   >
-                                    <code className={styles.filename}>{filename}</code>
+                                    <span className={styles.filename}>{weekRange}</span>
                                   </Link>
 
                                   <span className={styles.fileMeta} title={archivedOn}>
@@ -159,7 +160,7 @@ export default function WeeklySummaryArchive(): React.ReactElement {
                                 </div>
                               </td>
 
-                              <td className={styles.colWeek}>{weekRange}</td>
+                              <td className={styles.colWeek}>{filename}</td>
                             </tr>
                           );
                         })}
@@ -177,5 +178,4 @@ export default function WeeklySummaryArchive(): React.ReactElement {
     </IonPage>
   );
 }
-
 

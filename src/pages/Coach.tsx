@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IonButton, IonContent, IonPage, useIonRouter, useIonViewWillLeave } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import {
   BellPlus,
   CheckCircle2,
@@ -134,7 +134,7 @@ const medicationOptions = [
   'Mounjaro',
   'Zepbound',
   'Saxenda',
-  'Other peptide',
+  'Other Medication',
 ] as const;
 
 const weekdayOptions: WeekdayFull[] = [
@@ -147,7 +147,7 @@ const weekdayOptions: WeekdayFull[] = [
   'Sunday',
 ];
 
-const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide'] as const;
+const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide', 'other-medication'] as const;
 type PrimaryProtocolRhythm = 'weekly_injection' | 'daily_pill';
 
 function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liraglutide' | null {
@@ -2129,8 +2129,12 @@ const Coach: React.FC = () => {
           <section className={styles.librarySection} aria-labelledby="coachLibraryTitle">
             <div className={styles.sectionHeader}>
               <div>
-                <h2 id="coachLibraryTitle">Helpful topics</h2>
-                <p>Not sure what to ask? Start with one of these.</p>
+	                <h2 id="coachLibraryTitle">Helpful topics</h2>
+	                <p>
+                    Not sure what to ask? Start with one of these. For cited health
+                    information, see{' '}
+                    <Link to="/medical-sources">Medical Sources &amp; Citations</Link>.
+                  </p>
               </div>
             </div>
 

@@ -86,22 +86,30 @@ export async function dropAllLocalData(): Promise<DropAllLocalDataResult> {
 
   // Expanded to cover all tables seen in logs/schema
   const TABLES: readonly string[] = [
-    'users',
-    'user_profile',
-    'settings',
+    'weekly_summary_charts',
+    'weekly_summary_archive',
+    'glp1_graph_archive',
+    'protocol_events',
+    'protocols',
+    'coach_checkins',
+    'glp1_experience_logs',
+    'health_daily_summaries',
+    'daily_hydration_intake',
+    'daily_protein_intake',
+    'fasting_days',
+    'exercises',
     'health_logs',
     'sleep_logs',
+    'sleep_plans',
     'sleep_prefs',
-    'exercises',
-    'fasting_days',
-    'daily_protein_intake',
-    'daily_hydration_intake', // <-- added so reset wipes hydration as well
-    'weekly_summary_prefs',
-    'weekly_summary_archive',
-    'weekly_summary_charts',
     'reminders',
+    'weekly_summary_prefs',
     'push_tokens', // may not exist on older installs
-    // add future tables here
+    'pending_sync',
+    'sync_state',
+    'settings',
+    'user_profile',
+    'users',
   ];
 
   const rawErrors: string[] = [];
@@ -206,7 +214,5 @@ export async function dropAllLocalData(): Promise<DropAllLocalDataResult> {
   const nonBenignErrors = rawErrors.filter((err) => !isBenignSqliteError(err));
   return nonBenignErrors.length === 0 ? { ok: true } : { ok: false, errors: nonBenignErrors };
 }
-
-
 
 

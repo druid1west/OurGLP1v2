@@ -107,6 +107,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = 
             <Link to="/coach" style={linkStyle} aria-label="Coach setup">Coach</Link>
             <Link to="/home" style={linkStyle} aria-label="Home">Home</Link>
             <Link to="/information" style={linkStyle} aria-label="Information">Info</Link>
+            <Link to="/medical-sources" style={linkStyle} aria-label="Medical sources and citations">Sources</Link>
             <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
             <Link to="/privacy" style={linkStyle} aria-label="Privacy Policy">Privacy</Link>
             <Link to="/terms" style={linkStyle} aria-label="Terms of Service">Terms</Link>
@@ -119,6 +120,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = 
             <Link to="/privacy" style={linkStyle} aria-label="Privacy Policy">Privacy</Link>
             <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
             <Link to="/terms" style={linkStyle} aria-label="Terms of Service">Terms</Link>
+            <Link to="/medical-sources" style={linkStyle} aria-label="Medical sources and citations">Sources</Link>
             <Link to="/deepdive" style={linkStyle} aria-label="About OurGLP1">About</Link>
           </>
         )}
@@ -136,6 +138,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ showWhenAnon = true, setupOnly = 
               <Link to="/weeklysummary" style={linkStyle} aria-label="Weekly Summary">Summary</Link>
             )}
             <Link to="/support" style={linkStyle} aria-label="Support">Support</Link>
+            <Link to="/medical-sources" style={linkStyle} aria-label="Medical sources and citations">Sources</Link>
             <button
               type="button"
               onClick={handleLogout}

@@ -44,6 +44,7 @@ import Coach from './pages/Coach';
 import PersonalPlan from './pages/personalPlan';
 import Support from './pages/Support';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import MedicalSources from './pages/MedicalSources';
 import ResetPassword from './pages/ResetPassword';
 import RemindersPage from './pages/RemindersPage';
 import WeeklySummary from './pages/weeklySummaryPage';
@@ -553,6 +554,7 @@ const App: React.FC = () => {
                   <Route exact path="/paywall" component={Paywall} />
                   <Route exact path="/support" component={Support} />
                   <Route exact path="/privacy" component={PrivacyPolicy} />
+                  <Route exact path="/medical-sources" component={MedicalSources} />
                   <Route exact path="/resetpassword" component={ResetPassword} />
                   <Route exact path="/terms" component={Terms} />
                   <Route exact path="/coach" component={Coach} />

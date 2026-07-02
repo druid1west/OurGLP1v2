@@ -134,6 +134,7 @@ const PROFILE_PRIMARY_PROTOCOL_IDS = [
   'semaglutide',
   'tirzepatide',
   'liraglutide',
+  'other-medication',
 ] as const;
 type PrimaryProtocolRhythm = 'weekly_injection' | 'daily_pill';
 
@@ -141,7 +142,7 @@ const PROFILE_PRIMARY_PROTOCOLS = PROFILE_PRIMARY_PROTOCOL_IDS.map((id) => getPr
 
 const MEDICATION_OPTIONS = PROFILE_PRIMARY_PROTOCOLS.map((preset) => preset.name);
 
-type Glp1MedicationFamily = 'semaglutide' | 'tirzepatide' | 'liraglutide';
+type Glp1MedicationFamily = 'semaglutide' | 'tirzepatide' | 'liraglutide' | 'other-medication';
 
 function medicationFamily(name: string): Glp1MedicationFamily | null {
   const normalized = name.trim().toLowerCase();
@@ -163,6 +164,9 @@ function medicationFamily(name: string): Glp1MedicationFamily | null {
   }
   if (normalized.includes('liraglutide') || normalized.includes('saxenda')) {
     return 'liraglutide';
+  }
+  if (normalized.includes('other medication')) {
+    return 'other-medication';
   }
 
   return null;
@@ -186,6 +190,8 @@ function protocolPresetForProfileMedication(name: string): ProtocolPreset | null
       return getProtocolPreset('tirzepatide');
     case 'liraglutide':
       return getProtocolPreset('liraglutide');
+    case 'other-medication':
+      return getProtocolPreset('other-medication');
     default:
       return null;
   }
@@ -2086,7 +2092,7 @@ const mainUIView = (
       isOpen={confirmDeleteOpen}
       onDidDismiss={() => setConfirmDeleteOpen(false)}
       header="Delete account?"
-      message="This permanently deletes your account and all data stored on this device. This cannot be undone."
+      message="This permanently deletes your account and all data stored on this device. This cannot be undone. It does not cancel your Apple subscription."
       buttons={[
         { text: 'Cancel', role: 'cancel' },
         { text: 'Delete', role: 'destructive', handler: handleDeleteAccount },

@@ -32,6 +32,7 @@ import {
 } from '../db/ProtocolRepository';
 import {
   getProtocolPreset,
+  getPublicProtocolPresets,
   PROTOCOL_KIND_LABELS,
   PROTOCOL_PRESETS,
   type ProtocolCadenceType,
@@ -56,7 +57,7 @@ type ProtocolDraft = {
   notes: string;
 };
 
-const ADD_PROTOCOL_PRESETS = PROTOCOL_PRESETS.filter((preset) => preset.id !== 'daily-glp1-pill');
+const ADD_PROTOCOL_PRESETS = getPublicProtocolPresets();
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 
 function routeTypeFromLabel(label: string): ProtocolRouteType {
@@ -479,7 +480,7 @@ const Protocols: React.FC = () => {
                 <ClipboardList size={17} />
                 <span>Protocols</span>
               </div>
-              <h1>Track GLP-1 and peptide routines in one place</h1>
+              <h1>Track GLP-1 routines in one place</h1>
               <p>
                 Keep dose labels, cadence, and notes together with the outcomes you already track.
                 This is a recording tool, not dosing advice.
@@ -551,7 +552,7 @@ const Protocols: React.FC = () => {
                 <input
                   value={draft.name}
                   onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  placeholder="Copper peptide"
+                  placeholder="Other Medication"
                 />
               </label>
 
@@ -672,7 +673,7 @@ const Protocols: React.FC = () => {
             {loadState !== 'error' && protocols.length === 0 && (
               <div className={styles.emptyState}>
                 <Sparkles size={24} />
-                <strong>Start with GLP-1 or add copper peptide as a second routine.</strong>
+                <strong>Start with your primary medication, then add other prescribed routines as needed.</strong>
                 <span>The same Today dashboard can then show movement, sleep, hydration, protein, and notes around it.</span>
               </div>
             )}

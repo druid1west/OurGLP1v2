@@ -21,6 +21,7 @@ import {
   getArchiveCharts,
   type ArchiveRow,
   archiveFilename,
+  archiveDisplayLabel,
 } from "@/db/WeeklySummaryRepository";
 
 // Correct casing matters on case-sensitive FS
@@ -92,15 +93,24 @@ type WeeklyGlp1Summary = {
 };
 type ArchiveSnapshot = {
   version?: number;
+  profile?: {
+    weight?: number | null;
+    bmi?: number | null;
+    weightUnit?: string | null;
+    medicationName?: string | null;
+    medicationDose?: string | null;
+  };
   protein?: {
     buckets?: number[];
     labels?: DayKey[];
     range?: ProteinRange | null;
+    total?: number;
   };
   hydration?: {
     buckets?: number[];
     labels?: DayKey[];
     range?: HydrationRange | null;
+    total?: number;
   };
   activity?: WeeklyActivitySummary;
   glp1?: WeeklyGlp1Summary;
@@ -286,7 +296,7 @@ export default function WeeklySummaryArchiveDetail(): React.ReactElement {
         logging: false,
       });
       const dataUrl = canvas.toDataURL("image/png", 1.0);
-      const fname = "weekly-summary.png";
+      const fname = rec ? `${archiveFilename(rec.from_utc, rec.to_utc)}.png` : "weekly-summary.png";
 
       // Android: save directly to Photos (Gallery) using a real file path
 if (Capacitor.getPlatform() === "android") {
@@ -364,7 +374,7 @@ if (Capacitor.getPlatform() === "android") {
     } finally {
       setCapturing(false);
     }
-  }, [capturing]);
+  }, [capturing, rec]);
 
   useEffect(() => {
     let mounted = true;
@@ -582,6 +592,10 @@ if (Capacitor.getPlatform() === "android") {
     () => (rec ? archiveFilename(rec.from_utc, rec.to_utc) : "—"),
     [rec]
   );
+  const displayLabel = useMemo(
+    () => (rec ? archiveDisplayLabel(rec.from_utc, rec.to_utc) : "—"),
+    [rec]
+  );
   const archivedOn = useMemo(
     () => (rec ? fmtDateTime(rec.archived_at || rec.sent_at || rec.created_at) : "—"),
     [rec]
@@ -619,7 +633,7 @@ if (Capacitor.getPlatform() === "android") {
             <Card className={styles.card}>
               <CardHeader className={styles.cardHeader}>
                 <CardTitle className={styles.cardTitle}>
-                  Viewing archive: <code>{filename}</code>
+                  Viewing archive: {displayLabel}
                 </CardTitle>
               </CardHeader>
 
@@ -627,14 +641,27 @@ if (Capacitor.getPlatform() === "android") {
                 <div className={styles.small}>
                   Archived on: <strong>{archivedOn}</strong>
                 </div>
+                <div className={styles.small}>
+                  Export filename: <code>{filename}.png</code>
+                </div>
 
                 <div className={styles.small}>
                   Week:{" "}
                   <strong>
-                    {new Date(rec.from_utc).toLocaleDateString()} →{" "}
-                    {new Date(rec.to_utc).toLocaleDateString()} ({rec.tz})
+                    {displayLabel} ({rec.tz})
                   </strong>
                 </div>
+                {snapshot?.profile && (
+                  <div className={styles.small}>
+                    Snapshot:{" "}
+                    <strong>
+                      {snapshot.profile.medicationName ?? "Medication not set"}
+                      {snapshot.profile.medicationDose ? ` ${snapshot.profile.medicationDose}` : ""}
+                    </strong>
+                    {snapshot.profile.weight != null ? ` · ${snapshot.profile.weight} ${snapshot.profile.weightUnit ?? "kg"}` : ""}
+                    {snapshot.profile.bmi != null ? ` · BMI ${snapshot.profile.bmi}` : ""}
+                  </div>
+                )}
 
                 <div className={styles.backRow}>
                   <Link to="/weekly-summary/archive">
