@@ -1300,6 +1300,18 @@ const Coach: React.FC = () => {
             <article className={styles.infoPanel}>
               <div className={styles.panelHeader}>
                 <ShieldAlert size={20} />
+                <h2>Coach Privacy</h2>
+              </div>
+              <ul>
+                <li>Coach uses built-in local guidance and saved app content.</li>
+                <li>Your personal entries are not sent to a third-party AI service.</li>
+                <li>Your health logs, Apple Health data, and medication routine stay on this device.</li>
+              </ul>
+            </article>
+
+            <article className={styles.infoPanel}>
+              <div className={styles.panelHeader}>
+                <ShieldAlert size={20} />
                 <h2>When To Use Your Clinic</h2>
               </div>
               <ul>
