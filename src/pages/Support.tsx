@@ -176,10 +176,19 @@ const Support: React.FC = () => {
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>Apple Health Sync</h3>
             <p className={styles.body}>
-              With permission, OurGLP1 can read Apple Health steps, active calories, exercise
-              minutes, sleep, heart rate, and workouts. This may include Apple Watch activity that
-              appears in Apple Health. You can change Apple Health permissions in the Health app at
-              any time.
+              With permission, OurGLP1 uses Apple HealthKit to read Apple Health steps, active
+              calories, exercise minutes, sleep, heart rate, and workouts. This may include Apple
+              Watch activity that appears in Apple Health. You can change Apple Health permissions
+              in the Health app at any time.
+            </p>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Coach Privacy</h3>
+            <p className={styles.body}>
+              The in-app Coach uses built-in local guidance. OurGLP1 does not send your personal
+              entries, health logs, medication routine, Apple Health data, or Coach questions to a
+              third-party AI service.
             </p>
           </section>
 

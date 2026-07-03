@@ -1489,7 +1489,11 @@ const HealthTracker: React.FC = () => {
   <h2 className={styles.subtitle}>Exercise</h2>
 
   <div className={styles.formGroup}>
-    <div className={styles.label}>Apple Health</div>
+    <div className={styles.label}>Apple HealthKit / Apple Health Sync</div>
+    <div className={styles.label}>
+      Optional. With your permission, this reads Apple Health steps, exercise minutes, active
+      calories, heart rate, sleep, and workouts for display inside OurGLP1.
+    </div>
     <div className={styles.label}>
       Steps: {(exerciseHealthSummary?.steps ?? 0).toLocaleString()} · Exercise:{' '}
       {Math.round(exerciseHealthSummary?.exerciseMinutes ?? 0)} min · Move:{' '}

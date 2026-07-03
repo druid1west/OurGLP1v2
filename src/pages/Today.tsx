@@ -929,8 +929,11 @@ const Today: React.FC = () => {
           <section className={styles.healthBand}>
             <div className={styles.sectionHeader}>
               <div>
-                <h2>Apple Health</h2>
-                <p>{syncLabel(syncState)}</p>
+                <h2>Apple HealthKit Sync</h2>
+                <p>
+                  Optional Apple Health data, with permission: steps, move energy, exercise,
+                  sleep, heart rate, and workouts. {syncLabel(syncState)}
+                </p>
               </div>
               <IonButton
                 className={styles.iconButton}

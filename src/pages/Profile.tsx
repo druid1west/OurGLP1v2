@@ -1969,6 +1969,10 @@ const mainUIView = (
   {/* 🏃 Exercise */}
   <div className={styles.statCard}>
     <div className={styles.statTitle}>🏃 Exercise</div>
+    <div className={styles.mutedSmall}>
+      Apple HealthKit sync is optional. With permission, OurGLP1 reads Apple Health activity,
+      heart rate, sleep, and workout data for display in the app.
+    </div>
     <div>
       <strong>Steps today:</strong> {(exerciseHealthSummary?.steps ?? 0).toLocaleString()}
     </div>

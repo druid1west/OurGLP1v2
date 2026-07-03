@@ -2004,6 +2004,10 @@ const Coach: React.FC = () => {
               <div>
                 <h2>Ask the Coach</h2>
                 <p>Ask about food, side effects, routines, motivation, or getting back on track.</p>
+                <p>
+                  Coach uses built-in local guidance. Your personal entries are not sent to a
+                  third-party AI service.
+                </p>
               </div>
               <IonButton
                 className={styles.secondaryAction}

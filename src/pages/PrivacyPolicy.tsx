@@ -65,6 +65,16 @@ const PrivacyPolicy: React.FC = () => {
             </p>
           </section>
 
+          <section className={styles.card}>
+            <h3 className={styles.sectionHeading}>Coach and Third-party AI Services</h3>
+            <p className={styles.body}>
+              The in-app Coach uses built-in local guidance and saved app content. OurGLP1 does
+              <strong> not</strong> send your name, email, profile, medication routine, health logs,
+              Apple Health data, or Coach questions to OpenAI, ChatGPT, Anthropic, Gemini, or any
+              other third-party AI service.
+            </p>
+          </section>
+
           {/* Data we collect automatically */}
           <section className={styles.card}>
             <h3 className={styles.sectionHeading}>Diagnostics & Analytics</h3>
@@ -126,6 +136,10 @@ const PrivacyPolicy: React.FC = () => {
               <li>
                 <strong>Analytics Provider:</strong> We use Sentry for anonymous error and
                 performance reporting under strict data-processing terms.
+              </li>
+              <li>
+                <strong>No third-party AI sharing:</strong> Your personal data is not shared with
+                third-party AI services.
               </li>
               <li>We do <strong>not</strong> sell, rent, or trade personal data.</li>
             </ul>
@@ -209,5 +223,4 @@ const PrivacyPolicy: React.FC = () => {
 };
 
 export default PrivacyPolicy;
-
 
