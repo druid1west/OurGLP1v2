@@ -191,6 +191,12 @@
   gap: 10px;
 }
 
+.quickMainActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .waterQuickAction {
   min-height: 46px;
   --background: #1677a3;
@@ -199,9 +205,45 @@
   font-weight: 850;
 }
 
-.waterQuickAction::part(native) {
+.foodQuickAction {
+  min-height: 46px;
+  --background: #c05621;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.waterQuickAction::part(native),
+.foodQuickAction::part(native),
+.saveFoodAction::part(native) {
   display: inline-flex;
   gap: 8px;
+}
+
+.foodLoggerPanel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.foodLoggerHeader strong,
+.foodLoggerHeader span {
+  display: block;
+}
+
+.foodLoggerHeader strong {
+  color: #172033;
+  font-size: 0.94rem;
+}
+
+.foodLoggerHeader span {
+  margin-top: 3px;
+  color: #607470;
+  font-size: 0.82rem;
+  line-height: 1.3;
 }
 
 .quickFoodGrid {
@@ -244,11 +286,92 @@
   font-size: 0.78rem;
 }
 
+.customFoodPanel {
+  display: grid;
+  gap: 8px;
+}
+
+.customFoodPanel label {
+  display: grid;
+  gap: 5px;
+}
+
+.customFoodPanel label span {
+  color: #526b65;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.customFoodPanel input {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  outline: none;
+}
+
+.customFoodPanel input:focus {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.textToggleButton,
+.undoButton,
+.loggedItem button {
+  min-height: 36px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 8px;
+  background: #eaf2ff;
+  color: #2563eb;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+}
+
+.textToggleButton {
+  justify-self: start;
+  padding: 0 10px;
+}
+
+.macroGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.saveFoodAction {
+  min-height: 44px;
+  --background: #2563eb;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.quickMessageRow {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .quickActionMessage {
   margin: 0;
   color: #2563eb;
   font-size: 0.88rem;
   font-weight: 850;
+}
+
+.undoButton {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
 }
 
 .healthBand,
@@ -589,7 +712,7 @@
 
 .loggedItem {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr) 38px;
   align-items: center;
   gap: 10px;
   min-height: 44px;
@@ -610,6 +733,18 @@
   font-size: 0.92rem;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+.loggedItem button {
+  width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #c05621;
+  background: #fff7ed;
+  border-color: rgba(192, 86, 33, 0.22);
 }
 
 .loggedEmpty {
@@ -865,9 +1000,18 @@
 }
 
 :global([data-theme='dark']) .quickFoodGrid button,
+:global([data-theme='dark']) .foodLoggerPanel,
+:global([data-theme='dark']) .customFoodPanel input,
 :global(body[data-theme='dark']) .quickFoodGrid button {
   background: rgba(192, 86, 33, 0.16);
   border-color: rgba(251, 191, 36, 0.28);
+  color: #f2fbf8;
+}
+
+:global(body[data-theme='dark']) .foodLoggerPanel,
+:global(body[data-theme='dark']) .customFoodPanel input {
+  background: #14201e;
+  border-color: rgba(255, 255, 255, 0.12);
   color: #f2fbf8;
 }
 
@@ -973,6 +1117,11 @@
   }
 
   .actionBand {
+    grid-template-columns: 1fr;
+  }
+
+  .quickMainActions,
+  .macroGrid {
     grid-template-columns: 1fr;
   }
 }

@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Sparkles,
   Syringe,
+  Trash2,
+  Undo2,
   Utensils,
   Watch,
 } from 'lucide-react';
@@ -25,6 +27,7 @@ import TopNav from '../context/TopNav';
 import BottomNav from '../context/BottomNav';
 import { useAuth } from '../context/useAuth';
 import {
+  deleteHealthLogLocal,
   getHealthDailySummaryByDay,
   getLastInjectionLocal,
   importAppleHealthWorkoutsAndEmit,
@@ -101,6 +104,13 @@ type QuickProteinAction = {
   label: string;
   grams: number;
   calories: number;
+  carbs?: number;
+  fat?: number;
+};
+
+type LastQuickLog = {
+  id: number;
+  label: string;
 };
 
 const PROTEIN_TARGET_G = 90;
@@ -108,12 +118,13 @@ const HYDRATION_TARGET_ML = 2200;
 const STEPS_TARGET = 8000;
 const SLEEP_TARGET_MINUTES = 7 * 60;
 const QUICK_WATER_ML = 250;
-const QUICK_PROTEIN_ACTIONS: QuickProteinAction[] = [
-  { label: 'Protein shake', grams: 25, calories: 150 },
-  { label: 'Greek yogurt', grams: 17, calories: 120 },
-  { label: '2 eggs', grams: 12, calories: 155 },
-  { label: 'Chicken', grams: 30, calories: 170 },
-  { label: 'Protein snack', grams: 15, calories: 180 },
+const COMMON_FOOD_ACTIONS: QuickProteinAction[] = [
+  { label: 'Protein shake', grams: 25, calories: 150, carbs: 5, fat: 3 },
+  { label: 'Greek yogurt', grams: 17, calories: 120, carbs: 8, fat: 0 },
+  { label: '2 eggs', grams: 12, calories: 155, carbs: 1, fat: 11 },
+  { label: 'Chicken', grams: 30, calories: 170, carbs: 0, fat: 4 },
+  { label: 'Fish', grams: 24, calories: 140, carbs: 0, fat: 4 },
+  { label: 'Beans', grams: 14, calories: 240, carbs: 40, fat: 1 },
 ];
 
 function localYmd(date = new Date()): string {
@@ -480,6 +491,14 @@ const Today: React.FC = () => {
   const [protocolLogMessage, setProtocolLogMessage] = useState('');
   const [quickActionState, setQuickActionState] = useState<QuickActionState>('idle');
   const [quickActionMessage, setQuickActionMessage] = useState('');
+  const [lastQuickLog, setLastQuickLog] = useState<LastQuickLog | null>(null);
+  const [foodLoggerOpen, setFoodLoggerOpen] = useState(false);
+  const [advancedFoodOpen, setAdvancedFoodOpen] = useState(false);
+  const [customFoodName, setCustomFoodName] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customCarbs, setCustomCarbs] = useState('');
+  const [customFat, setCustomFat] = useState('');
+  const [customCalories, setCustomCalories] = useState('');
 
   const today = useMemo(() => localYmd(), []);
 
@@ -693,6 +712,35 @@ const Today: React.FC = () => {
     }
   };
 
+  const refreshDailyNutritionRollups = useCallback(async (): Promise<void> => {
+    if (!user?.id) return;
+    const { start, end } = localDayBounds(today);
+    const logs = await listHealthLogsRange(start, end);
+    const summary = summarizeLogs(logs);
+    await Promise.all([
+      upsertDailyProteinAndEmit(String(user.id), today, summary.protein),
+      upsertDailyHydrationAndEmit(String(user.id), today, summary.hydration),
+    ]);
+  }, [today, user?.id]);
+
+  const findQuickLog = useCallback(async (
+    entryType: 'protein' | 'hydration',
+    recordedAt: string,
+    label: string
+  ): Promise<HealthLog | null> => {
+    const { start, end } = localDayBounds(today);
+    const logs = await listHealthLogsRange(start, end);
+    return [...logs].reverse().find((log) => {
+      const data = log.data as Record<string, unknown> | null;
+      const source = typeof data?.source === 'string' ? data.source : '';
+      const logLabel = typeof data?.label === 'string' ? data.label : '';
+      return log.entry_type === entryType &&
+        log.recorded_at === recordedAt &&
+        source === 'today_quick_log' &&
+        logLabel === label;
+    }) ?? null;
+  }, [today]);
+
   const handleQuickWater = async (): Promise<void> => {
     if (quickActionState === 'saving') return;
     setQuickActionState('saving');
@@ -713,7 +761,9 @@ const Today: React.FC = () => {
       if (user?.id) {
         await upsertDailyHydrationAndEmit(String(user.id), today, nextHydrationTotal);
       }
-      setQuickActionMessage('Water saved. Nice and simple.');
+      const savedLog = await findQuickLog('hydration', recordedAt, 'Water');
+      setLastQuickLog(savedLog ? { id: savedLog.id, label: 'Water' } : null);
+      setQuickActionMessage('Water saved.');
       await loadToday();
     } catch (error) {
       logger.warn('[Today] quick water log failed', {
@@ -740,15 +790,19 @@ const Today: React.FC = () => {
           grams: action.grams,
           protein: action.grams,
           calories: action.calories,
-          carbs: 0,
-          fat: 0,
+          carbs: action.carbs ?? 0,
+          fat: action.fat ?? 0,
           source: 'today_quick_log',
         }),
       });
       if (user?.id) {
         await upsertDailyProteinAndEmit(String(user.id), today, nextProteinTotal);
       }
+      const savedLog = await findQuickLog('protein', recordedAt, action.label);
+      setLastQuickLog(savedLog ? { id: savedLog.id, label: action.label } : null);
       setQuickActionMessage(`${action.label} saved.`);
+      setFoodLoggerOpen(false);
+      setAdvancedFoodOpen(false);
       await loadToday();
     } catch (error) {
       logger.warn('[Today] quick protein log failed', {
@@ -758,6 +812,54 @@ const Today: React.FC = () => {
     } finally {
       setQuickActionState('idle');
     }
+  };
+
+  const handleSaveCustomFood = async (): Promise<void> => {
+    const grams = Math.round(Number(customProtein));
+    if (!Number.isFinite(grams) || grams <= 0) {
+      setQuickActionMessage('Add protein grams first.');
+      return;
+    }
+
+    const label = customFoodName.trim() || 'Food';
+    await handleQuickProtein({
+      label,
+      grams,
+      calories: Number.isFinite(Number(customCalories)) && customCalories.trim() ? Math.max(0, Math.round(Number(customCalories))) : 0,
+      carbs: Number.isFinite(Number(customCarbs)) && customCarbs.trim() ? Math.max(0, Math.round(Number(customCarbs))) : 0,
+      fat: Number.isFinite(Number(customFat)) && customFat.trim() ? Math.max(0, Math.round(Number(customFat))) : 0,
+    });
+    setCustomFoodName('');
+    setCustomProtein('');
+    setCustomCarbs('');
+    setCustomFat('');
+    setCustomCalories('');
+  };
+
+  const handleDeleteLog = async (id: number, label = 'Entry'): Promise<void> => {
+    if (quickActionState === 'saving') return;
+    setQuickActionState('saving');
+    setQuickActionMessage('');
+    try {
+      await deleteHealthLogLocal(id);
+      await refreshDailyNutritionRollups();
+      if (lastQuickLog?.id === id) setLastQuickLog(null);
+      setQuickActionMessage(`${label} removed.`);
+      window.dispatchEvent(new Event('health:changed'));
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] delete log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setQuickActionMessage('Could not remove that yet.');
+    } finally {
+      setQuickActionState('idle');
+    }
+  };
+
+  const handleUndoLastQuickLog = async (): Promise<void> => {
+    if (!lastQuickLog) return;
+    await handleDeleteLog(lastQuickLog.id, lastQuickLog.label);
   };
 
   const companionGuidance = useMemo(() => {
@@ -863,28 +965,113 @@ const Today: React.FC = () => {
               <strong>{companionGuidance.action}</strong>
             </div>
             <div className={styles.quickLogPanel} aria-label="Quick log">
-              <IonButton
-                className={styles.waterQuickAction}
-                onClick={() => void handleQuickWater()}
-                disabled={quickActionState === 'saving'}
-              >
-                <Droplets size={17} />
-                + Water
-              </IonButton>
-              <div className={styles.quickFoodGrid}>
-                {QUICK_PROTEIN_ACTIONS.map((action) => (
+              <div className={styles.quickMainActions}>
+                <IonButton
+                  className={styles.waterQuickAction}
+                  onClick={() => void handleQuickWater()}
+                  disabled={quickActionState === 'saving'}
+                >
+                  <Droplets size={17} />
+                  + Water 250ml
+                </IonButton>
+                <IonButton
+                  className={styles.foodQuickAction}
+                  onClick={() => {
+                    setFoodLoggerOpen((open) => !open);
+                    setAdvancedFoodOpen(false);
+                  }}
+                  disabled={quickActionState === 'saving'}
+                >
+                  <Utensils size={17} />
+                  + Food / Protein
+                </IonButton>
+              </div>
+
+              {foodLoggerOpen && (
+                <div className={styles.foodLoggerPanel}>
+                  <div className={styles.foodLoggerHeader}>
+                    <strong>What did you have?</strong>
+                    <span>Use an estimate now. You can adjust details later.</span>
+                  </div>
+                  <div className={styles.quickFoodGrid}>
+                    {COMMON_FOOD_ACTIONS.map((action) => (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => void handleQuickProtein(action)}
+                        disabled={quickActionState === 'saving'}
+                      >
+                        <span>{action.label}</span>
+                        <strong>{action.grams}g protein</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.customFoodPanel}>
+                    <label>
+                      <span>Food name</span>
+                      <input
+                        value={customFoodName}
+                        placeholder="e.g. sandwich"
+                        onChange={(event) => setCustomFoodName(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      <span>Protein grams</span>
+                      <input
+                        inputMode="numeric"
+                        value={customProtein}
+                        placeholder="e.g. 20"
+                        onChange={(event) => setCustomProtein(event.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={styles.textToggleButton}
+                      onClick={() => setAdvancedFoodOpen((open) => !open)}
+                    >
+                      {advancedFoodOpen ? 'Hide carbs/fat/calories' : 'Add carbs/fat/calories'}
+                    </button>
+                    {advancedFoodOpen && (
+                      <div className={styles.macroGrid}>
+                        <label>
+                          <span>Carbs</span>
+                          <input inputMode="numeric" value={customCarbs} placeholder="0" onChange={(event) => setCustomCarbs(event.target.value)} />
+                        </label>
+                        <label>
+                          <span>Fat</span>
+                          <input inputMode="numeric" value={customFat} placeholder="0" onChange={(event) => setCustomFat(event.target.value)} />
+                        </label>
+                        <label>
+                          <span>Calories</span>
+                          <input inputMode="numeric" value={customCalories} placeholder="0" onChange={(event) => setCustomCalories(event.target.value)} />
+                        </label>
+                      </div>
+                    )}
+                    <IonButton
+                      className={styles.saveFoodAction}
+                      onClick={() => void handleSaveCustomFood()}
+                      disabled={quickActionState === 'saving'}
+                    >
+                      Save food
+                    </IonButton>
+                  </div>
+                </div>
+              )}
+
+              <div className={styles.quickMessageRow}>
+                {quickActionMessage && <p className={styles.quickActionMessage}>{quickActionMessage}</p>}
+                {lastQuickLog && (
                   <button
-                    key={action.label}
                     type="button"
-                    onClick={() => void handleQuickProtein(action)}
+                    className={styles.undoButton}
+                    onClick={() => void handleUndoLastQuickLog()}
                     disabled={quickActionState === 'saving'}
                   >
-                    <span>{action.label}</span>
-                    <strong>{action.grams}g</strong>
+                    <Undo2 size={15} />
+                    Undo
                   </button>
-                ))}
+                )}
               </div>
-              {quickActionMessage && <p className={styles.quickActionMessage}>{quickActionMessage}</p>}
             </div>
           </section>
 
@@ -955,6 +1142,14 @@ const Today: React.FC = () => {
                   <div key={log.id} className={styles.loggedItem}>
                     <span>{loggedItemTime(log)}</span>
                     <strong>{label}</strong>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteLog(log.id, label)}
+                      disabled={quickActionState === 'saving'}
+                      aria-label={`Remove ${label}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 ))}
               </div>

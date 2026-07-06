@@ -12,6 +12,8 @@
   margin: 0 auto;
   padding: 16px;
   color: #172033;
+  display: flex;
+  flex-direction: column;
 }
 
 .heroBand {
@@ -143,12 +145,17 @@
 }
 
 .accountNotice {
+  order: -31;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: 14px;
   border-color: rgba(192, 86, 33, 0.24);
   background: #fffaf5;
+}
+
+.setupShell {
+  order: -30;
 }
 
 .accountNotice strong {
