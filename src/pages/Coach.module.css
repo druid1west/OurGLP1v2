@@ -84,7 +84,8 @@
 .setupShell,
 .checkinShell,
 .accountNotice,
-.freeIntroShell {
+.freeIntroShell,
+.nextStepBand {
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid rgba(37, 99, 235, 0.12);
@@ -135,7 +136,8 @@
 .setupShell,
 .checkinShell,
 .accountNotice,
-.freeIntroShell {
+.freeIntroShell,
+.nextStepBand {
   margin-top: 12px;
   padding: 16px;
 }
@@ -308,6 +310,34 @@
 .freeIntroShell {
   display: grid;
   gap: 14px;
+}
+
+.nextStepBand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #ffffff, #f4fbf8);
+}
+
+.nextStepBand h2 {
+  margin: 5px 0 0;
+  color: #172033;
+  font-size: 1.18rem;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.nextStepBand p {
+  margin: 8px 0 0;
+  color: #475569;
+  line-height: 1.48;
+}
+
+.nextStepActions {
+  min-width: 170px;
+  display: grid;
+  gap: 8px;
 }
 
 .eyebrowDark {
@@ -544,6 +574,18 @@
 .primarySetupAction {
   --background: #2563eb;
   --background-hover: #1d4ed8;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.primarySetupAction::part(native) {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.secondarySetupAction {
+  --border-color: #2563eb;
+  --color: #2563eb;
   --border-radius: 8px;
   font-weight: 850;
 }
@@ -1027,7 +1069,8 @@
 
 @media (max-width: 760px) {
   .heroBand,
-  .boundaryGrid {
+  .boundaryGrid,
+  .nextStepBand {
     grid-template-columns: 1fr;
   }
 
@@ -1058,6 +1101,10 @@
   .accountNoticeForm,
   .freeIntroGrid {
     grid-template-columns: 1fr;
+  }
+
+  .nextStepActions {
+    width: 100%;
   }
 
   .scaleRow div {

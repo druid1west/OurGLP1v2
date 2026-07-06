@@ -1283,6 +1283,28 @@ const Coach: React.FC = () => {
             </div>
           </section>
 
+          <section className={styles.nextStepBand} aria-label="Coach next steps">
+            <div>
+              <div className={styles.eyebrowDark}>What to do now</div>
+              <h2>Open Today, log the basics, then come back if something feels off.</h2>
+              <p>
+                Start with one protein choice, one glass of water, and a quick check that your
+                medication routine is logged. If nausea, constipation, reflux, low appetite, or
+                tiredness is getting in the way, ask Coach for practical support or contact your
+                clinician if symptoms feel severe or unusual.
+              </p>
+            </div>
+            <div className={styles.nextStepActions}>
+              <IonButton className={styles.primarySetupAction} onClick={() => router.push('/today', 'forward')}>
+                Open Today
+                <ChevronRight size={17} />
+              </IonButton>
+              <IonButton className={styles.secondarySetupAction} fill="outline" onClick={() => setDraft('What should I focus on today?')}>
+                Ask Coach
+              </IonButton>
+            </div>
+          </section>
+
           <section className={styles.boundaryGrid} aria-label="Coach boundaries">
             <article className={styles.infoPanel}>
               <div className={styles.panelHeader}>
