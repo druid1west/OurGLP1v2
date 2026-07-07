@@ -41,6 +41,7 @@ import {
   createProtocol,
   getPrimaryProtocol,
   logProtocolEvent,
+  updateProtocol,
   type Protocol,
 } from '@/db/ProtocolRepository';
 import { setFastingPlan, setInjectionSchedule, type WeekdayFull } from '@/db/SettingsRepository';
@@ -147,8 +148,28 @@ const weekdayOptions: WeekdayFull[] = [
   'Sunday',
 ];
 
-const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide', 'other-medication'] as const;
+const primaryProtocolPresetIds = ['semaglutide', 'tirzepatide', 'liraglutide', 'daily-glp1-pill', 'other-medication'] as const;
 type PrimaryProtocolRhythm = 'weekly_injection' | 'daily_pill';
+
+function isDailyScheduleProtocol(protocol: Protocol | null | undefined): boolean {
+  return Boolean(
+    protocol &&
+      (protocol.cadence_type === 'daily' ||
+        protocol.route_type === 'oral' ||
+        protocol.effectiveness_model === 'daily_24h')
+  );
+}
+
+function isWeeklyScheduleProtocol(protocol: Protocol | null | undefined): boolean {
+  return Boolean(protocol && protocol.cadence_type === 'weekly');
+}
+
+function hasProtocolSchedule(protocol: Protocol | null | undefined): boolean {
+  if (!protocol?.dose_time) return false;
+  if (isWeeklyScheduleProtocol(protocol)) return Boolean(protocol.anchor_day);
+  if (isDailyScheduleProtocol(protocol)) return true;
+  return false;
+}
 
 function medicationFamily(name: string): 'semaglutide' | 'tirzepatide' | 'liraglutide' | null {
   const normalized = name.trim().toLowerCase();
@@ -351,6 +372,11 @@ const Coach: React.FC = () => {
   const canSavePrimaryProtocol = Boolean(selectedProtocolDose && protocolDoseTime);
   const weeklyProtocol = protocolRhythm === 'weekly_injection';
   const dailyProtocol = protocolRhythm === 'daily_pill';
+  const primaryProtocolDaily = isDailyScheduleProtocol(primaryProtocol);
+  const primaryProtocolWeekly = isWeeklyScheduleProtocol(primaryProtocol);
+  const medicationScheduleConfigured = hasProtocolSchedule(primaryProtocol) || Boolean(coachProfile?.injection_day && coachProfile?.injection_time);
+  const medicationScheduleDay = setupDraft || primaryProtocol?.anchor_day || coachProfile?.injection_day || '';
+  const medicationScheduleTime = setupAuxDraft || primaryProtocol?.dose_time || coachProfile?.injection_time || '08:00';
 
   const isSetupStepSatisfied = useCallback((step: SetupStep): boolean => {
     if (!coachProfile && step !== 'account') return false;
@@ -380,6 +406,7 @@ const Coach: React.FC = () => {
       case 'fasting_schedule':
         return Boolean(coachProfile?.fasting_schedule);
       case 'injection_schedule':
+        if (primaryProtocol) return hasProtocolSchedule(primaryProtocol);
         return Boolean(coachProfile?.injection_day && coachProfile?.injection_time);
       case 'checkin_frequency':
         return Boolean(coachProfile?.coach_checkin_frequency);
@@ -390,7 +417,7 @@ const Coach: React.FC = () => {
       default:
         return false;
     }
-  }, [coachProfile, hasSavedLocalAccount, user?.first_name]);
+  }, [coachProfile, hasSavedLocalAccount, primaryProtocol, user?.first_name]);
 
   const resetCoach = (): void => {
     if (replyTimerRef.current) {
@@ -882,11 +909,47 @@ const Coach: React.FC = () => {
   };
 
   const saveInjectionAnchor = async (): Promise<void> => {
-    if (!setupDraft || !setupAuxDraft) return;
-    const day = setupDraft as WeekdayFull;
-    const time = setupAuxDraft;
-    await setInjectionSchedule(day, time);
-    await saveProfilePatch({ injection_day: day, injection_time: time });
+    const userId = user?.id ?? coachUserId;
+    if (!userId) return;
+
+    const time = medicationScheduleTime;
+    const day = medicationScheduleDay as WeekdayFull;
+    const isDaily = primaryProtocolDaily;
+    const isWeekly = primaryProtocolWeekly || !primaryProtocol;
+    if (!time || (isWeekly && !day)) return;
+
+    if (primaryProtocol) {
+      await updateProtocol({
+        userId,
+        protocolId: primaryProtocol.id,
+        kind: primaryProtocol.kind,
+        name: primaryProtocol.name,
+        doseLabel: primaryProtocol.dose_label,
+        cadenceLabel: isDaily ? 'Daily' : primaryProtocol.cadence_label,
+        routeLabel: isDaily ? 'Oral' : primaryProtocol.route_label,
+        routeType: isDaily ? 'oral' : primaryProtocol.route_type,
+        cadenceType: isDaily ? 'daily' : primaryProtocol.cadence_type,
+        doseTime: time,
+        anchorDay: isDaily ? null : day,
+        reviewAnchorDay: isDaily ? 'Monday' : (primaryProtocol.review_anchor_day ?? day),
+        effectivenessModel: isDaily ? 'daily_24h' : primaryProtocol.effectiveness_model,
+        trackingFocus: primaryProtocol.tracking_focus,
+        notes: primaryProtocol.notes,
+        isPrimary: true,
+      });
+      const refreshedPrimary = await getPrimaryProtocol(userId);
+      setPrimaryProtocol(refreshedPrimary);
+    }
+
+    if (isWeekly) {
+      await setInjectionSchedule(day, time);
+    }
+
+    await saveProfilePatch({
+      injection_day: isDaily ? null : day,
+      injection_time: time,
+    });
+    window.dispatchEvent(new Event('protocols:changed'));
     nextSetupStep();
   };
 
@@ -957,7 +1020,10 @@ const Coach: React.FC = () => {
 
   const handleProtocolPresetChange = (presetId: string): void => {
     const preset = getProtocolPreset(presetId);
+    const nextRhythm: PrimaryProtocolRhythm =
+      preset.routeType === 'oral' ? 'daily_pill' : 'weekly_injection';
     setProtocolPresetId(presetId);
+    setProtocolRhythm(nextRhythm);
     setProtocolDose('');
     setCustomProtocolDose('');
     setProtocolDoseTime('08:00');
@@ -1248,7 +1314,11 @@ const Coach: React.FC = () => {
                 ) : (
                   <div className={styles.completeNotice}>
                     <CheckCircle2 size={18} />
-                    <span>{primaryProtocol?.name ?? 'Primary protocol'} selected.</span>
+                    <span>
+                      {primaryProtocol
+                        ? `${primaryProtocol.name}: ${isDailyScheduleProtocol(primaryProtocol) ? 'daily schedule configured' : 'weekly schedule configured'}.`
+                        : 'Primary protocol selected.'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1759,41 +1829,61 @@ const Coach: React.FC = () => {
 
               {activeSetupStep === 'injection_schedule' && (
                 <div className={styles.setupCard}>
-                  <h3>Injection Day / Once Weekly</h3>
+                  <h3>Medication schedule</h3>
                   <p>
-                    Choose the day of the week and usual time your dose starts. This becomes the
-                    anchor for Today, reminders, and weekly reviews.
+                    {primaryProtocolDaily
+                      ? 'Confirm the usual time you take your daily pill. This helps Today and reminders match your routine.'
+                      : 'Confirm the usual day and time for your weekly medication. This helps Today, reminders, and reviews match your routine.'}
                   </p>
-                  <label className={styles.setupLabel} htmlFor="coachInjectionDay">
-                    Anchor day of week
-                  </label>
-                  <select
-                    id="coachInjectionDay"
-                    value={setupDraft}
-                    onChange={(event) => setSetupDraft(event.target.value)}
-                  >
-                    <option value="">Select day</option>
-                    {weekdayOptions.map((day) => (
-                      <option key={day} value={day}>{day}</option>
-                    ))}
-                  </select>
-                  <label className={styles.setupLabel} htmlFor="coachInjectionTime">
-                    Injection time
+                  {medicationScheduleConfigured ? (
+                    <div className={styles.completeNotice}>
+                      <CheckCircle2 size={18} />
+                      <span>
+                        {primaryProtocolDaily
+                          ? `Daily pill configured for ${medicationScheduleTime}.`
+                          : `Weekly schedule configured for ${medicationScheduleDay || 'your chosen day'} at ${medicationScheduleTime}.`}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={styles.pendingNotice}>
+                      <ShieldAlert size={18} />
+                      <span>Medication schedule not configured yet.</span>
+                    </div>
+                  )}
+                  {!primaryProtocolDaily && (
+                    <>
+                      <label className={styles.setupLabel} htmlFor="coachMedicationDay">
+                        Medication day / weekly anchor
+                      </label>
+                      <select
+                        id="coachMedicationDay"
+                        value={medicationScheduleDay}
+                        onChange={(event) => setSetupDraft(event.target.value)}
+                      >
+                        <option value="">Select day</option>
+                        {weekdayOptions.map((day) => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <label className={styles.setupLabel} htmlFor="coachMedicationTime">
+                    {primaryProtocolDaily ? 'Daily pill time' : 'Usual medication time'}
                   </label>
                   <input
-                    id="coachInjectionTime"
+                    id="coachMedicationTime"
                     type="time"
-                    value={setupAuxDraft}
+                    value={medicationScheduleTime}
                     onChange={(event) => setSetupAuxDraft(event.target.value)}
-                    aria-label="Injection time"
+                    aria-label={primaryProtocolDaily ? 'Daily pill time' : 'Medication time'}
                   />
                   <div className={styles.actionRow}>
                     <IonButton
                       className={styles.primarySetupAction}
                       onClick={() => void saveInjectionAnchor()}
-                      disabled={!setupDraft || !setupAuxDraft}
+                      disabled={!medicationScheduleTime || (!primaryProtocolDaily && !medicationScheduleDay)}
                     >
-                      Save injection anchor
+                      {primaryProtocolDaily ? 'Save daily schedule' : 'Save weekly schedule'}
                     </IonButton>
                     <button type="button" className={styles.textButton} onClick={nextSetupStep}>Add later</button>
                   </div>
