@@ -915,13 +915,17 @@ const Today: React.FC = () => {
     };
   }, [loadState, stats?.hydration, stats?.protein]);
 
-  const visibleTodayLogs = useMemo(
+  const displayableTodayLogs = useMemo(
     () => todayLogs
       .map((log) => ({ log, label: loggedItemLabel(log) }))
-      .filter((item): item is { log: HealthLog; label: string } => Boolean(item.label))
-      .slice(0, 6),
+      .filter((item): item is { log: HealthLog; label: string } => Boolean(item.label)),
     [todayLogs]
   );
+  const visibleTodayLogs = useMemo(
+    () => displayableTodayLogs.slice(0, 6),
+    [displayableTodayLogs]
+  );
+  const hiddenTodayLogCount = Math.max(0, displayableTodayLogs.length - visibleTodayLogs.length);
 
   const focusText = useMemo(() => {
     if (!stats) return 'Loading your day';
@@ -1125,34 +1129,49 @@ const Today: React.FC = () => {
             <div className={styles.sectionHeader}>
               <div>
                 <h2>Logged today</h2>
-                <p>Your food, water, and check-ins stay visible here.</p>
+                <p>
+                  {displayableTodayLogs.length > visibleTodayLogs.length
+                    ? `Showing latest ${visibleTodayLogs.length} of ${displayableTodayLogs.length}. History is saved.`
+                    : 'Your food, water, and check-ins stay visible here.'}
+                </p>
               </div>
               <IonButton
                 className={styles.iconButton}
                 fill="clear"
-                onClick={() => router.push('/healthtracker', 'forward')}
-                aria-label="Open full health tracker"
+                onClick={() => router.push('/food-diary', 'forward')}
+                aria-label="Open food and water diary"
               >
                 <ClipboardList size={20} />
               </IonButton>
             </div>
             {visibleTodayLogs.length ? (
-              <div className={styles.loggedList}>
-                {visibleTodayLogs.map(({ log, label }) => (
-                  <div key={log.id} className={styles.loggedItem}>
-                    <span>{loggedItemTime(log)}</span>
-                    <strong>{label}</strong>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteLog(log.id, label)}
-                      disabled={quickActionState === 'saving'}
-                      aria-label={`Remove ${label}`}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className={styles.loggedList}>
+                  {visibleTodayLogs.map(({ log, label }) => (
+                    <div key={log.id} className={styles.loggedItem}>
+                      <span>{loggedItemTime(log)}</span>
+                      <strong>{label}</strong>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteLog(log.id, label)}
+                        disabled={quickActionState === 'saving'}
+                        aria-label={`Remove ${label}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {hiddenTodayLogCount > 0 && (
+                  <button
+                    type="button"
+                    className={styles.showAllEntries}
+                    onClick={() => router.push('/food-diary', 'forward')}
+                  >
+                    Show all {displayableTodayLogs.length} entries
+                  </button>
+                )}
+              </>
             ) : (
               <p className={styles.loggedEmpty}>
                 Nothing logged yet today. Use a quick button above or open the full tracker.

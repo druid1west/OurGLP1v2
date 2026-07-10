@@ -38,6 +38,7 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Paywall from './pages/Paywall';
 import HealthTracker from './pages/HealthTracker';
+import FoodDiary from './pages/FoodDiary';
 import Today from './pages/Today';
 import Protocols from './pages/Protocols';
 import Coach from './pages/Coach';
@@ -562,6 +563,7 @@ const App: React.FC = () => {
                   {/* Private routes */}
                   <PrivateRoute exact path="/settings" component={Settings} />
                   <PrivateRoute exact path="/today" component={Today} />
+                  <PrivateRoute exact path="/food-diary" component={FoodDiary} />
                   <PrivateRoute exact path="/protocols" component={Protocols} />
                   <PrivateRoute exact path="/profile" component={Profile} />
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />
