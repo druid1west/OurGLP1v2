@@ -480,7 +480,7 @@ const FastingDisplayBox: React.FC = () => {
           ))}
         </div>
       ) : (
-        <p className={personalStyles.muted}>No fasting times saved yet.</p>
+        <p className={personalStyles.muted}>No eating times saved yet.</p>
       )}
     </div>
   );
@@ -1148,8 +1148,6 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
 };
 
 export default PersonalPlan;
-
-
 
 
 

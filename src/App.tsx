@@ -171,8 +171,9 @@ function isVersionLessThan(current: string, latest: string): boolean {
 
 /* --------------------------------- App ------------------------------------ */
 const SKIP_PURCHASES = false;
-const IOS_APP_STORE_LOOKUP_ID = '';
-const IOS_APP_STORE_FALLBACK_URL = '';
+const IOS_APP_STORE_LOOKUP_ID = '6766082160';
+const IOS_APP_STORE_LOOKUP_COUNTRY = 'gb';
+const IOS_APP_STORE_FALLBACK_URL = 'https://apps.apple.com/gb/app/ourglp1v2/id6766082160';
 
 const App: React.FC = () => {
   const platform = Capacitor.getPlatform(); // 'ios' | 'android' | 'web'
@@ -467,7 +468,7 @@ const App: React.FC = () => {
         const appInfo = await CapacitorApp.getInfo();
         const currentVersion = appInfo.version;
 
-        const res = await fetch(`https://itunes.apple.com/lookup?id=${IOS_APP_STORE_LOOKUP_ID}`);
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${IOS_APP_STORE_LOOKUP_ID}&country=${IOS_APP_STORE_LOOKUP_COUNTRY}`);
         const json: unknown = await res.json();
         const result = (json as { results?: Array<{ version?: string; trackViewUrl?: string }> }).results?.[0];
 

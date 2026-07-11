@@ -355,6 +355,8 @@ const Coach: React.FC = () => {
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [addingExtraCheckin, setAddingExtraCheckin] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const setupShellRef = useRef<HTMLElement | null>(null);
+  const setupScrollRequestedRef = useRef(false);
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const questionHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const responseLockRef = useRef(false);
@@ -435,6 +437,27 @@ const Coach: React.FC = () => {
     setIsResponding(false);
     responseLockRef.current = false;
   };
+
+  const requestSetupScroll = useCallback((): void => {
+    setupScrollRequestedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!setupScrollRequestedRef.current || setupComplete) return;
+
+    const timer = window.setTimeout(() => {
+      const target = setupShellRef.current;
+      if (!target) return;
+
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+      setupScrollRequestedRef.current = false;
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [activeSetupStep, setupComplete]);
 
   useIonViewWillLeave(() => {
     resetCoach();
@@ -527,10 +550,11 @@ const Coach: React.FC = () => {
     if (profileLoading || setupComplete || activeSetupStep === 'finish') return;
     if (!isSetupStepSatisfied(activeSetupStep)) return;
 
+    requestSetupScroll();
     setSetupDraft('');
     setSetupAuxDraft('');
     setSetupIndex((prev) => Math.min(prev + 1, setupSteps.length - 1));
-  }, [activeSetupStep, profileLoading, setupComplete, isSetupStepSatisfied]);
+  }, [activeSetupStep, profileLoading, setupComplete, isSetupStepSatisfied, requestSetupScroll]);
 
   const categoryEntries = useMemo(
     () =>
@@ -645,6 +669,7 @@ const Coach: React.FC = () => {
   };
 
   const nextSetupStep = (): void => {
+    requestSetupScroll();
     setSetupDraft('');
     setSetupAuxDraft('');
     setAccountConfirmDraft('');
@@ -652,6 +677,7 @@ const Coach: React.FC = () => {
   };
 
   const goToAccountStep = (): void => {
+    requestSetupScroll();
     setAccountPromptOpen(true);
     setSetupDraft(hasSavedLocalAccount ? (user?.email ?? '') : '');
     setSetupAuxDraft('');
@@ -1516,7 +1542,7 @@ const Coach: React.FC = () => {
           )}
 
           {!profileLoading && !setupComplete && (
-            <section className={styles.setupShell} aria-label="Coach-led setup">
+            <section ref={setupShellRef} className={styles.setupShell} aria-label="Coach-led setup">
               <div className={styles.setupHeader}>
                 <div>
                   <h2>Let’s get you set up</h2>
