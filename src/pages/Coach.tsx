@@ -67,12 +67,12 @@ type ChatMessage = Readonly<{
 }>;
 
 const starterQuestions = [
+  'I am not losing weight. What should I do?',
+  'Give me a beginner exercise routine.',
   'What can I eat when nausea shows up?',
   'I missed my routine. What now?',
-  'How do I handle emotional eating?',
+  'How do calories in and movement calories help?',
   'What should I review each week?',
-  'Can you help me meal prep?',
-  'What should I track for side effects?',
 ] as const;
 
 const setupSteps = [

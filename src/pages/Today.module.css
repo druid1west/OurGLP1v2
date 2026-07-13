@@ -93,6 +93,7 @@
 }
 
 .metricCard,
+.energyBand,
 .healthBand,
 .rhythmBand,
 .protocolBand,
@@ -193,7 +194,7 @@
 
 .quickMainActions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -213,8 +214,17 @@
   font-weight: 850;
 }
 
+.movementQuickAction {
+  min-height: 46px;
+  --background: #27835f;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
 .waterQuickAction::part(native),
 .foodQuickAction::part(native),
+.movementQuickAction::part(native),
 .saveFoodAction::part(native) {
   display: inline-flex;
   gap: 8px;
@@ -302,7 +312,9 @@
   font-weight: 850;
 }
 
-.customFoodPanel input {
+.customFoodPanel input,
+.macroGrid input,
+.macroGrid select {
   width: 100%;
   min-height: 42px;
   padding: 10px 11px;
@@ -314,9 +326,22 @@
   outline: none;
 }
 
-.customFoodPanel input:focus {
+.customFoodPanel input:focus,
+.macroGrid input:focus,
+.macroGrid select:focus {
   border-color: rgba(37, 99, 235, 0.5);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.macroGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.macroGrid label span {
+  color: #526b65;
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 .textToggleButton,
@@ -349,6 +374,55 @@
   --color: #ffffff;
   --border-radius: 8px;
   font-weight: 850;
+}
+
+.energyBand {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.energyBand > .sectionHeader > svg {
+  color: #27835f;
+}
+
+.energyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.energyGrid div {
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f3f7f5;
+}
+
+.energyGrid span,
+.energyGrid strong {
+  display: block;
+}
+
+.energyGrid span {
+  color: #607470;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energyGrid strong {
+  margin-top: 7px;
+  color: #172033;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.energyNote {
+  margin: 12px 0 0;
+  color: #526b65;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .quickMessageRow {
@@ -931,6 +1005,7 @@
 }
 
 :global([data-theme='dark']) .metricCard,
+:global([data-theme='dark']) .energyBand,
 :global([data-theme='dark']) .healthBand,
 :global([data-theme='dark']) .rhythmBand,
 :global([data-theme='dark']) .proPreview,
@@ -939,6 +1014,7 @@
 :global([data-theme='dark']) .companionBand,
 :global([data-theme='dark']) .loggedBand,
 :global(body[data-theme='dark']) .metricCard,
+:global(body[data-theme='dark']) .energyBand,
 :global(body[data-theme='dark']) .healthBand,
 :global(body[data-theme='dark']) .rhythmBand,
 :global(body[data-theme='dark']) .proPreview,
@@ -952,6 +1028,7 @@
 }
 
 :global([data-theme='dark']) .metricCard strong,
+:global([data-theme='dark']) .energyGrid strong,
 :global([data-theme='dark']) .sectionHeader h2,
 :global([data-theme='dark']) .rhythmMeta strong,
 :global([data-theme='dark']) .proPreview h2,
@@ -960,6 +1037,7 @@
 :global([data-theme='dark']) .companionCopy h2,
 :global([data-theme='dark']) .loggedItem strong,
 :global(body[data-theme='dark']) .metricCard strong,
+:global(body[data-theme='dark']) .energyGrid strong,
 :global(body[data-theme='dark']) .sectionHeader h2,
 :global(body[data-theme='dark']) .rhythmMeta strong,
 :global(body[data-theme='dark']) .proPreview h2,
@@ -971,6 +1049,8 @@
 }
 
 :global([data-theme='dark']) .metricCard span,
+:global([data-theme='dark']) .energyGrid span,
+:global([data-theme='dark']) .energyNote,
 :global([data-theme='dark']) .sectionHeader p,
 :global([data-theme='dark']) .rhythmMeta span,
 :global([data-theme='dark']) .rhythmEmpty,
@@ -983,6 +1063,8 @@
 :global([data-theme='dark']) .loggedItem span,
 :global([data-theme='dark']) .loggedEmpty,
 :global(body[data-theme='dark']) .metricCard span,
+:global(body[data-theme='dark']) .energyGrid span,
+:global(body[data-theme='dark']) .energyNote,
 :global(body[data-theme='dark']) .sectionHeader p,
 :global(body[data-theme='dark']) .rhythmMeta span,
 :global(body[data-theme='dark']) .rhythmEmpty,
@@ -998,11 +1080,13 @@
 }
 
 :global([data-theme='dark']) .healthStats div,
+:global([data-theme='dark']) .energyGrid div,
 :global([data-theme='dark']) .anchorDay,
 :global([data-theme='dark']) .rhythmMeta div,
 :global([data-theme='dark']) .protocolPill,
 :global([data-theme='dark']) .loggedItem,
 :global(body[data-theme='dark']) .healthStats div,
+:global(body[data-theme='dark']) .energyGrid div,
 :global(body[data-theme='dark']) .anchorDay,
 :global(body[data-theme='dark']) .rhythmMeta div,
 :global(body[data-theme='dark']) .loggedItem {
@@ -1013,6 +1097,8 @@
 :global([data-theme='dark']) .quickFoodGrid button,
 :global([data-theme='dark']) .foodLoggerPanel,
 :global([data-theme='dark']) .customFoodPanel input,
+:global([data-theme='dark']) .macroGrid input,
+:global([data-theme='dark']) .macroGrid select,
 :global(body[data-theme='dark']) .quickFoodGrid button {
   background: rgba(192, 86, 33, 0.16);
   border-color: rgba(251, 191, 36, 0.28);
@@ -1020,7 +1106,9 @@
 }
 
 :global(body[data-theme='dark']) .foodLoggerPanel,
-:global(body[data-theme='dark']) .customFoodPanel input {
+:global(body[data-theme='dark']) .customFoodPanel input,
+:global(body[data-theme='dark']) .macroGrid input,
+:global(body[data-theme='dark']) .macroGrid select {
   background: #14201e;
   border-color: rgba(255, 255, 255, 0.12);
   color: #f2fbf8;
@@ -1072,7 +1160,8 @@
   }
 
   .metricsGrid,
-  .insightGrid {
+  .insightGrid,
+  .energyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1140,6 +1229,7 @@
 @media (max-width: 390px) {
   .metricsGrid,
   .insightGrid,
+  .energyGrid,
   .monthlySteps,
   .quickFoodGrid {
     grid-template-columns: 1fr;
