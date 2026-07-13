@@ -85,6 +85,7 @@ type UserProfile = {
 
 type ExerciseEntry = {
   id: string | number;
+  exercise_date?: string | null;
   day_of_week: string; // 'Mon'..'Sun'
   start_time: string; // 'HH:MM' or 'HH:MM:SS'
   end_time: string; // 'HH:MM' or 'HH:MM:SS'
@@ -194,6 +195,20 @@ function formatBowelLine(log: HealthLog): string {
   if (typeof count === 'number') return `${count}×`;
   const note = asString('note');
   return note ? note : '';
+}
+
+function exerciseMinutes(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0;
+  const startMs = Date.parse(`2000-01-01T${safeHHMM(start)}`);
+  const endMs = Date.parse(`2000-01-01T${safeHHMM(end)}`);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
+  let mins = Math.round((endMs - startMs) / 60000);
+  if (mins < 0) mins += 24 * 60;
+  return Math.max(0, mins);
+}
+
+function formatNumber(value: number): string {
+  return Math.round(value).toLocaleString();
 }
 
 const WEEKDAY_FULL: Readonly<Record<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun', WeekdayFull>> =
@@ -767,6 +782,66 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       ? (injDay as WeekdayFull)
       : ((WEEKDAY_FULL[injDay as keyof typeof WEEKDAY_FULL] as WeekdayFull) || 'Monday');
 
+  const weekBalance = useMemo(() => {
+    const today = new Date();
+    const fullToIndex: Record<WeekdayFull, number> = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    };
+    const safeAnchorIndex = fullToIndex[injDayFull] ?? 1;
+    const daysSinceAnchor = (today.getDay() - safeAnchorIndex + 7) % 7;
+    const weekStart = new Date(today);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - daysSinceAnchor);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const fromYmd = toYMD(weekStart);
+    const toYmd = toYMD(weekEnd);
+
+    const foodLogs = healthLogs.filter((log) => {
+      const ymd = log.recorded_at.slice(0, 10);
+      return log.entry_type === 'protein' && ymd >= fromYmd && ymd <= toYmd;
+    });
+    const foodCalories = foodLogs.reduce((sum, log) => {
+      const nutrition = nutritionFromLogData(log.data);
+      return sum + Math.max(0, Math.round(nutrition.calories || 0));
+    }, 0);
+    const proteinGrams = foodLogs.reduce((sum, log) => {
+      const nutrition = nutritionFromLogData(log.data);
+      return sum + Math.max(0, Math.round(nutrition.protein || 0));
+    }, 0);
+
+    const weekExercises = exercises.filter((entry) => {
+      const ymd = entry.exercise_date ?? '';
+      return ymd >= fromYmd && ymd <= toYmd;
+    });
+    const movementCalories = weekExercises.reduce(
+      (sum, entry) => sum + Math.max(0, Math.round(Number(entry.calories_burned ?? 0) || 0)),
+      0
+    );
+    const movementMinutes = weekExercises.reduce(
+      (sum, entry) => sum + exerciseMinutes(entry.start_time, entry.end_time),
+      0
+    );
+
+    return {
+      fromYmd,
+      toYmd,
+      foodCalories,
+      movementCalories,
+      netEstimate: Math.max(0, foodCalories - movementCalories),
+      proteinGrams,
+      movementMinutes,
+      foodLogDays: new Set(foodLogs.map((log) => log.recorded_at.slice(0, 10))).size,
+      movementDays: new Set(weekExercises.map((entry) => entry.exercise_date ?? '')).size,
+    };
+  }, [exercises, healthLogs, injDayFull]);
+
   useEffect(() => {
     if (!userId) return;
 
@@ -895,6 +970,40 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           />
 
           <h2 className={personalStyles.subtitle}>Health Tracking</h2>
+
+          <div className={personalStyles.infoBox}>
+            <h3 className={personalStyles.sectionTitle}>Energy Balance</h3>
+            <p className={personalStyles.muted}>
+              Current week: {weekBalance.fromYmd} to {weekBalance.toYmd}. Calories are estimates
+              for spotting patterns, not guaranteed weight-loss maths.
+            </p>
+            <div className={personalStyles.energyGrid}>
+              <div>
+                <span>Food logged</span>
+                <strong>{formatNumber(weekBalance.foodCalories)} cal</strong>
+              </div>
+              <div>
+                <span>Movement logged</span>
+                <strong>{formatNumber(weekBalance.movementCalories)} cal</strong>
+              </div>
+              <div>
+                <span>Net estimate</span>
+                <strong>{formatNumber(weekBalance.netEstimate)} cal</strong>
+              </div>
+              <div>
+                <span>Protein</span>
+                <strong>{formatNumber(weekBalance.proteinGrams)} g</strong>
+              </div>
+              <div>
+                <span>Movement</span>
+                <strong>{formatNumber(weekBalance.movementMinutes)} min</strong>
+              </div>
+              <div>
+                <span>Logged days</span>
+                <strong>{weekBalance.foodLogDays} food · {weekBalance.movementDays} move</strong>
+              </div>
+            </div>
+          </div>
 
           <div className={personalStyles.infoBox}>
             <h3 className={personalStyles.sectionTitle}>Blood Sugar</h3>
@@ -1148,8 +1257,4 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
 };
 
 export default PersonalPlan;
-
-
-
-
 

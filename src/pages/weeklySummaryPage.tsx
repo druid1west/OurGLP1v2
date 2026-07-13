@@ -61,6 +61,7 @@ import {
   computeHydrationRange, type HydrationRange,
   getSleepColor, 
 } from "../lib/nutrition";
+import { nutritionFromLogData } from "../lib/nutritionLog";
 
 import { onHealthChange, offHealthChange, type HealthEventKind } from "../services/healthBus";
 import Glp1TrendGraph from "../components/Glp1TrendGraph";
@@ -309,6 +310,23 @@ type WeeklyActivitySummary = {
     activeEnergyKcal: number;
     manualExerciseMinutes: number;
     workouts: number;
+  };
+};
+
+type WeeklyEnergyBalanceSummary = {
+  labels: DayKey[];
+  foodCalories: number[];
+  movementCalories: number[];
+  netCalories: number[];
+  proteinGrams: number[];
+  foodLogDays: number;
+  movementDays: number;
+  totals: {
+    foodCalories: number;
+    movementCalories: number;
+    netCalories: number;
+    proteinGrams: number;
+    movementMinutes: number;
   };
 };
 
@@ -804,6 +822,7 @@ function buildWeeklyActivitySummary(
     const minsB = row.duration_minutes ?? null;
     const mins = minsA ?? minsB ?? 0;
     manualMins[idx] += Number.isFinite(mins) ? Math.max(0, mins) : 0;
+    activeEnergy[idx] += Math.max(0, Math.round(Number(row.calories_burned ?? 0) || 0));
   }
 
   for (const row of appleRows) {
@@ -842,6 +861,85 @@ function buildWeeklyActivitySummary(
       activeEnergyKcal: sum(rotatedEnergy),
       manualExerciseMinutes: sum(rotatedManual),
       workouts: sum(rotatedWorkouts),
+    },
+  };
+}
+
+function parseJsonRecord(json?: string | null): Record<string, unknown> {
+  if (!json) return {};
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildWeeklyEnergyBalanceSummary(
+  fromIsoUtc: string,
+  tz: string,
+  anchorStartIdx: number,
+  healthRows: RawHealthRow[],
+  exercises: ExerciseRow[]
+): WeeklyEnergyBalanceSummary {
+  const startYmd = localYmdFromIso(fromIsoUtc, tz);
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDaysYmd(startYmd, index));
+  const dayToIndex = new Map(weekDays.map((day, index) => [day, index]));
+  const foodCalories = zeros();
+  const proteinGrams = zeros();
+  const movementCalories = zeros();
+  const movementMinutes = zeros();
+  const foodDays = new Set<string>();
+  const movementDays = new Set<string>();
+
+  for (const row of healthRows) {
+    if (row.entry_type !== "protein") continue;
+    const ymd = localYmdFromIso(row.recorded_at, tz);
+    const idx = dayToIndex.get(ymd);
+    if (idx == null) continue;
+    const nutrition = nutritionFromLogData(parseJsonRecord(row.data_json));
+    const calories = Math.max(0, Math.round(Number(nutrition.calories) || 0));
+    const protein = Math.max(0, Math.round(Number(nutrition.protein) || 0));
+    foodCalories[idx] += calories;
+    proteinGrams[idx] += protein;
+    if (calories > 0 || protein > 0) foodDays.add(ymd);
+  }
+
+  for (const row of exercises) {
+    const ymd = row.exercise_date ?? "";
+    const idx = dayToIndex.get(ymd);
+    if (idx == null) continue;
+    const calories = Math.max(0, Math.round(Number(row.calories_burned ?? 0) || 0));
+    const minsA = exerciseMinutes(ymd, row.start_time ?? "00:00", row.end_time ?? "00:00");
+    const minsB = row.duration_minutes ?? null;
+    const mins = Math.max(0, Math.round(Number(minsA ?? minsB ?? 0) || 0));
+    movementCalories[idx] += calories;
+    movementMinutes[idx] += mins;
+    if (calories > 0 || mins > 0) movementDays.add(ymd);
+  }
+
+  const netCalories = foodCalories.map((value, index) => Math.max(0, value - movementCalories[index]));
+  const rotate = <T,>(values: readonly T[]) => rotateToStart(values, Math.max(0, anchorStartIdx));
+  const sum = (values: readonly number[]) => values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0);
+  const rotatedFood = rotate(foodCalories);
+  const rotatedMovement = rotate(movementCalories);
+  const rotatedNet = rotate(netCalories);
+  const rotatedProtein = rotate(proteinGrams);
+
+  return {
+    labels: rotate(DAY_KEYS) as DayKey[],
+    foodCalories: rotatedFood,
+    movementCalories: rotatedMovement,
+    netCalories: rotatedNet,
+    proteinGrams: rotatedProtein,
+    foodLogDays: foodDays.size,
+    movementDays: movementDays.size,
+    totals: {
+      foodCalories: sum(rotatedFood),
+      movementCalories: sum(rotatedMovement),
+      netCalories: sum(rotatedNet),
+      proteinGrams: sum(rotatedProtein),
+      movementMinutes: sum(movementMinutes),
     },
   };
 }
@@ -1330,7 +1428,7 @@ class WeeklySummaryErrorBoundary extends React.Component<
 }
 
 const WeeklySummaryPageContent: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isPro } = useAuth();
   const router = useIonRouter();
   const userRecord = user as unknown as Record<string, unknown> | null;
   const currentWeightUnit =
@@ -1354,6 +1452,7 @@ const WeeklySummaryPageContent: React.FC = () => {
   const [hydrationBuckets, setHydrationBuckets] = useState<number[] | undefined>(undefined);
   const [hydrationLabels, setHydrationLabels] = useState<DayKey[] | undefined>(undefined);
   const [activitySummary, setActivitySummary] = useState<WeeklyActivitySummary | undefined>(undefined);
+  const [energyBalanceSummary, setEnergyBalanceSummary] = useState<WeeklyEnergyBalanceSummary | undefined>(undefined);
   const [glp1Summary, setGlp1Summary] = useState<WeeklyGlp1Summary | undefined>(undefined);
 
   // User timezone (memoized) for day-change watcher
@@ -1671,6 +1770,7 @@ const WeeklySummaryPageContent: React.FC = () => {
   useEffect(() => {
     if (!winParams) {
       setActivitySummary(undefined);
+      setEnergyBalanceSummary(undefined);
       return;
     }
     let cancelled = false;
@@ -1680,9 +1780,10 @@ const WeeklySummaryPageContent: React.FC = () => {
         const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
         const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
         const toYmd = addDaysYmd(fromYmd, 6);
-        const [exRaw, appleRows] = await Promise.all([
+        const [exRaw, appleRows, healthRows] = await Promise.all([
           listExercises(),
           listHealthDailySummariesRange(fromYmd, toYmd),
+          safeListHealthLogs(winParams.from, winParams.to),
         ]);
         const exRows = Array.isArray(exRaw)
           ? exRaw.map(toExerciseRow).filter((row): row is ExerciseRow => row !== null)
@@ -1694,17 +1795,30 @@ const WeeklySummaryPageContent: React.FC = () => {
           exRows,
           appleRows
         );
-        if (!cancelled) setActivitySummary(summary);
+        const balance = buildWeeklyEnergyBalanceSummary(
+          winParams.from,
+          winParams.tz,
+          Math.max(0, startIdx),
+          healthRows,
+          exRows
+        );
+        if (!cancelled) {
+          setActivitySummary(summary);
+          setEnergyBalanceSummary(balance);
+        }
       } catch (e) {
         logger.warn("[weekly-summary] activity summary failed", e);
-        if (!cancelled) setActivitySummary(undefined);
+        if (!cancelled) {
+          setActivitySummary(undefined);
+          setEnergyBalanceSummary(undefined);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [winParams, exerciseRefreshKey, weekContext?.startDay]);
+  }, [winParams, exerciseRefreshKey, proteinRefreshKey, weekContext?.startDay]);
 
   useEffect(() => {
     if (!winParams || !user?.id) {
@@ -2519,6 +2633,8 @@ try {
                         hydrationLabels={hydrationLabels}
                         hydrationRange={hydrationRange ?? undefined}
                         activitySummary={activitySummary}
+                        energyBalanceSummary={energyBalanceSummary}
+                        isPro={isPro}
                         glp1Summary={glp1Summary}
                         adherenceLabel={weekContext?.adherenceLabel ?? "Protocol"}
                         onOpenEffectiveness={() => router.push("/effectiveness", "forward")}
@@ -2620,6 +2736,8 @@ function EmailPreview({
   hydrationLabels,
   hydrationRange,
   activitySummary,
+  energyBalanceSummary,
+  isPro,
   glp1Summary,
   adherenceLabel,
   onOpenEffectiveness,
@@ -2641,6 +2759,8 @@ function EmailPreview({
   hydrationLabels?: readonly DayKey[];
   hydrationRange?: HydrationRange;
   activitySummary?: WeeklyActivitySummary;
+  energyBalanceSummary?: WeeklyEnergyBalanceSummary;
+  isPro: boolean;
   glp1Summary?: WeeklyGlp1Summary;
   adherenceLabel?: string;
   onOpenEffectiveness?: () => void;
@@ -2734,6 +2854,10 @@ function EmailPreview({
         tz={win.tz}
         injectionDay={injFull}
       />
+
+      {include.exercise && (
+        <EnergyBalanceSummaryCard summary={energyBalanceSummary} isPro={isPro} />
+      )}
 
       {/* Grid of PNG charts */}
       <div className={`${styles.grid} ${styles.chartGrid}`}>
@@ -3124,6 +3248,88 @@ function ActivitySummaryCard({ summary }: { summary: WeeklyActivitySummary }) {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+function EnergyBalanceSummaryCard({
+  summary,
+  isPro,
+}: {
+  summary?: WeeklyEnergyBalanceSummary;
+  isPro: boolean;
+}) {
+  const format = (value: number) => Math.round(value).toLocaleString();
+
+  if (!isPro) {
+    return (
+      <Card className={styles.card} style={cardAccent("exercise")} data-metric="exercise">
+        <CardHeader
+          className={styles.cardHeader}
+          style={{
+            background: CHART_ACCENTS.exercise.bg,
+            color: CHART_ACCENTS.exercise.fg,
+            borderColor: CHART_ACCENTS.exercise.border,
+          }}
+        >
+          <CardTitle className={styles.cardTitle} style={{ fontSize: "1rem" }}>
+            Weekly Energy Balance
+          </CardTitle>
+        </CardHeader>
+        <CardContent className={styles.cardContent}>
+          <p className={`${styles.small} ${styles.muted}`}>
+            Today shows daily calories in and movement calories. Pro adds the weekly pattern:
+            food calories, movement calories, protein, and consistency across the review week.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!summary) return null;
+
+  return (
+    <Card className={styles.card} style={cardAccent("exercise")} data-metric="exercise">
+      <CardHeader
+        className={styles.cardHeader}
+        style={{
+          background: CHART_ACCENTS.exercise.bg,
+          color: CHART_ACCENTS.exercise.fg,
+          borderColor: CHART_ACCENTS.exercise.border,
+        }}
+      >
+        <CardTitle className={styles.cardTitle} style={{ fontSize: "1rem" }}>
+          Weekly Energy Balance
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={styles.cardContent}>
+        <div className={styles.activityTotals}>
+          <div>
+            <span>Food logged</span>
+            <strong>{format(summary.totals.foodCalories)} kcal</strong>
+          </div>
+          <div>
+            <span>Movement</span>
+            <strong>{format(summary.totals.movementCalories)} kcal</strong>
+          </div>
+          <div>
+            <span>Net estimate</span>
+            <strong>{format(summary.totals.netCalories)} kcal</strong>
+          </div>
+          <div>
+            <span>Protein</span>
+            <strong>{format(summary.totals.proteinGrams)}g</strong>
+          </div>
+        </div>
+        <div className={`${styles.tiny} ${styles.activityMeta}`}>
+          Food logged {summary.foodLogDays}/7 days · Movement logged {summary.movementDays}/7 days ·
+          Movement {format(summary.totals.movementMinutes)} min
+        </div>
+        <p className={`${styles.small} ${styles.muted}`}>
+          Calories are estimates for spotting patterns, not guaranteed weight-loss maths.
+          If weight is stuck, use this with sleep, stress, bowel habits, and clinician guidance.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
