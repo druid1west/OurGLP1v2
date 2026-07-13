@@ -480,6 +480,20 @@ export async function deleteHealthLogLocal(id: number): Promise<void> {
   await db.run(`DELETE FROM health_logs WHERE id = ?`, [id]);
 }
 
+export async function updateHealthLogAndEmit(
+  id: number,
+  row: Omit<HealthLogRow, 'id' | 'created_at'>
+): Promise<void> {
+  const db = await getDb();
+  await db.run(
+    `UPDATE health_logs
+     SET entry_type = ?, recorded_at = ?, data_json = ?
+     WHERE id = ?`,
+    [row.entry_type, row.recorded_at, row.data_json, id]
+  );
+  emitHealthChanged(mapEntryTypeToKind(row.entry_type));
+}
+
 /* =============================================================================
    Mood helpers (used by DayPage)
 ============================================================================= */

@@ -263,12 +263,12 @@ const Home: React.FC = () => {
 
 
 <h1 className={`${styles.title} ${isAndroid ? styles.titleAndroidNudge : ''}`}>
-GLP-1 Health Tracker
+Your GLP-1 Companion
 </h1>
 
 
 <p className={styles.subtitle}>
-Body, mind, momentum. Gentle GLP-1 support for the habits that help you feel well.
+Simple daily support for protein, water, check-ins, and GLP-1 routines.
 </p>
 </div>
 

@@ -1,0 +1,350 @@
+.content {
+  --background: #f6f8f7;
+}
+
+.content::part(scroll) {
+  padding-top: calc(var(--top-nav-height, 96px) + env(safe-area-inset-top) + 14px);
+  padding-bottom: calc(var(--bottom-nav-height, 88px) + env(safe-area-inset-bottom) + 28px);
+}
+
+.page {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: 16px;
+  color: #172033;
+}
+
+.heroBand,
+.dateBand,
+.noticeBand,
+.entriesBand,
+.entryCard,
+.totalsGrid article {
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.heroBand {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  background: linear-gradient(135deg, #ffffff, #eef7ff);
+}
+
+.backButton {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 850;
+}
+
+.eyebrow {
+  display: block;
+  color: #0f766e;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.heroBand h1 {
+  margin: 6px 0 0;
+  color: #172033;
+  font-size: 2rem;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.heroBand p {
+  margin: 8px 0 0;
+  max-width: 40rem;
+  color: #526b65;
+  line-height: 1.45;
+}
+
+.dateBand {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.dateBand button,
+.entryActions button {
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  background: #f8fbff;
+  color: #2563eb;
+}
+
+.dateBand button:disabled {
+  opacity: 0.45;
+}
+
+.dateBand input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  font-weight: 800;
+}
+
+.totalsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.totalsGrid article {
+  min-height: 118px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px;
+}
+
+.totalsGrid svg {
+  color: #0f766e;
+}
+
+.totalsGrid span,
+.entryMain span,
+.editGrid label span {
+  color: #607470;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.totalsGrid strong {
+  color: #172033;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+.totalsGrid small {
+  color: #6b7f7a;
+  font-size: 0.78rem;
+}
+
+.noticeBand {
+  margin-top: 12px;
+  padding: 14px;
+  border-color: rgba(15, 118, 110, 0.16);
+  background: #f0fdfa;
+}
+
+.noticeBand strong {
+  display: block;
+  color: #0f766e;
+  font-size: 0.94rem;
+}
+
+.noticeBand p,
+.sectionHeader p,
+.entryMain p,
+.message,
+.emptyState {
+  margin: 5px 0 0;
+  color: #526b65;
+  line-height: 1.4;
+}
+
+.entriesBand {
+  margin-top: 12px;
+  padding: 14px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 1.18rem;
+  letter-spacing: 0;
+}
+
+.addButton {
+  min-height: 40px;
+  --border-radius: 8px;
+  --background: #2563eb;
+  --color: #ffffff;
+  font-weight: 850;
+}
+
+.message {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #eef7ff;
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.emptyState {
+  padding: 16px 0 4px;
+}
+
+.entryList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.entryCard {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.entryIcon {
+  width: 40px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.entryMain {
+  min-width: 0;
+}
+
+.entryMain strong {
+  display: block;
+  margin-top: 3px;
+  color: #172033;
+  font-size: 1rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.entryActions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.entryActions button:last-child {
+  color: #b42318;
+}
+
+.editGrid {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.editGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.editGrid input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+}
+
+.editGrid .entryActions {
+  align-self: end;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 12px;
+  }
+
+  .totalsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectionHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .entryCard {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .entryCard > .entryActions {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .editGrid {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .totalsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+:global([data-theme='dark']) .content,
+:global(body[data-theme='dark']) .content {
+  --background: #101719;
+}
+
+:global([data-theme='dark']) .heroBand,
+:global([data-theme='dark']) .dateBand,
+:global([data-theme='dark']) .noticeBand,
+:global([data-theme='dark']) .entriesBand,
+:global([data-theme='dark']) .entryCard,
+:global([data-theme='dark']) .totalsGrid article,
+:global(body[data-theme='dark']) .heroBand,
+:global(body[data-theme='dark']) .dateBand,
+:global(body[data-theme='dark']) .noticeBand,
+:global(body[data-theme='dark']) .entriesBand,
+:global(body[data-theme='dark']) .entryCard,
+:global(body[data-theme='dark']) .totalsGrid article {
+  background: #172124;
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #e5eef0;
+}
+
+:global([data-theme='dark']) .heroBand h1,
+:global([data-theme='dark']) .sectionHeader h2,
+:global([data-theme='dark']) .entryMain strong,
+:global([data-theme='dark']) .totalsGrid strong,
+:global(body[data-theme='dark']) .heroBand h1,
+:global(body[data-theme='dark']) .sectionHeader h2,
+:global(body[data-theme='dark']) .entryMain strong,
+:global(body[data-theme='dark']) .totalsGrid strong {
+  color: #f8fafc;
+}

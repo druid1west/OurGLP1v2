@@ -721,6 +721,8 @@ if (Capacitor.getPlatform() === "android") {
                     hydrationLabels={hydrationLabels}
                     hydrationRange={hydrationRange}
                     activitySummary={activitySummary}
+                    energyBalanceSummary={undefined}
+                    isPro={true}
                     glp1Summary={glp1Summary}
                   />
                 </div>

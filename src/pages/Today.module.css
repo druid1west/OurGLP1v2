@@ -93,10 +93,13 @@
 }
 
 .metricCard,
+.energyBand,
 .healthBand,
 .rhythmBand,
 .protocolBand,
-.insightCard {
+.insightCard,
+.companionBand,
+.loggedBand {
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid rgba(37, 99, 235, 0.12);
@@ -150,11 +153,307 @@
   background: var(--metric-color);
 }
 
+.companionBand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.82fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffffff, #f4fbf8);
+}
+
+.companionCopy h2 {
+  margin: 7px 0 0;
+  color: #172033;
+  font-size: 1.22rem;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.companionCopy p {
+  margin: 8px 0 0;
+  color: #526b65;
+  line-height: 1.45;
+}
+
+.companionCopy strong {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #eef7ff;
+  color: #2563eb;
+  font-size: 0.86rem;
+}
+
+.quickLogPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.quickMainActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.waterQuickAction {
+  min-height: 46px;
+  --background: #1677a3;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.foodQuickAction {
+  min-height: 46px;
+  --background: #c05621;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.movementQuickAction {
+  min-height: 46px;
+  --background: #27835f;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.waterQuickAction::part(native),
+.foodQuickAction::part(native),
+.movementQuickAction::part(native),
+.saveFoodAction::part(native) {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.foodLoggerPanel {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.foodLoggerHeader strong,
+.foodLoggerHeader span {
+  display: block;
+}
+
+.foodLoggerHeader strong {
+  color: #172033;
+  font-size: 0.94rem;
+}
+
+.foodLoggerHeader span {
+  margin-top: 3px;
+  color: #607470;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.quickFoodGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickFoodGrid button {
+  min-height: 52px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(192, 86, 33, 0.22);
+  background: #fff7ed;
+  color: #172033;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.quickFoodGrid button:disabled {
+  opacity: 0.58;
+  cursor: default;
+}
+
+.quickFoodGrid span,
+.quickFoodGrid strong {
+  display: block;
+}
+
+.quickFoodGrid span {
+  font-size: 0.88rem;
+  font-weight: 850;
+  line-height: 1.18;
+}
+
+.quickFoodGrid strong {
+  margin-top: 4px;
+  color: #c05621;
+  font-size: 0.78rem;
+}
+
+.customFoodPanel {
+  display: grid;
+  gap: 8px;
+}
+
+.customFoodPanel label {
+  display: grid;
+  gap: 5px;
+}
+
+.customFoodPanel label span {
+  color: #526b65;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.customFoodPanel input,
+.macroGrid input,
+.macroGrid select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  outline: none;
+}
+
+.customFoodPanel input:focus,
+.macroGrid input:focus,
+.macroGrid select:focus {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.macroGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.macroGrid label span {
+  color: #526b65;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.textToggleButton,
+.undoButton,
+.loggedItem button {
+  min-height: 36px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 8px;
+  background: #eaf2ff;
+  color: #2563eb;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+}
+
+.textToggleButton {
+  justify-self: start;
+  padding: 0 10px;
+}
+
+.macroGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.saveFoodAction {
+  min-height: 44px;
+  --background: #2563eb;
+  --color: #ffffff;
+  --border-radius: 8px;
+  font-weight: 850;
+}
+
+.energyBand {
+  margin-top: 12px;
+  padding: 16px;
+}
+
+.energyBand > .sectionHeader > svg {
+  color: #27835f;
+}
+
+.energyGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.energyGrid div {
+  min-height: 72px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f3f7f5;
+}
+
+.energyGrid span,
+.energyGrid strong {
+  display: block;
+}
+
+.energyGrid span {
+  color: #607470;
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.energyGrid strong {
+  margin-top: 7px;
+  color: #172033;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.energyNote {
+  margin: 12px 0 0;
+  color: #526b65;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.quickMessageRow {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quickActionMessage {
+  margin: 0;
+  color: #2563eb;
+  font-size: 0.88rem;
+  font-weight: 850;
+}
+
+.undoButton {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+}
+
 .healthBand,
 .rhythmBand,
 .protocolBand,
 .freeJourneyBand,
-.monthlyBand {
+.monthlyBand,
+.loggedBand {
   margin-top: 12px;
   padding: 16px;
 }
@@ -479,6 +778,66 @@
   overflow-wrap: anywhere;
 }
 
+.loggedList {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.loggedItem {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f3f7f5;
+}
+
+.loggedItem span {
+  color: #607470;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.loggedItem strong {
+  min-width: 0;
+  color: #172033;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.loggedItem button {
+  width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #c05621;
+  background: #fff7ed;
+  border-color: rgba(192, 86, 33, 0.22);
+}
+
+.loggedEmpty {
+  margin: 12px 0 0;
+  color: #5c6f6b;
+  line-height: 1.42;
+}
+
+.showAllEntries {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: #eef7ff;
+  color: #2563eb;
+  font-weight: 850;
+}
+
 .syncMessage {
   margin: 12px 0 0;
   color: #4f625f;
@@ -646,38 +1005,52 @@
 }
 
 :global([data-theme='dark']) .metricCard,
+:global([data-theme='dark']) .energyBand,
 :global([data-theme='dark']) .healthBand,
 :global([data-theme='dark']) .rhythmBand,
 :global([data-theme='dark']) .proPreview,
 :global([data-theme='dark']) .protocolBand,
 :global([data-theme='dark']) .insightCard,
+:global([data-theme='dark']) .companionBand,
+:global([data-theme='dark']) .loggedBand,
 :global(body[data-theme='dark']) .metricCard,
+:global(body[data-theme='dark']) .energyBand,
 :global(body[data-theme='dark']) .healthBand,
 :global(body[data-theme='dark']) .rhythmBand,
 :global(body[data-theme='dark']) .proPreview,
 :global(body[data-theme='dark']) .protocolBand,
-:global(body[data-theme='dark']) .insightCard {
+:global(body[data-theme='dark']) .insightCard,
+:global(body[data-theme='dark']) .companionBand,
+:global(body[data-theme='dark']) .loggedBand {
   background: #1b2422;
   border-color: rgba(255, 255, 255, 0.09);
   box-shadow: none;
 }
 
 :global([data-theme='dark']) .metricCard strong,
+:global([data-theme='dark']) .energyGrid strong,
 :global([data-theme='dark']) .sectionHeader h2,
 :global([data-theme='dark']) .rhythmMeta strong,
 :global([data-theme='dark']) .proPreview h2,
 :global([data-theme='dark']) .protocolPill span,
 :global([data-theme='dark']) .insightCard strong,
+:global([data-theme='dark']) .companionCopy h2,
+:global([data-theme='dark']) .loggedItem strong,
 :global(body[data-theme='dark']) .metricCard strong,
+:global(body[data-theme='dark']) .energyGrid strong,
 :global(body[data-theme='dark']) .sectionHeader h2,
 :global(body[data-theme='dark']) .rhythmMeta strong,
 :global(body[data-theme='dark']) .proPreview h2,
 :global(body[data-theme='dark']) .protocolPill span,
-:global(body[data-theme='dark']) .insightCard strong {
+:global(body[data-theme='dark']) .insightCard strong,
+:global(body[data-theme='dark']) .companionCopy h2,
+:global(body[data-theme='dark']) .loggedItem strong {
   color: #f2fbf8;
 }
 
 :global([data-theme='dark']) .metricCard span,
+:global([data-theme='dark']) .energyGrid span,
+:global([data-theme='dark']) .energyNote,
 :global([data-theme='dark']) .sectionHeader p,
 :global([data-theme='dark']) .rhythmMeta span,
 :global([data-theme='dark']) .rhythmEmpty,
@@ -686,7 +1059,12 @@
 :global([data-theme='dark']) .protocolEmpty,
 :global([data-theme='dark']) .protocolPill strong,
 :global([data-theme='dark']) .insightCard span,
+:global([data-theme='dark']) .companionCopy p,
+:global([data-theme='dark']) .loggedItem span,
+:global([data-theme='dark']) .loggedEmpty,
 :global(body[data-theme='dark']) .metricCard span,
+:global(body[data-theme='dark']) .energyGrid span,
+:global(body[data-theme='dark']) .energyNote,
 :global(body[data-theme='dark']) .sectionHeader p,
 :global(body[data-theme='dark']) .rhythmMeta span,
 :global(body[data-theme='dark']) .rhythmEmpty,
@@ -694,17 +1072,50 @@
 :global(body[data-theme='dark']) .proPreview p,
 :global(body[data-theme='dark']) .protocolEmpty,
 :global(body[data-theme='dark']) .protocolPill strong,
-:global(body[data-theme='dark']) .insightCard span {
+:global(body[data-theme='dark']) .insightCard span,
+:global(body[data-theme='dark']) .companionCopy p,
+:global(body[data-theme='dark']) .loggedItem span,
+:global(body[data-theme='dark']) .loggedEmpty {
   color: #9bb2ad;
 }
 
 :global([data-theme='dark']) .healthStats div,
+:global([data-theme='dark']) .energyGrid div,
 :global([data-theme='dark']) .anchorDay,
 :global([data-theme='dark']) .rhythmMeta div,
 :global([data-theme='dark']) .protocolPill,
+:global([data-theme='dark']) .loggedItem,
 :global(body[data-theme='dark']) .healthStats div,
+:global(body[data-theme='dark']) .energyGrid div,
 :global(body[data-theme='dark']) .anchorDay,
-:global(body[data-theme='dark']) .rhythmMeta div {
+:global(body[data-theme='dark']) .rhythmMeta div,
+:global(body[data-theme='dark']) .loggedItem {
+  background: #14201e;
+  color: #bde8df;
+}
+
+:global([data-theme='dark']) .quickFoodGrid button,
+:global([data-theme='dark']) .foodLoggerPanel,
+:global([data-theme='dark']) .customFoodPanel input,
+:global([data-theme='dark']) .macroGrid input,
+:global([data-theme='dark']) .macroGrid select,
+:global(body[data-theme='dark']) .quickFoodGrid button {
+  background: rgba(192, 86, 33, 0.16);
+  border-color: rgba(251, 191, 36, 0.28);
+  color: #f2fbf8;
+}
+
+:global(body[data-theme='dark']) .foodLoggerPanel,
+:global(body[data-theme='dark']) .customFoodPanel input,
+:global(body[data-theme='dark']) .macroGrid input,
+:global(body[data-theme='dark']) .macroGrid select {
+  background: #14201e;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f2fbf8;
+}
+
+:global([data-theme='dark']) .companionCopy strong,
+:global(body[data-theme='dark']) .companionCopy strong {
   background: #14201e;
   color: #bde8df;
 }
@@ -749,8 +1160,13 @@
   }
 
   .metricsGrid,
-  .insightGrid {
+  .insightGrid,
+  .energyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .companionBand {
+    grid-template-columns: 1fr;
   }
 
   .healthStats {
@@ -803,12 +1219,19 @@
   .actionBand {
     grid-template-columns: 1fr;
   }
+
+  .quickMainActions,
+  .macroGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 390px) {
   .metricsGrid,
   .insightGrid,
-  .monthlySteps {
+  .energyGrid,
+  .monthlySteps,
+  .quickFoodGrid {
     grid-template-columns: 1fr;
   }
 }

@@ -38,6 +38,7 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Paywall from './pages/Paywall';
 import HealthTracker from './pages/HealthTracker';
+import FoodDiary from './pages/FoodDiary';
 import Today from './pages/Today';
 import Protocols from './pages/Protocols';
 import Coach from './pages/Coach';
@@ -170,8 +171,9 @@ function isVersionLessThan(current: string, latest: string): boolean {
 
 /* --------------------------------- App ------------------------------------ */
 const SKIP_PURCHASES = false;
-const IOS_APP_STORE_LOOKUP_ID = '';
-const IOS_APP_STORE_FALLBACK_URL = '';
+const IOS_APP_STORE_LOOKUP_ID = '6766082160';
+const IOS_APP_STORE_LOOKUP_COUNTRY = 'gb';
+const IOS_APP_STORE_FALLBACK_URL = 'https://apps.apple.com/gb/app/ourglp1v2/id6766082160';
 
 const App: React.FC = () => {
   const platform = Capacitor.getPlatform(); // 'ios' | 'android' | 'web'
@@ -466,7 +468,7 @@ const App: React.FC = () => {
         const appInfo = await CapacitorApp.getInfo();
         const currentVersion = appInfo.version;
 
-        const res = await fetch(`https://itunes.apple.com/lookup?id=${IOS_APP_STORE_LOOKUP_ID}`);
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${IOS_APP_STORE_LOOKUP_ID}&country=${IOS_APP_STORE_LOOKUP_COUNTRY}`);
         const json: unknown = await res.json();
         const result = (json as { results?: Array<{ version?: string; trackViewUrl?: string }> }).results?.[0];
 
@@ -562,6 +564,7 @@ const App: React.FC = () => {
                   {/* Private routes */}
                   <PrivateRoute exact path="/settings" component={Settings} />
                   <PrivateRoute exact path="/today" component={Today} />
+                  <PrivateRoute exact path="/food-diary" component={FoodDiary} />
                   <PrivateRoute exact path="/protocols" component={Protocols} />
                   <PrivateRoute exact path="/profile" component={Profile} />
                   <PrivateRoute exact path="/healthtracker" component={HealthTracker} />

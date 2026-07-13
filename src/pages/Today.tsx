@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Sparkles,
   Syringe,
+  Trash2,
+  Undo2,
   Utensils,
   Watch,
 } from 'lucide-react';
@@ -25,13 +27,18 @@ import TopNav from '../context/TopNav';
 import BottomNav from '../context/BottomNav';
 import { useAuth } from '../context/useAuth';
 import {
+  deleteHealthLogLocal,
   getHealthDailySummaryByDay,
   getLastInjectionLocal,
   importAppleHealthWorkoutsAndEmit,
   initHealthTables,
+  insertExerciseAndEmit,
+  insertHealthLogAndEmit,
   listExercises,
   listHealthLogsRange,
   upsertHealthDailySummary,
+  upsertDailyHydrationAndEmit,
+  upsertDailyProteinAndEmit,
   type ExerciseEntry,
   type HealthDailySummary,
   type HealthLog,
@@ -53,6 +60,7 @@ import {
 import { getSettings, type Settings as StoredSettings } from '../db/SettingsRepository';
 import { rotateShortFromFull, type WeekdayFull, type WeekdayShort } from '../lib/time';
 import { addNutritionTotals, nutritionFromLogData, roundNutritionTotals } from '../lib/nutritionLog';
+import { getSetupStatus } from '../lib/setupStatus';
 import { logger } from '../utils/logger';
 import { getCoachProfile } from '../db/CoachRepository';
 import styles from './Today.module.css';
@@ -64,6 +72,7 @@ type TodayStats = {
   calories: number;
   hydration: number;
   manualExerciseMinutes: number;
+  exerciseCalories: number;
   manualSleepMinutes: number;
   moodAverage: number | null;
   latestBloodPressure: string | null;
@@ -92,11 +101,39 @@ type TodayRhythm = {
 
 type LoadState = 'loading' | 'ready' | 'error';
 type SyncState = 'idle' | 'syncing' | 'synced' | 'unavailable' | 'error';
+type QuickActionState = 'idle' | 'saving';
+
+type QuickProteinAction = {
+  label: string;
+  grams: number;
+  calories: number;
+  carbs?: number;
+  fat?: number;
+};
+
+type MovementKind = 'Walk' | 'Stay Strong routine' | 'Strength' | 'Stretching' | 'Other';
+type MovementEffort = 'easy' | 'moderate' | 'hard';
+
+type LastQuickLog = {
+  id: number;
+  label: string;
+};
 
 const PROTEIN_TARGET_G = 90;
 const HYDRATION_TARGET_ML = 2200;
 const STEPS_TARGET = 8000;
 const SLEEP_TARGET_MINUTES = 7 * 60;
+const QUICK_WATER_ML = 250;
+const MOVEMENT_KINDS: MovementKind[] = ['Walk', 'Stay Strong routine', 'Strength', 'Stretching', 'Other'];
+const MOVEMENT_EFFORTS: MovementEffort[] = ['easy', 'moderate', 'hard'];
+const COMMON_FOOD_ACTIONS: QuickProteinAction[] = [
+  { label: 'Protein shake', grams: 25, calories: 150, carbs: 5, fat: 3 },
+  { label: 'Greek yogurt', grams: 17, calories: 120, carbs: 8, fat: 0 },
+  { label: '2 eggs', grams: 12, calories: 155, carbs: 1, fat: 11 },
+  { label: 'Chicken', grams: 30, calories: 170, carbs: 0, fat: 4 },
+  { label: 'Fish', grams: 24, calories: 140, carbs: 0, fat: 4 },
+  { label: 'Beans', grams: 14, calories: 240, carbs: 40, fat: 1 },
+];
 
 function localYmd(date = new Date()): string {
   const yyyy = date.getFullYear();
@@ -152,6 +189,47 @@ function exerciseMinutes(entry: ExerciseEntry): number {
   const diff = end.getTime() - start.getTime();
   if (!Number.isFinite(diff) || diff <= 0) return 0;
   return Math.round(diff / 60000);
+}
+
+function exerciseCalories(entry: ExerciseEntry): number {
+  const calories = entry.calories_burned;
+  return typeof calories === 'number' && Number.isFinite(calories) ? Math.max(0, Math.round(calories)) : 0;
+}
+
+function localTimeHHMM(date = new Date()): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function addMinutesHHMM(startHHMM: string, minutes: number): string {
+  const [hhRaw, mmRaw] = startHHMM.split(':');
+  const base = new Date();
+  base.setHours(Number(hhRaw) || 0, Number(mmRaw) || 0, 0, 0);
+  base.setMinutes(base.getMinutes() + Math.round(minutes));
+  return localTimeHHMM(base);
+}
+
+function dayShortFromYmd(ymd: string): string {
+  const date = ymdToLocalDate(ymd);
+  return SHORT_FROM_INDEX[date.getDay()] ?? 'Mon';
+}
+
+function estimateMovementCalories(kind: MovementKind, minutes: number, effort: MovementEffort): number {
+  if (!Number.isFinite(minutes) || minutes <= 0) return 0;
+  const basePerMinute: Record<MovementKind, number> = {
+    Walk: 4,
+    'Stay Strong routine': 3.5,
+    Strength: 5,
+    Stretching: 2,
+    Other: 3,
+  };
+  const effortMultiplier: Record<MovementEffort, number> = {
+    easy: 0.8,
+    moderate: 1,
+    hard: 1.25,
+  };
+  return Math.max(1, Math.round(minutes * basePerMinute[kind] * effortMultiplier[effort]));
 }
 
 function formatMinutes(minutes: number): string {
@@ -411,6 +489,40 @@ function syncLabel(state: SyncState): string {
   }
 }
 
+function loggedItemLabel(log: HealthLog): string | null {
+  const data = log.data as Record<string, unknown> | null;
+  if (!data) return null;
+
+  if (log.entry_type === 'protein') {
+    const grams = toNumber(data.grams ?? data.protein ?? data.protein_g) ?? 0;
+    const label = typeof data.label === 'string' && data.label.trim()
+      ? data.label.trim()
+      : 'Protein';
+    return `${label}: ${Math.round(grams)}g protein`;
+  }
+
+  if (log.entry_type === 'hydration') {
+    const amount = toNumber(data.amount) ?? 0;
+    return `Water: ${Math.round(amount)}ml`;
+  }
+
+  if (log.entry_type === 'weight') {
+    const kg = toNumber(data.kg);
+    return kg !== null ? `Weight: ${kg}kg` : 'Weight logged';
+  }
+
+  if (log.entry_type === 'bowel') return 'Bowel movement logged';
+  if (log.entry_type === 'mood') return 'Check-in logged';
+  if (log.entry_type === 'injection') return 'Medication logged';
+  return null;
+}
+
+function loggedItemTime(log: HealthLog): string {
+  const date = new Date(log.recorded_at);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
 const Today: React.FC = () => {
   const router = useIonRouter();
   const { user, isPro } = useAuth();
@@ -419,14 +531,39 @@ const Today: React.FC = () => {
   const [appleSummary, setAppleSummary] = useState<HealthDailySummary | null>(null);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
   const [protocolEvents, setProtocolEvents] = useState<ProtocolEvent[]>([]);
+  const [todayLogs, setTodayLogs] = useState<HealthLog[]>([]);
   const [rhythm, setRhythm] = useState<TodayRhythm | null>(null);
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [setupComplete, setSetupComplete] = useState(false);
   const [protocolLogBusy, setProtocolLogBusy] = useState(false);
   const [protocolLogMessage, setProtocolLogMessage] = useState('');
+  const [quickActionState, setQuickActionState] = useState<QuickActionState>('idle');
+  const [quickActionMessage, setQuickActionMessage] = useState('');
+  const [lastQuickLog, setLastQuickLog] = useState<LastQuickLog | null>(null);
+  const [foodLoggerOpen, setFoodLoggerOpen] = useState(false);
+  const [advancedFoodOpen, setAdvancedFoodOpen] = useState(false);
+  const [movementLoggerOpen, setMovementLoggerOpen] = useState(false);
+  const [movementKind, setMovementKind] = useState<MovementKind>('Walk');
+  const [movementMinutes, setMovementMinutes] = useState('15');
+  const [movementEffort, setMovementEffort] = useState<MovementEffort>('moderate');
+  const [movementCalories, setMovementCalories] = useState('60');
+  const [customFoodName, setCustomFoodName] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customCarbs, setCustomCarbs] = useState('');
+  const [customFat, setCustomFat] = useState('');
+  const [customCalories, setCustomCalories] = useState('');
 
   const today = useMemo(() => localYmd(), []);
+
+  const refreshMovementEstimate = useCallback((
+    nextKind = movementKind,
+    nextMinutesRaw = movementMinutes,
+    nextEffort = movementEffort
+  ): void => {
+    const minutes = Math.max(0, Math.round(Number(nextMinutesRaw) || 0));
+    setMovementCalories(String(estimateMovementCalories(nextKind, minutes, nextEffort)));
+  }, [movementEffort, movementKind, movementMinutes]);
 
   const loadToday = useCallback(async () => {
     setLoadState('loading');
@@ -444,6 +581,7 @@ const Today: React.FC = () => {
         protocolEventRows,
         settings,
         coachProfile,
+        setupStatus,
       ] = await Promise.all([
         listHealthLogsRange(start, end),
         listExercises(),
@@ -454,12 +592,17 @@ const Today: React.FC = () => {
         user?.id ? listProtocolEventsForDay(user.id, today) : Promise.resolve([]),
         getSettings(),
         user?.id ? getCoachProfile(user.id).catch(() => null) : Promise.resolve(null),
+        getSetupStatus(user).catch(() => null),
       ]);
 
       const logSummary = summarizeLogs(logs);
       const todaysExercises = exercises.filter((entry) => entry.exercise_date === today);
       const manualExerciseMinutes = todaysExercises.reduce(
         (sum, entry) => sum + exerciseMinutes(entry),
+        0
+      );
+      const exerciseCaloriesTotal = todaysExercises.reduce(
+        (sum, entry) => sum + exerciseCalories(entry),
         0
       );
       const manualSleepMinutes = (sleepLogs as SleepLogRow[]).reduce(
@@ -470,11 +613,13 @@ const Today: React.FC = () => {
       setAppleSummary(imported);
       setProtocols(protocolRows);
       setProtocolEvents(protocolEventRows);
+      setTodayLogs(logs);
       setRhythm(buildTodayRhythm(settings));
-      setSetupComplete(Boolean(coachProfile?.coach_onboarding_completed_at));
+      setSetupComplete(Boolean(coachProfile?.coach_onboarding_completed_at || setupStatus?.complete));
       setStats({
         ...logSummary,
         manualExerciseMinutes,
+        exerciseCalories: exerciseCaloriesTotal,
         manualSleepMinutes,
         lastInjectionLabel: lastInjection?.taken_at
           ? new Intl.DateTimeFormat(undefined, {
@@ -492,7 +637,7 @@ const Today: React.FC = () => {
       });
       setLoadState('error');
     }
-  }, [today, user?.id]);
+  }, [today, user]);
 
   useEffect(() => {
     void loadToday();
@@ -603,6 +748,9 @@ const Today: React.FC = () => {
   const importedSleep = appleSummary?.sleepMinutes ?? 0;
   const importedEnergy = appleSummary?.activeEnergyKcal ?? 0;
   const activityMinutes = Math.max(importedExercise, stats?.manualExerciseMinutes ?? 0);
+  const foodCalories = stats?.calories ?? 0;
+  const movementCaloriesOut = Math.max(importedEnergy, stats?.exerciseCalories ?? 0);
+  const netCaloriesEstimate = Math.max(0, foodCalories - movementCaloriesOut);
   const sleepMinutes = Math.max(importedSleep, stats?.manualSleepMinutes ?? 0);
   const activeProtocols = protocols.filter((protocol) => protocol.is_active);
   const primaryProtocol = activeProtocols.find((protocol) => protocol.is_primary) ?? activeProtocols[0] ?? null;
@@ -637,6 +785,269 @@ const Today: React.FC = () => {
     }
   };
 
+  const refreshDailyNutritionRollups = useCallback(async (): Promise<void> => {
+    if (!user?.id) return;
+    const { start, end } = localDayBounds(today);
+    const logs = await listHealthLogsRange(start, end);
+    const summary = summarizeLogs(logs);
+    await Promise.all([
+      upsertDailyProteinAndEmit(String(user.id), today, summary.protein),
+      upsertDailyHydrationAndEmit(String(user.id), today, summary.hydration),
+    ]);
+  }, [today, user?.id]);
+
+  const findQuickLog = useCallback(async (
+    entryType: 'protein' | 'hydration',
+    recordedAt: string,
+    label: string
+  ): Promise<HealthLog | null> => {
+    const { start, end } = localDayBounds(today);
+    const logs = await listHealthLogsRange(start, end);
+    return [...logs].reverse().find((log) => {
+      const data = log.data as Record<string, unknown> | null;
+      const source = typeof data?.source === 'string' ? data.source : '';
+      const logLabel = typeof data?.label === 'string' ? data.label : '';
+      return log.entry_type === entryType &&
+        log.recorded_at === recordedAt &&
+        source === 'today_quick_log' &&
+        logLabel === label;
+    }) ?? null;
+  }, [today]);
+
+  const handleQuickWater = async (): Promise<void> => {
+    if (quickActionState === 'saving') return;
+    setQuickActionState('saving');
+    setQuickActionMessage('');
+    try {
+      const recordedAt = new Date().toISOString();
+      const nextHydrationTotal = Math.round((stats?.hydration ?? 0) + QUICK_WATER_ML);
+      await insertHealthLogAndEmit({
+        entry_type: 'hydration',
+        recorded_at: recordedAt,
+        data_json: JSON.stringify({
+          amount: QUICK_WATER_ML,
+          unit: 'ml',
+          label: 'Water',
+          source: 'today_quick_log',
+        }),
+      });
+      if (user?.id) {
+        await upsertDailyHydrationAndEmit(String(user.id), today, nextHydrationTotal);
+      }
+      const savedLog = await findQuickLog('hydration', recordedAt, 'Water');
+      setLastQuickLog(savedLog ? { id: savedLog.id, label: 'Water' } : null);
+      setQuickActionMessage('Water saved.');
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] quick water log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setQuickActionMessage('Could not save water yet.');
+    } finally {
+      setQuickActionState('idle');
+    }
+  };
+
+  const handleQuickProtein = async (action: QuickProteinAction): Promise<void> => {
+    if (quickActionState === 'saving') return;
+    setQuickActionState('saving');
+    setQuickActionMessage('');
+    try {
+      const recordedAt = new Date().toISOString();
+      const nextProteinTotal = Math.round((stats?.protein ?? 0) + action.grams);
+      await insertHealthLogAndEmit({
+        entry_type: 'protein',
+        recorded_at: recordedAt,
+        data_json: JSON.stringify({
+          label: action.label,
+          grams: action.grams,
+          protein: action.grams,
+          calories: action.calories,
+          carbs: action.carbs ?? 0,
+          fat: action.fat ?? 0,
+          source: 'today_quick_log',
+        }),
+      });
+      if (user?.id) {
+        await upsertDailyProteinAndEmit(String(user.id), today, nextProteinTotal);
+      }
+      const savedLog = await findQuickLog('protein', recordedAt, action.label);
+      setLastQuickLog(savedLog ? { id: savedLog.id, label: action.label } : null);
+      setQuickActionMessage(`${action.label} saved.`);
+      setFoodLoggerOpen(false);
+      setAdvancedFoodOpen(false);
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] quick protein log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setQuickActionMessage('Could not save that food yet.');
+    } finally {
+      setQuickActionState('idle');
+    }
+  };
+
+  const handleSaveCustomFood = async (): Promise<void> => {
+    const grams = Math.round(Number(customProtein));
+    if (!Number.isFinite(grams) || grams <= 0) {
+      setQuickActionMessage('Add protein grams first.');
+      return;
+    }
+
+    const label = customFoodName.trim() || 'Food';
+    await handleQuickProtein({
+      label,
+      grams,
+      calories: Number.isFinite(Number(customCalories)) && customCalories.trim() ? Math.max(0, Math.round(Number(customCalories))) : 0,
+      carbs: Number.isFinite(Number(customCarbs)) && customCarbs.trim() ? Math.max(0, Math.round(Number(customCarbs))) : 0,
+      fat: Number.isFinite(Number(customFat)) && customFat.trim() ? Math.max(0, Math.round(Number(customFat))) : 0,
+    });
+    setCustomFoodName('');
+    setCustomProtein('');
+    setCustomCarbs('');
+    setCustomFat('');
+    setCustomCalories('');
+  };
+
+  const handleSaveMovement = async (): Promise<void> => {
+    if (quickActionState === 'saving') return;
+    const minutes = Math.max(0, Math.round(Number(movementMinutes) || 0));
+    if (minutes <= 0) {
+      setQuickActionMessage('Add movement minutes first.');
+      return;
+    }
+
+    const calories = Number.isFinite(Number(movementCalories))
+      ? Math.max(0, Math.round(Number(movementCalories)))
+      : estimateMovementCalories(movementKind, minutes, movementEffort);
+    const endTime = localTimeHHMM();
+    const startTime = addMinutesHHMM(endTime, -minutes);
+
+    setQuickActionState('saving');
+    setQuickActionMessage('');
+    try {
+      await insertExerciseAndEmit({
+        exercise_date: today,
+        day_of_week: dayShortFromYmd(today),
+        start_time: startTime,
+        end_time: endTime,
+        exercise_type: `${movementKind} (${movementEffort})`,
+        calories_burned: calories,
+      });
+      setQuickActionMessage(`${movementKind} saved: ${minutes} min, about ${calories} kcal.`);
+      setMovementLoggerOpen(false);
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] quick movement log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setQuickActionMessage('Could not save movement yet.');
+    } finally {
+      setQuickActionState('idle');
+    }
+  };
+
+  const handleDeleteLog = async (id: number, label = 'Entry'): Promise<void> => {
+    if (quickActionState === 'saving') return;
+    setQuickActionState('saving');
+    setQuickActionMessage('');
+    try {
+      await deleteHealthLogLocal(id);
+      await refreshDailyNutritionRollups();
+      if (lastQuickLog?.id === id) setLastQuickLog(null);
+      setQuickActionMessage(`${label} removed.`);
+      window.dispatchEvent(new Event('health:changed'));
+      await loadToday();
+    } catch (error) {
+      logger.warn('[Today] delete log failed', {
+        msg: error instanceof Error ? error.message : String(error),
+      });
+      setQuickActionMessage('Could not remove that yet.');
+    } finally {
+      setQuickActionState('idle');
+    }
+  };
+
+  const handleUndoLastQuickLog = async (): Promise<void> => {
+    if (!lastQuickLog) return;
+    await handleDeleteLog(lastQuickLog.id, lastQuickLog.label);
+  };
+
+  const companionGuidance = useMemo(() => {
+    const protein = stats?.protein ?? 0;
+    const hydration = stats?.hydration ?? 0;
+    const calories = stats?.calories ?? 0;
+    const movementMinutes = activityMinutes;
+    const proteinRemaining = Math.max(0, PROTEIN_TARGET_G - protein);
+    const waterRemaining = Math.max(0, HYDRATION_TARGET_ML - hydration);
+
+    if (loadState !== 'ready') {
+      return {
+        title: 'Getting today ready',
+        body: 'Your simple next step will appear here once today has loaded.',
+        action: 'Loading',
+      };
+    }
+
+    if (protein < 35) {
+      return {
+        title: 'Start with protein',
+        body: `You are at ${formatNumber(protein)}g today. Protein helps protect muscle while weight is changing and can make smaller meals feel more satisfying.`,
+        action: `About ${formatNumber(proteinRemaining)}g to go`,
+      };
+    }
+
+    if (calories > 0 && movementMinutes <= 0) {
+      return {
+        title: 'Add a little movement',
+        body: 'Food is logged. If you feel able, a short walk or beginner strength routine gives Coach a clearer calories-in and movement pattern.',
+        action: 'Try 10-15 minutes',
+      };
+    }
+
+    if (hydration < 1000) {
+      return {
+        title: 'Add one glass of water',
+        body: `You have logged ${formatNumber(hydration)}ml today. One glass now is a good next step.`,
+        action: `About ${formatNumber(waterRemaining)}ml to go`,
+      };
+    }
+
+    if (proteinRemaining > 0) {
+      return {
+        title: 'Nearly there on protein',
+        body: `You need roughly ${formatNumber(proteinRemaining)}g more protein today. One protein-rich snack may be enough.`,
+        action: `${formatNumber(protein)}g / ${PROTEIN_TARGET_G}g`,
+      };
+    }
+
+    if (waterRemaining > 0) {
+      return {
+        title: 'Keep water steady',
+        body: `Protein is in a good place. Another glass of water later would help round out the day.`,
+        action: `${formatNumber(hydration)}ml / ${HYDRATION_TARGET_ML}ml`,
+      };
+    }
+
+    return {
+      title: 'You are in a good place today',
+      body: 'Protein and water are both logged. Keep things steady and note anything unusual for your next review.',
+      action: 'Daily basics done',
+    };
+  }, [activityMinutes, loadState, stats?.calories, stats?.hydration, stats?.protein]);
+
+  const displayableTodayLogs = useMemo(
+    () => todayLogs
+      .map((log) => ({ log, label: loggedItemLabel(log) }))
+      .filter((item): item is { log: HealthLog; label: string } => Boolean(item.label)),
+    [todayLogs]
+  );
+  const visibleTodayLogs = useMemo(
+    () => displayableTodayLogs.slice(0, 6),
+    [displayableTodayLogs]
+  );
+  const hiddenTodayLogCount = Math.max(0, displayableTodayLogs.length - visibleTodayLogs.length);
+
   const focusText = useMemo(() => {
     if (!stats) return 'Loading your day';
     if (primaryIsDaily) return 'Daily rhythm. Keep the dose, food, and water steady';
@@ -668,6 +1079,209 @@ const Today: React.FC = () => {
             </div>
           </section>
 
+          <section className={styles.companionBand} aria-label="Today's next step">
+            <div className={styles.companionCopy}>
+              <div className={styles.proKicker}>
+                <Sparkles size={16} />
+                <span>Coach</span>
+              </div>
+              <h2>{companionGuidance.title}</h2>
+              <p>{companionGuidance.body}</p>
+              <strong>{companionGuidance.action}</strong>
+            </div>
+            <div className={styles.quickLogPanel} aria-label="Quick log">
+              <div className={styles.quickMainActions}>
+                <IonButton
+                  className={styles.waterQuickAction}
+                  onClick={() => void handleQuickWater()}
+                  disabled={quickActionState === 'saving'}
+                >
+                  <Droplets size={17} />
+                  + Water 250ml
+                </IonButton>
+                <IonButton
+                  className={styles.foodQuickAction}
+                  onClick={() => {
+                    setFoodLoggerOpen((open) => !open);
+                    setAdvancedFoodOpen(false);
+                    setMovementLoggerOpen(false);
+                  }}
+                  disabled={quickActionState === 'saving'}
+                >
+                  <Utensils size={17} />
+                  + Food / Protein
+                </IonButton>
+                <IonButton
+                  className={styles.movementQuickAction}
+                  onClick={() => {
+                    setMovementLoggerOpen((open) => !open);
+                    setFoodLoggerOpen(false);
+                    refreshMovementEstimate();
+                  }}
+                  disabled={quickActionState === 'saving'}
+                >
+                  <Dumbbell size={17} />
+                  + Movement
+                </IonButton>
+              </div>
+
+              {foodLoggerOpen && (
+                <div className={styles.foodLoggerPanel}>
+                  <div className={styles.foodLoggerHeader}>
+                    <strong>What did you have?</strong>
+                    <span>Use an estimate now. You can adjust details later.</span>
+                  </div>
+                  <div className={styles.quickFoodGrid}>
+                    {COMMON_FOOD_ACTIONS.map((action) => (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => void handleQuickProtein(action)}
+                        disabled={quickActionState === 'saving'}
+                      >
+                        <span>{action.label}</span>
+                        <strong>{action.grams}g protein</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.customFoodPanel}>
+                    <label>
+                      <span>Food name</span>
+                      <input
+                        value={customFoodName}
+                        placeholder="e.g. sandwich"
+                        onChange={(event) => setCustomFoodName(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      <span>Protein grams</span>
+                      <input
+                        inputMode="numeric"
+                        value={customProtein}
+                        placeholder="e.g. 20"
+                        onChange={(event) => setCustomProtein(event.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={styles.textToggleButton}
+                      onClick={() => setAdvancedFoodOpen((open) => !open)}
+                    >
+                      {advancedFoodOpen ? 'Hide carbs/fat/calories' : 'Add carbs/fat/calories'}
+                    </button>
+                    {advancedFoodOpen && (
+                      <div className={styles.macroGrid}>
+                        <label>
+                          <span>Carbs</span>
+                          <input inputMode="numeric" value={customCarbs} placeholder="0" onChange={(event) => setCustomCarbs(event.target.value)} />
+                        </label>
+                        <label>
+                          <span>Fat</span>
+                          <input inputMode="numeric" value={customFat} placeholder="0" onChange={(event) => setCustomFat(event.target.value)} />
+                        </label>
+                        <label>
+                          <span>Calories</span>
+                          <input inputMode="numeric" value={customCalories} placeholder="0" onChange={(event) => setCustomCalories(event.target.value)} />
+                        </label>
+                      </div>
+                    )}
+                    <IonButton
+                      className={styles.saveFoodAction}
+                      onClick={() => void handleSaveCustomFood()}
+                      disabled={quickActionState === 'saving'}
+                    >
+                      Save food
+                    </IonButton>
+                  </div>
+                </div>
+              )}
+
+              {movementLoggerOpen && (
+                <div className={styles.foodLoggerPanel}>
+                  <div className={styles.foodLoggerHeader}>
+                    <strong>Log movement</strong>
+                    <span>Use an estimate. Calories out are for patterns, not exact maths.</span>
+                  </div>
+                  <div className={styles.macroGrid}>
+                    <label>
+                      <span>Type</span>
+                      <select
+                        value={movementKind}
+                        onChange={(event) => {
+                          const next = event.target.value as MovementKind;
+                          setMovementKind(next);
+                          refreshMovementEstimate(next, movementMinutes, movementEffort);
+                        }}
+                      >
+                        {MOVEMENT_KINDS.map((kind) => (
+                          <option key={kind} value={kind}>{kind}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Minutes</span>
+                      <input
+                        inputMode="numeric"
+                        value={movementMinutes}
+                        placeholder="15"
+                        onChange={(event) => {
+                          setMovementMinutes(event.target.value);
+                          refreshMovementEstimate(movementKind, event.target.value, movementEffort);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      <span>Effort</span>
+                      <select
+                        value={movementEffort}
+                        onChange={(event) => {
+                          const next = event.target.value as MovementEffort;
+                          setMovementEffort(next);
+                          refreshMovementEstimate(movementKind, movementMinutes, next);
+                        }}
+                      >
+                        {MOVEMENT_EFFORTS.map((effort) => (
+                          <option key={effort} value={effort}>{effort}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Calories out</span>
+                      <input
+                        inputMode="numeric"
+                        value={movementCalories}
+                        placeholder="60"
+                        onChange={(event) => setMovementCalories(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <IonButton
+                    className={styles.saveFoodAction}
+                    onClick={() => void handleSaveMovement()}
+                    disabled={quickActionState === 'saving'}
+                  >
+                    Save movement
+                  </IonButton>
+                </div>
+              )}
+
+              <div className={styles.quickMessageRow}>
+                {quickActionMessage && <p className={styles.quickActionMessage}>{quickActionMessage}</p>}
+                {lastQuickLog && (
+                  <button
+                    type="button"
+                    className={styles.undoButton}
+                    onClick={() => void handleUndoLastQuickLog()}
+                    disabled={quickActionState === 'saving'}
+                  >
+                    <Undo2 size={15} />
+                    Undo
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+
           <section className={styles.metricsGrid} aria-label="Today metrics">
             <article className={`${styles.metricCard} ${styles.protein}`}>
               <Utensils size={21} />
@@ -677,39 +1291,6 @@ const Today: React.FC = () => {
               </div>
               <div className={styles.progressTrack}>
                 <i style={{ width: `${percentage(stats?.protein ?? 0, PROTEIN_TARGET_G)}%` }} />
-              </div>
-            </article>
-
-            <article className={`${styles.metricCard} ${styles.protein}`}>
-              <Utensils size={21} />
-              <div>
-                <span>Carbs</span>
-                <strong>{formatNumber(stats?.carbs ?? 0)}g</strong>
-              </div>
-              <div className={styles.progressTrack}>
-                <i style={{ width: `${percentage(stats?.carbs ?? 0, 150)}%` }} />
-              </div>
-            </article>
-
-            <article className={`${styles.metricCard} ${styles.protein}`}>
-              <Flame size={21} />
-              <div>
-                <span>Fat</span>
-                <strong>{formatNumber(stats?.fat ?? 0)}g</strong>
-              </div>
-              <div className={styles.progressTrack}>
-                <i style={{ width: `${percentage(stats?.fat ?? 0, 80)}%` }} />
-              </div>
-            </article>
-
-            <article className={`${styles.metricCard} ${styles.protein}`}>
-              <Flame size={21} />
-              <div>
-                <span>Calories</span>
-                <strong>{formatNumber(stats?.calories ?? 0)}</strong>
-              </div>
-              <div className={styles.progressTrack}>
-                <i style={{ width: `${percentage(stats?.calories ?? 0, 2200)}%` }} />
               </div>
             </article>
 
@@ -747,6 +1328,88 @@ const Today: React.FC = () => {
             </article>
           </section>
 
+          <section className={styles.energyBand} aria-label="Today's energy balance">
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Energy balance</h2>
+                <p>Calories are estimates for spotting patterns, not a guarantee of weight loss.</p>
+              </div>
+              <Activity size={22} />
+            </div>
+            <div className={styles.energyGrid}>
+              <div>
+                <span>Food logged</span>
+                <strong>{formatNumber(foodCalories)} kcal</strong>
+              </div>
+              <div>
+                <span>Movement logged</span>
+                <strong>{formatNumber(movementCaloriesOut)} kcal</strong>
+              </div>
+              <div>
+                <span>Net estimate</span>
+                <strong>{formatNumber(netCaloriesEstimate)} kcal</strong>
+              </div>
+            </div>
+            <p className={styles.energyNote}>
+              If weight is stuck for a few weeks, use 7 honest days of food, protein, water, and
+              movement logs to review the pattern with Coach or your clinician.
+            </p>
+          </section>
+
+          <section className={styles.loggedBand} aria-label="Logged today">
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>Logged today</h2>
+                <p>
+                  {displayableTodayLogs.length > visibleTodayLogs.length
+                    ? `Showing latest ${visibleTodayLogs.length} of ${displayableTodayLogs.length}. History is saved.`
+                    : 'Your food, water, and check-ins stay visible here.'}
+                </p>
+              </div>
+              <IonButton
+                className={styles.iconButton}
+                fill="clear"
+                onClick={() => router.push('/food-diary', 'forward')}
+                aria-label="Open food and water diary"
+              >
+                <ClipboardList size={20} />
+              </IonButton>
+            </div>
+            {visibleTodayLogs.length ? (
+              <>
+                <div className={styles.loggedList}>
+                  {visibleTodayLogs.map(({ log, label }) => (
+                    <div key={log.id} className={styles.loggedItem}>
+                      <span>{loggedItemTime(log)}</span>
+                      <strong>{label}</strong>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteLog(log.id, label)}
+                        disabled={quickActionState === 'saving'}
+                        aria-label={`Remove ${label}`}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {hiddenTodayLogCount > 0 && (
+                  <button
+                    type="button"
+                    className={styles.showAllEntries}
+                    onClick={() => router.push('/food-diary', 'forward')}
+                  >
+                    Show all {displayableTodayLogs.length} entries
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className={styles.loggedEmpty}>
+                Nothing logged yet today. Use a quick button above or open the full tracker.
+              </p>
+            )}
+          </section>
+
           {!isPro && (
             <section className={styles.freeJourneyBand}>
               <div>
@@ -765,12 +1428,6 @@ const Today: React.FC = () => {
                 {!setupComplete && (
                   <IonButton className={styles.primaryAction} onClick={() => router.push('/coach', 'forward')}>
                     Continue setup
-                    <ArrowRight size={17} />
-                  </IonButton>
-                )}
-                {setupComplete && (
-                  <IonButton className={styles.primaryAction} onClick={() => router.push('/profile', 'forward')}>
-                    Review profile
                     <ArrowRight size={17} />
                   </IonButton>
                 )}
