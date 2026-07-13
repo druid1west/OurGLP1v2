@@ -13,9 +13,15 @@ import personalStyles from './personalPlan.module.css';
 import { rotateShortFromFull, FULL_DAYS } from '../lib/time';
 import type { WeekdayFull, WeekdayShort } from '../lib/time';
 import { nutritionFromLogData } from '../lib/nutritionLog';
+import { getCurrentEffectiveness, type CurrentEffectiveness } from '../lib/effectiveness';
 
 // Sleep — actual logs (went to bed / woke up)
 import { initSleepTables, listSleepLogsRange, deleteSleepLog } from '../db/SleepRepository';
+import {
+  getPrimaryProtocol,
+  initProtocolTables,
+  type Protocol,
+} from '../db/ProtocolRepository';
 
 // Navigation
 import TopNav from '../context/TopNav';
@@ -43,7 +49,6 @@ type Glp1GraphPoint,
 } from '../db/EffectivenessRepository';
 
 
-import { computeGlp1Activity, glp1ActivityToPercent } from '../lib/glp1';
 import Glp1TrendGraph from '../components/Glp1TrendGraph';
 
 // Today label for the week overview
@@ -227,10 +232,10 @@ const WEEKDAY_FULL: Readonly<Record<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat
 // -----------------------------
 const Glp1EffectivenessBox: React.FC<{
   userId: string;
-  glp1Pct: number;
+  effectiveness: CurrentEffectiveness | null;
   injectionDay?: string | null;
   timezone: string;
-}> = ({ userId, glp1Pct, injectionDay, timezone }) => {
+}> = ({ userId, effectiveness, injectionDay, timezone }) => {
   const router = useIonRouter();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Glp1ExperienceLog[]>([]);
@@ -307,25 +312,34 @@ const Glp1EffectivenessBox: React.FC<{
 
   return (
     <div className={personalStyles.infoBox}>
-      <h3 className={personalStyles.sectionTitle}>💉 Medication Effectiveness</h3>
+      <h3 className={personalStyles.sectionTitle}>Medication Effectiveness</h3>
 
       {loading ? (
         <p className={personalStyles.muted}>Loading…</p>
       ) : (
         <>
           <div className={personalStyles.rowBlock}>
-            <div className={personalStyles.rowTitle}>This injection week</div>
+            <div className={personalStyles.rowTitle}>
+              {effectiveness?.model === 'daily' ? 'Today\'s daily pill coverage' : 'This injection week'}
+            </div>
             <div className={personalStyles.rowFlex}>
               <div>
-                <strong>Estimated effectiveness:</strong> {glp1Pct}%
+                <strong>Estimated effectiveness:</strong> {effectiveness?.percent ?? 0}%
               </div>
+              {effectiveness?.detail && <div className={personalStyles.muted}>{effectiveness.detail}</div>}
             </div>
-            <Glp1TrendGraph
-              points={graphPoints}
-              injectionDay={injectionDay}
-              timezone={timezone}
-              compact
-            />
+            {effectiveness?.model === 'daily' ? (
+              <p className={personalStyles.muted}>
+                Daily pill protocols use a 24-hour coverage estimate and a Monday-Sunday review week.
+              </p>
+            ) : (
+              <Glp1TrendGraph
+                points={graphPoints}
+                injectionDay={injectionDay}
+                timezone={timezone}
+                compact
+              />
+            )}
             <div className={personalStyles.rowActions}>
               <IonButton
                 size="small"
@@ -348,7 +362,7 @@ const Glp1EffectivenessBox: React.FC<{
 
               <div className={personalStyles.rowFlex}>
                 <div>
-                  <strong>Effectiveness:</strong> {glp1Pct}%
+                  <strong>Effectiveness:</strong> {effectiveness?.percent ?? 0}%
                 </div>
                 <div>Hunger: {r.hunger} / 10</div>
                 <div>Nausea: {r.nausea} / 10</div>
@@ -652,6 +666,8 @@ const PersonalPlan: React.FC = () => {
   const [localProfile, setLocalProfile] = useState<UserProfile | null>(null);
   const [healthLogs, setHealthLogs] = useState<HealthLog[]>([]);
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [effectiveness, setEffectiveness] = useState<CurrentEffectiveness | null>(null);
   const [showBowel, setShowBowel] = useState<boolean>(() => {
     const v = localStorage.getItem('plan.showBowel');
     return v === null ? true : v === '1';
@@ -712,6 +728,28 @@ const PersonalPlan: React.FC = () => {
     }
   }, []);
 
+  const loadProtocolContext = useCallback(async (): Promise<void> => {
+    if (!user?.id) {
+      setPrimaryProtocol(null);
+      setEffectiveness(null);
+      return;
+    }
+
+    try {
+      await initProtocolTables();
+      const [protocol, current] = await Promise.all([
+        getPrimaryProtocol(String(user.id)),
+        getCurrentEffectiveness(user),
+      ]);
+      setPrimaryProtocol(protocol);
+      setEffectiveness(current);
+    } catch (err) {
+      logger.error('loadProtocolContext error', err);
+      setPrimaryProtocol(null);
+      setEffectiveness(null);
+    }
+  }, [user]);
+
   const loadLogs = useCallback(async (): Promise<void> => {
     try {
       if (IS_LOCAL_AUTH) {
@@ -752,8 +790,16 @@ const PersonalPlan: React.FC = () => {
     }
   }, []);
 
-  const injDay = (localProfile?.injection_day ?? user?.injection_day) || '';
-  const injTimeRaw = localProfile?.injection_time ?? (user?.injection_time as string | undefined);
+  const primaryIsDaily =
+    primaryProtocol?.cadence_type === 'daily' || primaryProtocol?.effectiveness_model === 'daily_24h';
+  const protocolName = primaryProtocol?.name?.trim();
+  const protocolDose = primaryProtocol?.dose_label?.trim();
+  const protocolTimeRaw = primaryProtocol?.dose_time ?? null;
+  const protocolAnchorDay = primaryIsDaily
+    ? 'Monday'
+    : primaryProtocol?.anchor_day || localProfile?.injection_day || user?.injection_day || '';
+  const injDay = protocolAnchorDay || '';
+  const injTimeRaw = protocolTimeRaw ?? localProfile?.injection_time ?? (user?.injection_time as string | undefined);
 
   const injTime = useMemo(() => {
     if (!injTimeRaw) return 'N/A';
@@ -763,19 +809,6 @@ const PersonalPlan: React.FC = () => {
     }
     return safeHHMM(String(injTimeRaw));
   }, [injTimeRaw]);
-
-const glp1Pct = useMemo(() => {
-if (!injDay || !injTimeRaw) return 0;
-
-
-return glp1ActivityToPercent(
-computeGlp1Activity({
-injectionDay: injDay.slice(0, 3), // Mon/Tue/…
-injectionTime: safeHHMM(String(injTimeRaw)),
-timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-})
-);
-}, [injDay, injTimeRaw]);
 
   const injDayFull: WeekdayFull =
     FULL_DAYS.includes(injDay as WeekdayFull)
@@ -849,6 +882,7 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       void loadLogs();
       void loadProfile();
       void loadExercises();
+      void loadProtocolContext();
     };
 
     bootstrap();
@@ -859,12 +893,14 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         void loadProfile();
         void loadExercises();
         void loadLogs();
+        void loadProtocolContext();
       }
     };
 
     const onFastingChanged = (): void => void loadProfile();
     const onHealthChanged = (): void => void loadLogs();
     const onExerciseChanged = (): void => void loadExercises();
+    const onProtocolsChanged = (): void => void loadProtocolContext();
 
     window.addEventListener('profile:saved', onSaved as EventListener);
     document.addEventListener('visibilitychange', onVisible);
@@ -872,6 +908,8 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     window.addEventListener('fasting:changed', onFastingChanged);
     window.addEventListener('health:changed', onHealthChanged);
     window.addEventListener('exercise:changed', onExerciseChanged);
+    window.addEventListener('protocols:changed', onProtocolsChanged);
+    window.addEventListener('glp1:changed', onProtocolsChanged);
 
     return () => {
       window.removeEventListener('profile:saved', onSaved as EventListener);
@@ -880,8 +918,10 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       window.removeEventListener('fasting:changed', onFastingChanged);
       window.removeEventListener('health:changed', onHealthChanged);
       window.removeEventListener('exercise:changed', onExerciseChanged);
+      window.removeEventListener('protocols:changed', onProtocolsChanged);
+      window.removeEventListener('glp1:changed', onProtocolsChanged);
     };
-  }, [userId, loadProfile, loadExercises, loadLogs]);
+  }, [userId, loadProfile, loadExercises, loadLogs, loadProtocolContext]);
 
   const deleteLog = async (id: number): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete this entry?')) return;
@@ -929,10 +969,15 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 
   if (!userId) return null;
 
-  const medName = localProfile?.medication_name ?? user?.medication_name ?? 'N/A';
-  const dose = localProfile?.medication_dose ?? user?.medication_dose ?? 'N/A';
+  const medName = protocolName ?? localProfile?.medication_name ?? user?.medication_name ?? 'N/A';
+  const dose = protocolDose ?? localProfile?.medication_dose ?? user?.medication_dose ?? 'N/A';
   const fastingSchedule = localProfile?.fasting_schedule ?? user?.fasting_schedule ?? 'N/A';
   const fastingStart = localProfile?.fasting_start ?? user?.fasting_start ?? 'N/A';
+  const timingLabel = primaryIsDaily ? 'Daily pill time' : 'Injection date and time';
+  const timingValue = primaryIsDaily
+    ? (injTimeRaw ? injTime : 'N/A')
+    : (injDay && injTime ? `${injDay} at ${injTime}` : 'N/A');
+  const reviewWeekLabel = primaryIsDaily ? 'Review week' : 'Week starts on';
 
   const bowelCount = healthLogs.filter((l) => l.entry_type === 'bowel').length;
 
@@ -950,13 +995,13 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               <strong>Dose:</strong> {dose}
             </p>
             <p>
-              <strong>Injection Date and Time:</strong> {injDay && injTime ? `${injDay} at ${injTime}` : 'N/A'}
+              <strong>{timingLabel}:</strong> {timingValue}
             </p>
             <p>
               <strong>Fasting:</strong> {fastingSchedule}, starts at {safeHHMM(String(fastingStart))}
             </p>
             <p className={personalStyles.mt6}>
-              <em>Week starts on: {injDayFull}</em>
+              <em>{reviewWeekLabel}: {injDayFull}</em>
             </p>
           </div>
 
@@ -964,7 +1009,7 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           <FastingDisplayBox />
           <Glp1EffectivenessBox
             userId={userId}
-            glp1Pct={glp1Pct}
+            effectiveness={effectiveness}
             injectionDay={injDay}
             timezone={Intl.DateTimeFormat().resolvedOptions().timeZone}
           />
@@ -1077,14 +1122,7 @@ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 {exercises
                   .slice()
                   .sort((a, b) => {
-                    const injDayFullLocal: WeekdayFull =
-                      FULL_DAYS.includes(
-                        (localProfile?.injection_day ?? user?.injection_day ?? 'Monday') as WeekdayFull
-                      )
-                        ? ((localProfile?.injection_day ?? user?.injection_day ?? 'Monday') as WeekdayFull)
-                        : 'Monday';
-
-                    const anchoredDaysLocal: WeekdayShort[] = Array.from(new Set(rotateShortFromFull(injDayFullLocal)));
+                    const anchoredDaysLocal: WeekdayShort[] = Array.from(new Set(rotateShortFromFull(injDayFull)));
                     const idx = new Map(anchoredDaysLocal.map((d, i) => [d, i]));
                     const ia = idx.get(a.day_of_week as WeekdayShort) ?? 99;
                     const ib = idx.get(b.day_of_week as WeekdayShort) ?? 99;
@@ -1208,7 +1246,7 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
           <div className={personalStyles.weekOverview}>
             {rotateShortFromFull(injDayFull).map((day, index) => {
               const isToday = day === todayName;
-              const isAnchor = index === 0;
+              const isAnchor = !primaryIsDaily && index === 0;
 
               return (
   <div
@@ -1257,4 +1295,3 @@ onClick={() => router.push(`/plan/day/${todayName.toLowerCase()}?mood=1`, 'forwa
 };
 
 export default PersonalPlan;
-
