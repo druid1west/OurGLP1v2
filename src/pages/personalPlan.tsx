@@ -50,6 +50,7 @@ type Glp1GraphPoint,
 
 
 import Glp1TrendGraph from '../components/Glp1TrendGraph';
+import { listStrengthWorkouts, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
 
 // Today label for the week overview
 const todayName: WeekdayShort = new Date().toLocaleDateString('en-US', {
@@ -666,6 +667,7 @@ const PersonalPlan: React.FC = () => {
   const [localProfile, setLocalProfile] = useState<UserProfile | null>(null);
   const [healthLogs, setHealthLogs] = useState<HealthLog[]>([]);
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
+  const [strengthWorkouts, setStrengthWorkouts] = useState<StrengthWorkout[]>([]);
   const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
   const [effectiveness, setEffectiveness] = useState<CurrentEffectiveness | null>(null);
   const [showBowel, setShowBowel] = useState<boolean>(() => {
@@ -727,6 +729,12 @@ const PersonalPlan: React.FC = () => {
       setExercises([]);
     }
   }, []);
+
+  const loadStrengthWorkouts = useCallback(async (): Promise<void> => {
+    if (!userId) { setStrengthWorkouts([]); return; }
+    try { setStrengthWorkouts(await listStrengthWorkouts(userId)); }
+    catch { setStrengthWorkouts([]); }
+  }, [userId]);
 
   const loadProtocolContext = useCallback(async (): Promise<void> => {
     if (!user?.id) {
@@ -882,6 +890,7 @@ const PersonalPlan: React.FC = () => {
       void loadLogs();
       void loadProfile();
       void loadExercises();
+      void loadStrengthWorkouts();
       void loadProtocolContext();
     };
 
@@ -892,6 +901,7 @@ const PersonalPlan: React.FC = () => {
       if (document.visibilityState === 'visible') {
         void loadProfile();
         void loadExercises();
+        void loadStrengthWorkouts();
         void loadLogs();
         void loadProtocolContext();
       }
@@ -900,6 +910,7 @@ const PersonalPlan: React.FC = () => {
     const onFastingChanged = (): void => void loadProfile();
     const onHealthChanged = (): void => void loadLogs();
     const onExerciseChanged = (): void => void loadExercises();
+    const onStrengthChanged = (): void => void loadStrengthWorkouts();
     const onProtocolsChanged = (): void => void loadProtocolContext();
 
     window.addEventListener('profile:saved', onSaved as EventListener);
@@ -908,6 +919,7 @@ const PersonalPlan: React.FC = () => {
     window.addEventListener('fasting:changed', onFastingChanged);
     window.addEventListener('health:changed', onHealthChanged);
     window.addEventListener('exercise:changed', onExerciseChanged);
+    window.addEventListener('strength-workout:changed', onStrengthChanged);
     window.addEventListener('protocols:changed', onProtocolsChanged);
     window.addEventListener('glp1:changed', onProtocolsChanged);
 
@@ -918,10 +930,11 @@ const PersonalPlan: React.FC = () => {
       window.removeEventListener('fasting:changed', onFastingChanged);
       window.removeEventListener('health:changed', onHealthChanged);
       window.removeEventListener('exercise:changed', onExerciseChanged);
+      window.removeEventListener('strength-workout:changed', onStrengthChanged);
       window.removeEventListener('protocols:changed', onProtocolsChanged);
       window.removeEventListener('glp1:changed', onProtocolsChanged);
     };
-  }, [userId, loadProfile, loadExercises, loadLogs, loadProtocolContext]);
+  }, [userId, loadProfile, loadExercises, loadStrengthWorkouts, loadLogs, loadProtocolContext]);
 
   const deleteLog = async (id: number): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete this entry?')) return;
@@ -1110,6 +1123,27 @@ const PersonalPlan: React.FC = () => {
                   </button>
                 </p>
               ))}
+          </div>
+
+          <div className={personalStyles.infoBox}>
+            <div className={personalStyles.infoHeader}>
+              <h3 className={personalStyles.sectionTitle}>Coach Strength Plan</h3>
+              <IonButton size="small" fill="outline" onClick={() => router.push('/strength-workout', 'forward')}>Build workout</IonButton>
+            </div>
+            {strengthWorkouts.length === 0 ? (
+              <p className={personalStyles.muted}>No Coach strength workouts planned yet.</p>
+            ) : (
+              <ul className={personalStyles.bulletedList}>
+                {strengthWorkouts.slice(0, 8).map((workout) => (
+                  <li key={workout.id} className={personalStyles.exerciseRow}>
+                    <button type="button" className={personalStyles.linkButton} onClick={() => router.push(`/strength-workout?id=${encodeURIComponent(workout.id)}`, 'forward')}>
+                      <strong>{workout.scheduledDay}</strong> — {workout.plan.name} · {workout.status.replace('_', ' ')}
+                      {workout.actualMinutes ? ` · ${workout.actualMinutes} min` : ` · ${workout.plan.estimatedRange}`}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className={personalStyles.infoBox}>

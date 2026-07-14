@@ -57,6 +57,7 @@ import CelebrationPage from './pages/CelebrationPage';
 import Effectiveness from './pages/Effectiveness';
 import Glp1GraphArchive from './pages/Glp1GraphArchive';
 import Glp1GraphArchiveDetail from './pages/GlP1GraphArchiveDetail';
+import StrengthWorkoutPage from './pages/StrengthWorkout';
 
 // Providers
 import ErrorBoundary from './ErrorBoundary';
@@ -564,6 +565,7 @@ const App: React.FC = () => {
                   {/* Private routes */}
                   <PrivateRoute exact path="/settings" component={Settings} />
                   <PrivateRoute exact path="/today" component={Today} />
+                  <PrivateRoute exact path="/strength-workout" component={StrengthWorkoutPage} />
                   <PrivateRoute exact path="/food-diary" component={FoodDiary} />
                   <PrivateRoute exact path="/protocols" component={Protocols} />
                   <PrivateRoute exact path="/profile" component={Profile} />

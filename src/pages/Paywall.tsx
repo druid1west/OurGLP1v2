@@ -17,6 +17,7 @@ import {
   Archive,
   BarChart3,
   CheckCircle2,
+  Dumbbell,
   HeartPulse,
   LockKeyhole,
   RefreshCw,
@@ -89,6 +90,11 @@ const FREE_FEATURES: FeatureItem[] = [
     description: 'Keep manual tracking, reminders, profile targets, and the weekly review usable for everyone.',
     icon: CheckCircle2,
   },
+  {
+    title: 'First tailored workout',
+    description: 'Build, complete, and log one full strength workout with Coach for free.',
+    icon: Dumbbell,
+  },
 ];
 
 const PRO_FEATURES: FeatureItem[] = [
@@ -96,6 +102,11 @@ const PRO_FEATURES: FeatureItem[] = [
     title: 'Personal plan',
     description: 'Turn your logs into a clearer week-by-week plan for protein, water, fasting, and movement.',
     icon: Sparkles,
+  },
+  {
+    title: 'Ongoing strength programme',
+    description: 'Create unlimited workouts with exercise swaps, scheduling, progression, and strength summaries.',
+    icon: Dumbbell,
   },
   {
     title: 'Deeper trends',

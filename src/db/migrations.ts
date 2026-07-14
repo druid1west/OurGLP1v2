@@ -236,6 +236,19 @@ ON glp1_experience_logs(user_id, local_day)
   ]);
   await conn.execute(`CREATE INDEX IF NOT EXISTS idx_exercises_date ON exercises(exercise_date)`);
 
+  await ensureTable(
+    conn,
+    `CREATE TABLE IF NOT EXISTS tailored_strength_workouts (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL, scheduled_day TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'planned', answers_json TEXT NOT NULL, plan_json TEXT NOT NULL,
+      started_at TEXT, completed_at TEXT, completed_exercise_ids_json TEXT NOT NULL DEFAULT '[]',
+      actual_minutes INTEGER, calories INTEGER, calories_source TEXT, difficulty TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );`,
+    'tailored_strength_workouts'
+  );
+  await conn.execute(`CREATE INDEX IF NOT EXISTS idx_strength_user_day ON tailored_strength_workouts(user_id, scheduled_day)`);
+
   // ─────────────────────────────────────────
   // reminders
   // ─────────────────────────────────────────

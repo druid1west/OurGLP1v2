@@ -12,7 +12,9 @@
 
 /* NEW: full-height scroll container that respects Bottom Nav space */
 .container {
-  padding: 1rem;
+  width: min(100%, 820px);
+  margin: 0 auto;
+  padding: 18px 16px 32px;
   background-color: var(--background-primary);
   box-sizing: border-box;
 }
@@ -33,7 +35,201 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 6px;
-  margin-top: 1rem;
+  margin-top: 14px;
+}
+
+.dayHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 0 0 16px;
+}
+
+.dayHeader h1 {
+  margin: 2px 0 3px;
+  color: var(--text-primary);
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.eyebrow,
+.cardKicker {
+  margin: 0;
+  color: var(--accent-primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.daySubhead {
+  margin: 7px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.quickMoodCard {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, var(--border-color));
+  border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 10%, var(--card-bg, var(--background-secondary))), var(--card-bg, var(--background-secondary)) 72%);
+  box-shadow: 0 8px 24px rgba(15, 35, 70, 0.08);
+}
+
+.quickMoodFocus {
+  outline: 3px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.quickMoodCard h2,
+.overviewCard h2 {
+  margin: 4px 0 5px;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.quickMoodCard p,
+.overviewCard p {
+  margin-top: 0;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.quickMoodButtons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.quickMoodButtons button {
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--background-primary);
+  font-size: 1.45rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 35, 70, 0.06);
+}
+
+.quickMoodButtons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.quickMoodButtons .quickMoodSelected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 13%, var(--background-primary));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 16%, transparent);
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.overviewCard {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: var(--card-bg, var(--background-secondary));
+  box-shadow: 0 5px 18px rgba(15, 35, 70, 0.06);
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-primary) 11%, var(--background-primary));
+  font-size: 1.4rem;
+}
+
+.statusPill {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #d97706 14%, var(--background-primary));
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.statusDone {
+  background: color-mix(in srgb, #16a34a 15%, var(--background-primary));
+}
+
+.activityLine {
+  margin-top: 8px !important;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.smallMeta,
+.mutedNote {
+  margin-top: 8px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.82rem;
+}
+
+.cardLink {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.timelinePanel {
+  margin-top: 16px;
+  padding: 0 14px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: var(--card-bg, var(--background-secondary));
+}
+
+.timelinePanel > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 15px 2px;
+  color: var(--text-primary);
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.timelinePanel > summary small {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+@media (min-width: 680px) {
+  .overviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quickMoodCard {
+    grid-template-columns: minmax(180px, 1fr) minmax(300px, 1.3fr);
+    align-items: center;
+  }
 }
 
 /* NEW: floating action button to jump to current time block */
@@ -280,3 +476,4 @@ html[data-theme='dark'] .modalContent {
   background: var(--card-bg) !important;
   color: var(--text-primary) !important;
 }
+.inlineLink { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }

@@ -975,18 +975,28 @@ export async function importAppleHealthWorkouts(
 
     const existing = await db.query(
       `
-      SELECT id
+      SELECT id, exercise_type
       FROM exercises
       WHERE exercise_date = ?
-        AND start_time = ?
-        AND end_time = ?
-        AND exercise_type = ?
+        AND (
+          (start_time = ? AND end_time = ? AND exercise_type = ?)
+          OR (exercise_type LIKE 'Coach strength:%' AND start_time < ? AND end_time > ?)
+        )
       LIMIT 1
       `,
-      [exerciseDate, startTime, endTime, exerciseType]
+      [exerciseDate, startTime, endTime, exerciseType, endTime, startTime]
     );
 
-    if (mapSingleRow(existing)) {
+    const existingRow = mapSingleRow(existing);
+    if (existingRow) {
+      const existingLabel = String(existingRow.exercise_type ?? '');
+      if (existingLabel.startsWith('Coach strength:') && calories != null) {
+        await db.run(`UPDATE exercises SET calories_burned = ? WHERE id = ?`, [calories, existingRow.id]);
+        const idMatch = existingLabel.match(/\[([^\]]+)\]\s*$/);
+        if (idMatch?.[1]) {
+          await db.run(`UPDATE tailored_strength_workouts SET calories = ?, calories_source = 'apple_health', updated_at = datetime('now') WHERE id = ?`, [calories, idMatch[1]]).catch(() => undefined);
+        }
+      }
       skipped += 1;
       continue;
     }
@@ -1165,6 +1175,7 @@ export async function listHealthDailySummariesRange(
 export async function insertExerciseAndEmit(input: InsertExerciseInput): Promise<void> {
   await insertExercise(input);
   emitHealthChanged('exercise');
+  window.dispatchEvent(new Event('exercise:changed'));
 }
 
 /**

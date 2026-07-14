@@ -66,6 +66,7 @@ import { nutritionFromLogData } from "../lib/nutritionLog";
 import { onHealthChange, offHealthChange, type HealthEventKind } from "../services/healthBus";
 import Glp1TrendGraph from "../components/Glp1TrendGraph";
 import { getGlp1VisibleWeekPoints } from "../lib/glp1Trend";
+import { listStrengthWorkouts, strengthWorkoutSummary } from "../db/StrengthWorkoutRepository";
 
 /* -----------------------------
    Types (local)
@@ -294,6 +295,7 @@ type ArchiveSnapshot = {
   };
   activity?: WeeklyActivitySummary;
   glp1?: WeeklyGlp1Summary;
+  strength?: WeeklyStrengthSummary;
 };
 
 type WeeklyActivitySummary = {
@@ -332,6 +334,14 @@ type WeeklyEnergyBalanceSummary = {
 
 type WeeklyGlp1Summary = {
   points: Glp1GraphPoint[];
+};
+
+export type WeeklyStrengthSummary = {
+  planned: number;
+  completed: number;
+  partial: number;
+  minutes: number;
+  calories: number;
 };
 
 function inRangeYmd(dateIso: string, fromYmd: string, toYmd: string): boolean {
@@ -1454,6 +1464,7 @@ const WeeklySummaryPageContent: React.FC = () => {
   const [activitySummary, setActivitySummary] = useState<WeeklyActivitySummary | undefined>(undefined);
   const [energyBalanceSummary, setEnergyBalanceSummary] = useState<WeeklyEnergyBalanceSummary | undefined>(undefined);
   const [glp1Summary, setGlp1Summary] = useState<WeeklyGlp1Summary | undefined>(undefined);
+  const [strengthSummary, setStrengthSummary] = useState<WeeklyStrengthSummary | undefined>(undefined);
 
   // User timezone (memoized) for day-change watcher
   const tz = React.useMemo(
@@ -1646,10 +1657,12 @@ const WeeklySummaryPageContent: React.FC = () => {
       setExerciseRefreshKey((n) => n + 1);
     };
     window.addEventListener("exercise:changed", onExerciseChanged);
+    window.addEventListener("strength-workout:changed", onExerciseChanged);
     return () => {
       window.removeEventListener("protein:changed", onProteinChanged);
       window.removeEventListener("hydration:changed", onHydrationChanged);
       window.removeEventListener("exercise:changed", onExerciseChanged);
+      window.removeEventListener("strength-workout:changed", onExerciseChanged);
     };
   }, []);
 
@@ -1780,10 +1793,11 @@ const WeeklySummaryPageContent: React.FC = () => {
         const startIdx = DAY_KEYS.indexOf(fullToDayKey(weekContext?.startDay ?? "Monday"));
         const fromYmd = localYmdFromIso(winParams.from, winParams.tz);
         const toYmd = addDaysYmd(fromYmd, 6);
-        const [exRaw, appleRows, healthRows] = await Promise.all([
+        const [exRaw, appleRows, healthRows, strengthRows] = await Promise.all([
           listExercises(),
           listHealthDailySummariesRange(fromYmd, toYmd),
           safeListHealthLogs(winParams.from, winParams.to),
+          user?.id ? listStrengthWorkouts(user.id, fromYmd, toYmd) : Promise.resolve([]),
         ]);
         const exRows = Array.isArray(exRaw)
           ? exRaw.map(toExerciseRow).filter((row): row is ExerciseRow => row !== null)
@@ -1805,12 +1819,14 @@ const WeeklySummaryPageContent: React.FC = () => {
         if (!cancelled) {
           setActivitySummary(summary);
           setEnergyBalanceSummary(balance);
+          setStrengthSummary(strengthWorkoutSummary(strengthRows));
         }
       } catch (e) {
         logger.warn("[weekly-summary] activity summary failed", e);
         if (!cancelled) {
           setActivitySummary(undefined);
           setEnergyBalanceSummary(undefined);
+          setStrengthSummary(undefined);
         }
       }
     })();
@@ -1818,7 +1834,7 @@ const WeeklySummaryPageContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [winParams, exerciseRefreshKey, proteinRefreshKey, weekContext?.startDay]);
+  }, [winParams, exerciseRefreshKey, proteinRefreshKey, weekContext?.startDay, user?.id]);
 
   useEffect(() => {
     if (!winParams || !user?.id) {
@@ -2230,6 +2246,9 @@ try {
     if (glp1Summary) {
       snapshot.glp1 = glp1Summary;
     }
+    if (strengthSummary) {
+      snapshot.strength = strengthSummary;
+    }
 
     // Insert archive row
     const archiveId = await insertArchive({
@@ -2285,6 +2304,7 @@ try {
     hydrationLabels,
     hydrationRange,
     activitySummary,
+    strengthSummary,
     glp1Summary,
     primaryProtocol,
     weekContext,
@@ -2636,6 +2656,7 @@ try {
                         energyBalanceSummary={energyBalanceSummary}
                         isPro={isPro}
                         glp1Summary={glp1Summary}
+                        strengthSummary={strengthSummary}
                         adherenceLabel={weekContext?.adherenceLabel ?? "Protocol"}
                         onOpenEffectiveness={() => router.push("/effectiveness", "forward")}
                       />
@@ -2739,6 +2760,7 @@ function EmailPreview({
   energyBalanceSummary,
   isPro,
   glp1Summary,
+  strengthSummary,
   adherenceLabel,
   onOpenEffectiveness,
 }: {
@@ -2762,6 +2784,7 @@ function EmailPreview({
   energyBalanceSummary?: WeeklyEnergyBalanceSummary;
   isPro: boolean;
   glp1Summary?: WeeklyGlp1Summary;
+  strengthSummary?: WeeklyStrengthSummary;
   adherenceLabel?: string;
   onOpenEffectiveness?: () => void;
 }) {
@@ -2857,6 +2880,10 @@ function EmailPreview({
 
       {include.exercise && (
         <EnergyBalanceSummaryCard summary={energyBalanceSummary} isPro={isPro} />
+      )}
+
+      {include.exercise && strengthSummary && strengthSummary.planned > 0 && (
+        <StrengthSummaryCard summary={strengthSummary} />
       )}
 
       {/* Grid of PNG charts */}
@@ -3248,6 +3275,25 @@ function ActivitySummaryCard({ summary }: { summary: WeeklyActivitySummary }) {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+function StrengthSummaryCard({ summary }: { summary: WeeklyStrengthSummary }) {
+  return (
+    <Card className={styles.card} style={cardAccent("exercise")} data-metric="exercise">
+      <CardHeader className={styles.cardHeader} style={{ background: CHART_ACCENTS.exercise.bg, color: CHART_ACCENTS.exercise.fg, borderColor: CHART_ACCENTS.exercise.border }}>
+        <CardTitle className={styles.cardTitle} style={{ fontSize: "1rem" }}>Coach Strength Workouts</CardTitle>
+      </CardHeader>
+      <CardContent className={styles.cardContent}>
+        <div className={styles.activityTotals}>
+          <div><span>Planned</span><strong>{summary.planned}</strong></div>
+          <div><span>Completed</span><strong>{summary.completed}</strong></div>
+          <div><span>Partial</span><strong>{summary.partial}</strong></div>
+          <div><span>Strength time</span><strong>{summary.minutes} min</strong></div>
+        </div>
+        <p className={`${styles.small} ${styles.muted}`}>Approximately {summary.calories} kcal from completed Coach workouts. Wearable values replace estimates when matched.</p>
+      </CardContent>
+    </Card>
   );
 }
 

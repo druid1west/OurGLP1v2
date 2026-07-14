@@ -114,6 +114,25 @@
   padding: 14px;
 }
 
+.strengthCoachBand {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 13px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 15px 16px;
+  border: 1px solid rgba(39, 131, 95, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #effaf5, #f4f8ff);
+}
+.strengthCoachIcon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; background: #27835f; color: #fff; }
+.strengthCoachBand span { color: #27835f; font-size: .75rem; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.strengthCoachBand h2 { margin: 3px 0 0; color: #172033; font-size: 1.05rem; }
+.strengthCoachBand p { margin: 5px 0 0; color: #526b65; font-size: .84rem; line-height: 1.4; }
+.strengthCoachBand ion-button { --background: #27835f; --border-radius: 8px; font-weight: 850; }
+.strengthCoachBand ion-button::part(native) { display: inline-flex; gap: 7px; }
+@media (max-width: 650px) { .strengthCoachBand { grid-template-columns: auto 1fr; } .strengthCoachBand ion-button { grid-column: 1 / -1; } }
+
 .metricCard svg {
   color: var(--metric-color);
 }

@@ -5,6 +5,7 @@ import {
   BellPlus,
   CheckCircle2,
   ChevronRight,
+  Dumbbell,
   Eye,
   EyeOff,
   MessageCircleHeart,
@@ -64,11 +65,12 @@ type ChatMessage = Readonly<{
   entry?: CoachEntry;
   reminder?: CoachReminderSuggestion;
   related?: readonly CoachEntry[];
+  strengthWorkoutAction?: boolean;
 }>;
 
 const starterQuestions = [
   'I am not losing weight. What should I do?',
-  'Give me a beginner exercise routine.',
+  'Build me a strength-training workout.',
   'What can I eat when nausea shows up?',
   'I missed my routine. What now?',
   'How do calories in and movement calories help?',
@@ -576,9 +578,16 @@ const Coach: React.FC = () => {
       text: question,
     };
 
+    const wantsStrengthWorkout = /(?:build|create|design|make|give).*(?:strength|resistance|weight).*(?:workout|routine)|(?:strength|resistance).*(?:workout|routine)/i.test(question);
     const matches = findMatches(question);
-    const coachMessage: ChatMessage =
-      matches[0]
+    const coachMessage: ChatMessage = wantsStrengthWorkout
+      ? {
+          id: `coach-strength-${Date.now()}`,
+          role: 'coach',
+          text: 'Absolutely. I’ll ask six short setup questions about your experience, goal, equipment, limitations, available time, and weekly frequency—then one quick readiness question for today. Your first complete tailored workout is free. Pro adds ongoing workouts, exercise swaps, scheduling, progression, and deeper summaries.',
+          strengthWorkoutAction: true,
+        }
+      : matches[0]
         ? createCoachMessage(matches[0], matches.slice(1))
             : {
             id: `coach-fallback-${Date.now()}`,
@@ -2221,6 +2230,21 @@ const Coach: React.FC = () => {
                         <strong>{message.reminder.title}</strong>
                         {message.reminder.detail}
                       </span>
+                    </button>
+                  )}
+
+                  {message.strengthWorkoutAction && (
+                    <button
+                      type="button"
+                      className={styles.reminderCard}
+                      onClick={() => router.push('/strength-workout', 'forward')}
+                    >
+                      <Dumbbell size={18} />
+                      <span>
+                        <strong>Build my workout</strong>
+                        Answer the questions and review the plan before anything is saved.
+                      </span>
+                      <ChevronRight size={17} />
                     </button>
                   )}
 

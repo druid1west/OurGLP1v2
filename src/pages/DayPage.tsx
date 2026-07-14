@@ -10,12 +10,20 @@
 // ============================================================================
 import { logger } from '../utils/logger';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { IonPage, IonContent } from '@ionic/react';
-import { useParams } from 'react-router-dom';
+import { IonPage, IonContent, useIonRouter } from '@ionic/react';
+import { useLocation, useParams } from 'react-router-dom';
 import styles from './DayPage.module.css';
 
 import TopNav from '../context/TopNav';
 import BottomNav from '../context/BottomNav';
+import { useAuth } from '../context/useAuth';
+import { listStrengthWorkouts, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
+import {
+  getPrimaryProtocol,
+  listProtocolEventsForDay,
+  type Protocol,
+  type ProtocolEvent,
+} from '../db/ProtocolRepository';
 
 import { iconFor } from '../utils/icons';
 import type { EntryType } from '../utils/icons';
@@ -78,6 +86,7 @@ export interface InjectionLog {
 }
 export interface ExerciseEntry {
   id: number;
+  exercise_date: string;
   day_of_week: string; // 'Mon'..'Sun'
   start_time: string; // 'HH:MM' or 'HH:MM:SS'
   end_time: string; // 'HH:MM' or 'HH:MM:SS'
@@ -287,6 +296,24 @@ const moodEmoji = (score?: number) => {
   }
 };
 
+function exerciseMinutes(exercise: ExerciseEntry): number {
+  const toMinutes = (value: string): number => {
+    const [hours, minutes] = value.slice(0, 5).split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  const start = toMinutes(exercise.start_time);
+  let end = toMinutes(exercise.end_time);
+  if (end < start) end += 24 * 60;
+  return Math.max(0, end - start);
+}
+
+function cleanExerciseName(name: string): string {
+  return name
+    .replace(/^Coach strength:\s*/i, '')
+    .replace(/\s*\[[0-9a-f-]{20,}\]\s*$/i, '')
+    .trim();
+}
+
 const nextInjectionDate = (injectionDay?: string, hhmm?: string, nowArg?: Date) => {
   if (!injectionDay || !hhmm) return null;
   const now = nowArg ?? new Date();
@@ -325,6 +352,9 @@ async function loadRemindersForDayRange(fromIsoUtc: string, toIsoUtc: string): P
 
 const DayPage: React.FC = () => {
   const { day } = useParams<{ day?: string }>();
+  const location = useLocation();
+  const { user } = useAuth();
+  const router = useIonRouter();
 
   const [now, setNow] = useState(new Date());
   const [tz, setTz] = useState<string>(() => {
@@ -347,6 +377,10 @@ const DayPage: React.FC = () => {
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
   const [dayExercises, setDayExercises] = useState<ExerciseEntry[]>([]);
   const [lastInjection, setLastInjection] = useState<InjectionLog | null>(null);
+  const [strengthWorkouts, setStrengthWorkouts] = useState<StrengthWorkout[]>([]);
+  const [primaryProtocol, setPrimaryProtocol] = useState<Protocol | null>(null);
+  const [protocolEvents, setProtocolEvents] = useState<ProtocolEvent[]>([]);
+  const [quickMoodBusy, setQuickMoodBusy] = useState(false);
 
   // UI state
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
@@ -355,23 +389,35 @@ const DayPage: React.FC = () => {
   const [selectedBlockMoodId, setSelectedBlockMoodId] = useState<number | null>(null);
   const [selectedBlockMoodScore, setSelectedBlockMoodScore] = useState<number | null>(null);
   const currentBlockRef = useRef<HTMLDivElement | null>(null);
+  const quickMoodRef = useRef<HTMLDivElement | null>(null);
 
-  // Anchoring by injection day/time
-  const injDayFull: WeekdayFull = (injDay || 'Monday') as WeekdayFull;
+  const primaryIsDaily =
+    primaryProtocol?.cadence_type === 'daily' ||
+    primaryProtocol?.effectiveness_model === 'daily_24h';
+  // Daily protocols use a predictable review week; weekly protocols retain their dose anchor.
+  const protocolAnchor = primaryIsDaily
+    ? 'Monday'
+    : toFullDay(primaryProtocol?.anchor_day) || injDay || 'Monday';
+  const protocolHHMM = toHHMM(primaryProtocol?.dose_time) || injHHMM || '08:00';
+  const injDayFull: WeekdayFull = protocolAnchor as WeekdayFull;
   const anchoredDays: WeekdayShort[] = useMemo(() => rotateShortFromFull(injDayFull), [injDayFull]);
   const anchoredIndex = useMemo(() => new Map(anchoredDays.map((d, i) => [d, i])), [anchoredDays]);
   const shortDay = useMemo(() => normalizeShortDay(day) as WeekdayShort, [day]); // normalized route day
   const dayIndex = anchoredIndex.get(shortDay) ?? 0;
 
   const { startUtc } = useMemo(
-    () => getAnchoredWeek(new Date(), injDayFull, injHHMM || '08:00', tz),
-    [injDayFull, injHHMM, tz],
+    () => getAnchoredWeek(new Date(), injDayFull, protocolHHMM, tz),
+    [injDayFull, protocolHHMM, tz],
   );
 
   const selectedDate = useMemo(
     () => new Date(new Date(startUtc).getTime() + dayIndex * 24 * 3600 * 1000),
     [startUtc, dayIndex],
   );
+  const selectedYmd = useMemo(() => {
+    const d = selectedDate;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [selectedDate]);
 
   const dayStartUtc = useMemo(() => {
     const d = new Date(selectedDate);
@@ -385,9 +431,11 @@ const DayPage: React.FC = () => {
     return d.toISOString();
   }, [selectedDate]);
 
-  const todayName = DAY_NAMES[now.getDay()];
-  const isTodayInjectionDay = injDay === todayName;
-  const nextInjAt = useMemo(() => nextInjectionDate(injDay, injHHMM, now), [injDay, injHHMM, now]);
+  const isDoseDay = !primaryIsDaily && injDayFull.slice(0, 3) === shortDay;
+  const nextInjAt = useMemo(
+    () => nextInjectionDate(injDayFull, protocolHHMM, now),
+    [injDayFull, protocolHHMM, now],
+  );
 
   // Clock tick
   useEffect(() => {
@@ -455,6 +503,23 @@ const DayPage: React.FC = () => {
       setInjHHMM(toHHMM(s.injection_time));
     })();
   }, []);
+
+  useEffect(() => {
+    const loadProtocol = async (): Promise<void> => {
+      if (!user?.id) {
+        setPrimaryProtocol(null);
+        return;
+      }
+      setPrimaryProtocol(await getPrimaryProtocol(String(user.id)).catch(() => null));
+    };
+    void loadProtocol();
+    window.addEventListener('protocols:changed', loadProtocol);
+    window.addEventListener('profile:saved', loadProtocol);
+    return () => {
+      window.removeEventListener('protocols:changed', loadProtocol);
+      window.removeEventListener('profile:saved', loadProtocol);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const refreshFastingData = async () => {
@@ -532,7 +597,7 @@ const DayPage: React.FC = () => {
     })();
   }, [dayStartUtc, dayEndUtc]);
 
-  // Load exercises (all), then filter by selected weekday
+  // Load exercises (all), then filter by the exact selected calendar date.
   useEffect(() => {
     (async () => {
       const rows = await listExercises().catch(() => []);
@@ -540,12 +605,46 @@ const DayPage: React.FC = () => {
     })();
   }, []);
   useEffect(() => {
-    setDayExercises(exercises.filter((e) => e.day_of_week === shortDay));
-  }, [exercises, shortDay]);
+    setDayExercises(
+      exercises.filter((e) =>
+        e.exercise_date ? e.exercise_date === selectedYmd : e.day_of_week === shortDay,
+      ),
+    );
+  }, [exercises, selectedYmd, shortDay]);
+
+  useEffect(() => {
+    const loadEvents = (): void => {
+      if (!user?.id) {
+        setProtocolEvents([]);
+        return;
+      }
+      void listProtocolEventsForDay(String(user.id), selectedYmd)
+        .then(setProtocolEvents)
+        .catch(() => setProtocolEvents([]));
+    };
+    loadEvents();
+    window.addEventListener('protocols:changed', loadEvents);
+    window.addEventListener('glp1:changed', loadEvents);
+    return () => {
+      window.removeEventListener('protocols:changed', loadEvents);
+      window.removeEventListener('glp1:changed', loadEvents);
+    };
+  }, [selectedYmd, user?.id]);
+
+  useEffect(() => {
+    const load = (): void => {
+      if (!user?.id) { setStrengthWorkouts([]); return; }
+      void listStrengthWorkouts(user.id, selectedYmd, selectedYmd).then(setStrengthWorkouts).catch(() => setStrengthWorkouts([]));
+    };
+    load();
+    window.addEventListener('strength-workout:changed', load);
+    return () => window.removeEventListener('strength-workout:changed', load);
+  }, [selectedYmd, user?.id]);
 
   // Build the 15-min blocks
   useEffect(() => {
-    const isInjectionOnThisTab = (injDay || '').toLowerCase() === abbrevToFull[shortDay];
+    const isInjectionOnThisTab =
+      !primaryIsDaily && injDayFull.toLowerCase() === abbrevToFull[shortDay];
     const hasFastingSchedule = Boolean(fastStartHHMM && fastSchedule);
     const fastingHours = hasFastingSchedule ? parseInt(fastSchedule.split(':')[0], 10) || 0 : 0;
     const [startHour, startMinute] = (fastStartHHMM || '00:00').split(':').map((x) => parseInt(x || '0', 10));
@@ -572,22 +671,19 @@ const DayPage: React.FC = () => {
           : timeInMinutes >= fastingStartMinutes || timeInMinutes < fastingEndMinutes
         : false;
 
-      const isInjectionTime = isInjectionOnThisTab && !!injHHMM && injHHMM.startsWith(blockTime);
+      const isInjectionTime =
+        isInjectionOnThisTab && !!protocolHHMM && protocolHHMM.startsWith(blockTime);
 
       blocks.push({ time: blockTime, isFasting, isCurrent, isInjectionTime });
     }
 
     setTimeBlocks(blocks);
-  }, [fastSchedule, fastStartHHMM, now, shortDay, injDay, injHHMM]);
+  }, [fastSchedule, fastStartHHMM, now, shortDay, primaryIsDaily, injDayFull, protocolHHMM]);
 
-  // Scroll current block into view
   useEffect(() => {
-    if (currentBlockRef.current) {
-      requestAnimationFrame(() =>
-        currentBlockRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-      );
-    }
-  }, [timeBlocks]);
+    if (!new URLSearchParams(location.search).has('mood')) return;
+    requestAnimationFrame(() => quickMoodRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [location.search]);
 
   const isoForBlock = (idx: number) => {
     const minutes = idx * 15;
@@ -634,6 +730,28 @@ const DayPage: React.FC = () => {
     } catch (err) {
       logger.error('mood save failed', err);
       alert('Could not save mood.');
+    }
+  };
+
+  const saveQuickMood = async (score: number): Promise<void> => {
+    if (!isSelectedLocalToday()) {
+      alert('Mood logging is available on the current day only.');
+      return;
+    }
+    setQuickMoodBusy(true);
+    try {
+      await upsertMoodLocal(toLocalISOWithOffset(new Date()), score);
+      const rows = await listHealthLogsRange(dayStartUtc, dayEndUtc).catch(() => []);
+      setDayLogs(
+        (Array.isArray(rows) ? rows : []).map((row) =>
+          mapRepoRowToHealthLogRow(row as RepoHealthRow),
+        ),
+      );
+    } catch (error) {
+      logger.error('quick mood save failed', error);
+      alert('Could not save mood.');
+    } finally {
+      setQuickMoodBusy(false);
     }
   };
 
@@ -688,124 +806,158 @@ const DayPage: React.FC = () => {
   const isInjectionBlock = (idx: number) => {
     const t = timeBlocks[idx]?.time || '';
     return (
-      !!injHHMM && injHHMM.startsWith(t) && (injDay || '').toLowerCase() === abbrevToFull[shortDay]
+      !primaryIsDaily &&
+      !!protocolHHMM &&
+      protocolHHMM.startsWith(t) &&
+      injDayFull.toLowerCase() === abbrevToFull[shortDay]
     );
   };
 
-  const todayStr = now.toLocaleDateString(undefined, {
+  const selectedDateLabel = selectedDate.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   });
   const nowTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const isSelectedToday = localYmd(selectedDate) === localYmd(now);
+  const latestMood = [...dayLogs]
+    .filter((log) => log.entry_type === 'mood')
+    .sort((a, b) => Date.parse(b.recorded_at) - Date.parse(a.recorded_at))[0];
+  const latestMoodScore = moodScoreFromData(latestMood?.data);
+  const primaryLogged = primaryProtocol
+    ? protocolEvents.some((event) => event.protocol_id === primaryProtocol.id)
+    : false;
+  const visibleExercises = dayExercises.filter(
+    (exercise) =>
+      !(strengthWorkouts.length > 0 && /^Coach strength:/i.test(exercise.exercise_type)),
+  );
+  const movementMinutes = dayExercises.reduce((total, exercise) => total + exerciseMinutes(exercise), 0);
+  const movementCalories = dayExercises.reduce(
+    (total, exercise) => total + (exercise.calories_burned ?? 0),
+    0,
+  );
 
   return (
     <IonPage>
       <TopNav showWhenAnon />
       <IonContent fullscreen className={styles.contentPad}>
         <div className={styles.container}>
-          <h1>{todayStr}</h1>
-          <p>
-            Current time: <strong>{nowTime}</strong>
-          </p>
-
-          {dayReminders.length > 0 && (
-            <div className={styles.reminderSection}>
-              <h2>Today's Reminders</h2>
-              <ul>
-                {dayReminders.map((rem) => (
-                  <li key={rem.id}>
-                    {String(rem.title).toLowerCase() === 'weekly injection' ? '💉' : '🔔'}{' '}
-                    {new Date(rem.datetime).toLocaleString([], {
-                      weekday: 'short',
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}{' '}
-                    — {rem.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className={styles.card}>
-            <div className={styles.injectionHeaderRow}>
-              <h3 className={styles.injectionTitle}>Injection</h3>
-            </div>
-
-            {injDay && injHHMM ? (
-              <>
-                {isTodayInjectionDay ? (
-                  <p className={styles.injectionMeta}>Today at <strong>{injHHMM}</strong></p>
-                ) : (
-                  <p className={styles.injectionMeta}>
-                    Next:{' '}
-                    <strong>
-                      {nextInjAt
-                        ? nextInjAt.toLocaleString(undefined, {
-                            weekday: 'short',
-                            day: '2-digit',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '—'}
-                    </strong>
-                    {` (set to ${injDay} ${injHHMM})`}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className={styles.injectionNotSet}>
-                Not set yet. Tap <em>Profile</em> to choose a day &amp; time.
+          <header className={styles.dayHeader}>
+            <div>
+              <p className={styles.eyebrow}>Your plan</p>
+              <h1>{selectedDateLabel}</h1>
+              <p className={styles.daySubhead}>
+                {isSelectedToday ? `Current time ${nowTime}` : 'Daily overview'}
               </p>
-            )}
+            </div>
+          </header>
 
-            {lastInjection && (
-              <p className={styles.lastTaken}>
-                Last taken:{' '}
-                <strong>
-                  {new Date(lastInjection.taken_at).toLocaleString([], {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </strong>
-                {lastInjection.medication_name
-                  ? ` • ${lastInjection.medication_name} ${lastInjection.medication_dose || ''}`
-                  : ''}
-              </p>
-            )}
+          <div
+            ref={quickMoodRef}
+            className={`${styles.quickMoodCard} ${new URLSearchParams(location.search).has('mood') ? styles.quickMoodFocus : ''}`}
+          >
+            <div>
+              <p className={styles.cardKicker}>Quick check-in</p>
+              <h2>How are you feeling?</h2>
+              <p>{latestMoodScore ? `Latest: ${moodEmoji(latestMoodScore)} ${latestMoodScore}/5` : 'Tap once to add your mood.'}</p>
+            </div>
+            <div className={styles.quickMoodButtons} aria-label="Choose your mood">
+              {[1, 2, 3, 4, 5].map((score) => (
+                <button
+                  key={score}
+                  type="button"
+                  disabled={quickMoodBusy || !isSelectedToday}
+                  className={latestMoodScore === score ? styles.quickMoodSelected : ''}
+                  onClick={() => void saveQuickMood(score)}
+                  aria-label={['Very sad', 'Sad', 'Neutral', 'Happy', 'Very happy'][score - 1]}
+                >
+                  {moodEmoji(score)}
+                </button>
+              ))}
+            </div>
+            {!isSelectedToday && <p className={styles.mutedNote}>Open today to add a mood check-in.</p>}
           </div>
 
-          {dayExercises.length > 0 && (
-            <div className={styles.exerciseSection}>
-              <h2>Exercise for {shortDay}</h2>
-              <ul className={styles.exerciseList}>
-                {dayExercises.map((ex) => (
-                  <li key={ex.id}>
-                    {iconFor('exercise')} {ex.exercise_type} {ex.start_time.slice(0, 5)}–
-                    {ex.end_time.slice(0, 5)}
-                    {typeof ex.calories_burned === 'number' ? ` — ${ex.calories_burned} cal` : ''}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <section className={styles.overviewGrid} aria-label="Daily overview">
+            <article className={styles.overviewCard}>
+              <div className={styles.cardIcon} aria-hidden="true">{primaryIsDaily ? '💊' : '💉'}</div>
+              <div>
+                <p className={styles.cardKicker}>{primaryIsDaily ? 'Daily pill' : 'Medication'}</p>
+                <h2>{primaryProtocol?.name || (primaryIsDaily ? 'Daily dose' : 'Weekly injection')}</h2>
+                {primaryProtocol ? (
+                  <>
+                    <p>{primaryProtocol.dose_label || 'Dose'} · {protocolHHMM}</p>
+                    <span className={`${styles.statusPill} ${primaryLogged ? styles.statusDone : ''}`}>
+                      {primaryLogged ? 'Logged for this day' : primaryIsDaily || isDoseDay ? 'Not logged yet' : `Next ${nextInjAt?.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) ?? 'dose'}`}
+                    </span>
+                  </>
+                ) : (
+                  <p className={styles.mutedNote}>Set your medication in Profile.</p>
+                )}
+                {!primaryIsDaily && lastInjection && (
+                  <p className={styles.smallMeta}>Last logged {new Date(lastInjection.taken_at).toLocaleDateString()}</p>
+                )}
+              </div>
+            </article>
 
-          <div className={styles.timeline}>
+            <article className={styles.overviewCard}>
+              <div className={styles.cardIcon} aria-hidden="true">🚶</div>
+              <div>
+                <p className={styles.cardKicker}>Movement</p>
+                <h2>{movementMinutes} minutes</h2>
+                <p>{movementCalories ? `${Math.round(movementCalories)} movement calories` : dayExercises.length ? `${dayExercises.length} activit${dayExercises.length === 1 ? 'y' : 'ies'}` : 'No movement logged yet'}</p>
+                {visibleExercises.map((exercise) => (
+                  <p key={exercise.id} className={styles.activityLine}>
+                    {cleanExerciseName(exercise.exercise_type)} · {exercise.start_time.slice(0, 5)}–{exercise.end_time.slice(0, 5)}
+                  </p>
+                ))}
+              </div>
+            </article>
+
+            {strengthWorkouts.map((workout) => (
+              <article className={styles.overviewCard} key={workout.id}>
+                <div className={styles.cardIcon} aria-hidden="true">🏋️</div>
+                <div>
+                  <p className={styles.cardKicker}>Coach strength</p>
+                  <h2>{workout.plan.name}</h2>
+                  <p>{workout.status.replace('_', ' ')} · {workout.actualMinutes ? `${workout.actualMinutes} min` : workout.plan.estimatedRange}</p>
+                  <button type="button" className={styles.cardLink} onClick={() => router.push(`/strength-workout?id=${encodeURIComponent(workout.id)}`, 'forward')}>
+                    View workout
+                  </button>
+                </div>
+              </article>
+            ))}
+
+            {dayReminders.length > 0 && (
+              <article className={styles.overviewCard}>
+                <div className={styles.cardIcon} aria-hidden="true">🔔</div>
+                <div>
+                  <p className={styles.cardKicker}>Reminders</p>
+                  <h2>{dayReminders.length} for this day</h2>
+                  {dayReminders.slice(0, 3).map((reminder) => (
+                    <p key={reminder.id} className={styles.activityLine}>
+                      {new Date(reminder.datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {reminder.title}
+                    </p>
+                  ))}
+                </div>
+              </article>
+            )}
+          </section>
+
+          <details className={styles.timelinePanel}>
+            <summary>
+              <span>Day timeline</span>
+              <small>View fasting, meals, mood and activity by time</small>
+            </summary>
+            <div className={styles.timeline}>
             {timeBlocks.map((block, idx) => {
               const entry = {
                 reminders: dayReminders.filter((r) => isoToBlockIndex(r.datetime) === idx),
                 logs: dayLogs.filter((l) => isoToBlockIndex(l.recorded_at) === idx),
                 exercises: dayExercises.filter((ex) => {
                   const s = hhmmToIndex(ex.start_time);
-                  const e = Math.max(s, hhmmToIndex(ex.end_time));
+                  const e = Math.max(s + 1, hhmmToIndex(ex.end_time));
                   return idx >= s && idx < e;
                 }),
               };
@@ -928,7 +1080,8 @@ const DayPage: React.FC = () => {
                 </div>
               );
             })}
-          </div>
+            </div>
+          </details>
 
           {selectedBlockInfo && (
             <div className={styles.modal} onClick={() => setSelectedBlockInfo(null)}>

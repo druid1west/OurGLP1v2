@@ -25,7 +25,7 @@ import {
 } from "@/db/WeeklySummaryRepository";
 
 // Correct casing matters on case-sensitive FS
-import { SummaryPreview } from "./weeklySummaryPage";
+import { SummaryPreview, type WeeklyStrengthSummary } from "./weeklySummaryPage";
 import type { Glp1GraphPoint } from "../db/EffectivenessRepository";
 
 // NEW: bring in user (for weight/id), rollups, and target ranges
@@ -114,6 +114,7 @@ type ArchiveSnapshot = {
   };
   activity?: WeeklyActivitySummary;
   glp1?: WeeklyGlp1Summary;
+  strength?: WeeklyStrengthSummary;
 };
 
 /** ---------- utils ---------- */
@@ -476,6 +477,13 @@ if (Capacitor.getPlatform() === "android") {
     return isGlp1Snapshot(snapshot?.glp1) ? snapshot.glp1 : undefined;
   }, [snapshot]);
 
+  const strengthSummary = useMemo<WeeklyStrengthSummary | undefined>(() => {
+    const value = snapshot?.strength;
+    return value && typeof value.planned === 'number' && typeof value.completed === 'number'
+      ? value
+      : undefined;
+  }, [snapshot]);
+
   const injectionTakenAt: string | undefined = rec?.injection_taken_at || undefined;
 
   const scheduledDayTime = useMemo(() => {
@@ -724,6 +732,7 @@ if (Capacitor.getPlatform() === "android") {
                     energyBalanceSummary={undefined}
                     isPro={true}
                     glp1Summary={glp1Summary}
+                    strengthSummary={strengthSummary}
                   />
                 </div>
               </CardContent>

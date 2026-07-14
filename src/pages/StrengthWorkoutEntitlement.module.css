@@ -1,0 +1,54 @@
+.upgradeCard {
+  margin-top: 12px;
+  padding: 22px;
+  border: 1px solid #cddcf3;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff, #f2f7ff);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.upgradeCard h2 { margin: 7px 0; }
+.upgradeCard > p { color: #526b65; line-height: 1.45; }
+
+.upgradeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 16px 0;
+}
+
+.upgradeGrid div {
+  padding: 13px;
+  border: 1px solid #dce5f2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.upgradeGrid strong,
+.upgradeGrid span,
+.proFollowUp strong,
+.proFollowUp span { display: block; }
+
+.upgradeGrid span,
+.proFollowUp span {
+  margin-top: 5px;
+  color: #607470;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.proFollowUp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 8px;
+  background: #eef4ff;
+}
+
+@media (max-width: 600px) {
+  .upgradeGrid { grid-template-columns: 1fr; }
+  .proFollowUp { flex-direction: column; align-items: stretch; }
+}

@@ -63,6 +63,7 @@ import { addNutritionTotals, nutritionFromLogData, roundNutritionTotals } from '
 import { getSetupStatus } from '../lib/setupStatus';
 import { logger } from '../utils/logger';
 import { getCoachProfile } from '../db/CoachRepository';
+import { listStrengthWorkouts, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
 import styles from './Today.module.css';
 
 type TodayStats = {
@@ -186,8 +187,10 @@ function minutesBetween(start?: string | null, end?: string | null): number {
 function exerciseMinutes(entry: ExerciseEntry): number {
   const start = new Date(`2000-01-01T${entry.start_time}`);
   const end = new Date(`2000-01-01T${entry.end_time}`);
-  const diff = end.getTime() - start.getTime();
-  if (!Number.isFinite(diff) || diff <= 0) return 0;
+  let diff = end.getTime() - start.getTime();
+  if (!Number.isFinite(diff)) return 0;
+  if (diff < 0) diff += 24 * 60 * 60 * 1000;
+  if (diff <= 0) return 0;
   return Math.round(diff / 60000);
 }
 
@@ -553,6 +556,7 @@ const Today: React.FC = () => {
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
   const [customCalories, setCustomCalories] = useState('');
+  const [strengthWorkout, setStrengthWorkout] = useState<StrengthWorkout | null>(null);
 
   const today = useMemo(() => localYmd(), []);
 
@@ -661,6 +665,16 @@ const Today: React.FC = () => {
       window.removeEventListener('fasting:changed', refresh);
     };
   }, [loadToday]);
+
+  useEffect(() => {
+    const loadStrength = (): void => {
+      if (!user?.id) { setStrengthWorkout(null); return; }
+      void listStrengthWorkouts(user.id, today, today).then((rows) => setStrengthWorkout(rows[0] ?? null)).catch(() => setStrengthWorkout(null));
+    };
+    loadStrength();
+    window.addEventListener('strength-workout:changed', loadStrength);
+    return () => window.removeEventListener('strength-workout:changed', loadStrength);
+  }, [today, user?.id]);
 
   const handleAppleHealthSync = async (): Promise<void> => {
     setSyncMessage('');
@@ -934,6 +948,15 @@ const Today: React.FC = () => {
         exercise_type: `${movementKind} (${movementEffort})`,
         calories_burned: calories,
       });
+      setStats((current) =>
+        current
+          ? {
+              ...current,
+              manualExerciseMinutes: current.manualExerciseMinutes + minutes,
+              exerciseCalories: current.exerciseCalories + calories,
+            }
+          : current
+      );
       setQuickActionMessage(`${movementKind} saved: ${minutes} min, about ${calories} kcal.`);
       setMovementLoggerOpen(false);
       await loadToday();
@@ -1280,6 +1303,21 @@ const Today: React.FC = () => {
                 )}
               </div>
             </div>
+          </section>
+
+          <section className={styles.strengthCoachBand} aria-label="Coach strength workout">
+            <div className={styles.strengthCoachIcon}><Dumbbell size={22} /></div>
+            <div>
+              <span>Stay Strong with Coach</span>
+              <h2>{strengthWorkout ? strengthWorkout.plan.name : 'Build a workout that fits today'}</h2>
+              <p>{strengthWorkout
+                ? `${strengthWorkout.status.replace('_', ' ')} · ${strengthWorkout.plan.estimatedRange}${strengthWorkout.calories ? ` · about ${strengthWorkout.calories} kcal` : ''}`
+                : 'Coach asks a few questions, tailors the exercises, and logs the result when you finish.'}</p>
+            </div>
+            <IonButton onClick={() => router.push(strengthWorkout ? `/strength-workout?id=${encodeURIComponent(strengthWorkout.id)}` : '/strength-workout', 'forward')}>
+              {strengthWorkout?.status === 'in_progress' ? 'Continue' : strengthWorkout?.status === 'planned' ? 'Start' : 'Open workouts'}
+              <ArrowRight size={17} />
+            </IonButton>
           </section>
 
           <section className={styles.metricsGrid} aria-label="Today metrics">
