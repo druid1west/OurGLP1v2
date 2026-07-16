@@ -21,6 +21,13 @@ export type StrengthWorkout = {
 
 type Row = Record<string, unknown>;
 
+const REUSABLE_STRENGTH_STATUSES: ReadonlySet<StrengthStatus> = new Set([
+  'planned',
+  'in_progress',
+  'completed',
+  'partial',
+]);
+
 function rows(values?: unknown[] | null): Row[] {
   if (!values?.length) return [];
   if (typeof values[0] === 'object' && values[0] !== null) return values as Row[];
@@ -45,6 +52,43 @@ function mapWorkout(row: Row): StrengthWorkout {
     difficulty: row.difficulty ? String(row.difficulty) as StrengthWorkout['difficulty'] : null,
     createdAt: String(row.created_at ?? ''), updatedAt: String(row.updated_at ?? ''),
   };
+}
+
+function isValidLocalDay(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
+function isPlaceholderIdentifier(value: string): boolean {
+  return /^(?:test|placeholder|dummy|sample|temp)(?:[-_:]|$)/i.test(value.trim());
+}
+
+export function isValidStrengthWorkout(workout: StrengthWorkout): boolean {
+  return Boolean(
+    workout.id.trim() &&
+    !isPlaceholderIdentifier(workout.id) &&
+    workout.userId.trim() &&
+    !isPlaceholderIdentifier(workout.userId) &&
+    isValidLocalDay(workout.scheduledDay) &&
+    REUSABLE_STRENGTH_STATUSES.has(workout.status) &&
+    workout.plan &&
+    typeof workout.plan.name === 'string' &&
+    workout.plan.name.trim() &&
+    Array.isArray(workout.plan.exercises) &&
+    workout.plan.exercises.some((exercise) => Boolean(
+      exercise &&
+      typeof exercise === 'object' &&
+      typeof exercise.id === 'string' &&
+      exercise.id.trim() &&
+      typeof exercise.name === 'string' &&
+      exercise.name.trim()
+    ))
+  );
 }
 
 export async function initStrengthWorkoutTables(): Promise<void> {
@@ -118,6 +162,11 @@ export async function listStrengthWorkouts(userId: string, fromDay?: string, toD
 export async function getLatestStrengthWorkout(userId: string): Promise<StrengthWorkout | null> {
   const workouts = await listStrengthWorkouts(userId);
   return workouts[0] ?? null;
+}
+
+export async function getLatestValidStrengthWorkout(userId: string): Promise<StrengthWorkout | null> {
+  const workouts = await listStrengthWorkouts(userId);
+  return workouts.find(isValidStrengthWorkout) ?? null;
 }
 
 export function strengthWorkoutSummary(workouts: StrengthWorkout[]) {

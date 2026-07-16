@@ -6,7 +6,7 @@ import TopNav from '../context/TopNav';
 import BottomNav from '../context/BottomNav';
 import { useAuth } from '../context/useAuth';
 import { getHealthDailySummaryByDay, initHealthTables, insertExerciseAndEmit } from '../db/HealthRepository';
-import { getStrengthWorkout, listStrengthWorkouts, saveStrengthWorkout, updateStrengthWorkout, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
+import { getLatestValidStrengthWorkout, getStrengthWorkout, saveStrengthWorkout, updateStrengthWorkout, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
 import { buildStrengthPlan, DEFAULT_STRENGTH_ANSWERS, type StrengthAnswers, type StrengthPlan } from '../lib/strengthTraining';
 import { logger } from '../utils/logger';
 import styles from './StrengthWorkout.module.css';
@@ -49,7 +49,7 @@ const StrengthWorkoutPage: React.FC = () => {
   const [variation, setVariation] = useState(0);
   const [saving, setSaving] = useState(false);
   const [activity, setActivity] = useState({ steps: 0, minutes: 0 });
-  const [freeWorkoutUsed, setFreeWorkoutUsed] = useState(false);
+  const [starterWorkout, setStarterWorkout] = useState<StrengthWorkout | null>(null);
 
   useEffect(() => {
     void initHealthTables().then(() => getHealthDailySummaryByDay(localDay())).then((summary) => {
@@ -68,13 +68,13 @@ const StrengthWorkoutPage: React.FC = () => {
 
   useEffect(() => {
     if (workoutId || !user?.id || isPro) {
-      setFreeWorkoutUsed(false);
+      setStarterWorkout(null);
       return;
     }
     setLoading(true);
-    void listStrengthWorkouts(user.id)
-      .then((rows) => setFreeWorkoutUsed(rows.length > 0))
-      .catch(() => setFreeWorkoutUsed(false))
+    void getLatestValidStrengthWorkout(user.id)
+      .then(setStarterWorkout)
+      .catch(() => setStarterWorkout(null))
       .finally(() => setLoading(false));
   }, [isPro, user?.id, workoutId]);
 
@@ -91,9 +91,9 @@ const StrengthWorkoutPage: React.FC = () => {
     setSaving(true);
     try {
       if (!isPro) {
-        const existing = await listStrengthWorkouts(user.id);
-        if (existing.length > 0 && !workout) {
-          setFreeWorkoutUsed(true);
+        const existing = await getLatestValidStrengthWorkout(user.id);
+        if (existing && !workout) {
+          setStarterWorkout(existing);
           setPlan(null);
           return;
         }
@@ -146,10 +146,36 @@ const StrengthWorkoutPage: React.FC = () => {
     setWorkout({ ...workout, difficulty });
   };
 
+  const restartWorkout = async (): Promise<void> => {
+    if (!workout || (workout.status !== 'completed' && workout.status !== 'partial')) return;
+    const startedAt = new Date().toISOString();
+    const reset = {
+      status: 'in_progress' as const,
+      startedAt,
+      completedAt: null,
+      completedExerciseIds: [],
+      actualMinutes: null,
+      calories: null,
+      caloriesSource: null,
+      difficulty: null,
+    };
+    setSaving(true);
+    try {
+      await updateStrengthWorkout(workout.id, reset);
+      setCompleted(new Set());
+      setWorkout({ ...workout, ...reset });
+    } finally { setSaving(false); }
+  };
+
   if (loading) return <IonPage><TopNav showWhenAnon={false} /><IonContent className={styles.content}><div className={styles.loading}><IonSpinner /> Loading workout…</div></IonContent><BottomNav showWhenAnon={false} /></IonPage>;
   const finished = workout?.status === 'completed' || workout?.status === 'partial';
-  const needsProForNewWorkout = !isPro && !workoutId && freeWorkoutUsed;
+  const needsProForNewWorkout = !isPro && !workoutId && Boolean(starterWorkout);
   const paywallPath = '/paywall?returnTo=%2Fstrength-workout';
+  const starterActionLabel = starterWorkout?.status === 'in_progress'
+    ? 'Continue my free workout'
+    : starterWorkout?.status === 'planned'
+      ? 'Start my free workout'
+      : 'View my free workout';
 
   return <IonPage>
     <TopNav showWhenAnon={false} />
@@ -169,7 +195,12 @@ const StrengthWorkoutPage: React.FC = () => {
             <div><strong>Always available</strong><span>Reopen, complete and log your existing starter workout.</span></div>
             <div><strong>With Pro</strong><span>Build the next workout and let Coach adapt the programme over time.</span></div>
           </div>
-          <IonButton onClick={() => router.push(paywallPath, 'forward')}>See Pro options <ChevronRight size={17} /></IonButton>
+          <div className={entitlementStyles.upgradeActions}>
+            <IonButton onClick={() => router.push(`/strength-workout?id=${encodeURIComponent(starterWorkout!.id)}`, 'forward')}>
+              {starterActionLabel} <ChevronRight size={17} />
+            </IonButton>
+            <IonButton fill="outline" onClick={() => router.push(paywallPath, 'forward')}>See Pro options</IonButton>
+          </div>
           <button type="button" className={styles.textButton} onClick={() => router.push('/today', 'back')}>Back to Today</button>
         </section>}
 
@@ -207,7 +238,7 @@ const StrengthWorkoutPage: React.FC = () => {
             {workout?.status === 'in_progress' && <div className={styles.actions}><IonButton onClick={() => void finishWorkout()} disabled={!completed.size || saving}><Pause size={17} /> {completed.size === plan.exercises.length ? 'Complete workout' : 'Finish & log partial'}</IonButton><span>{completed.size}/{plan.exercises.length} exercises completed</span></div>}
             {finished && <div className={styles.completedBox}><Check size={24} /><div><h3>{workout.status === 'completed' ? 'Workout complete' : 'Partial workout saved'}</h3><p>{workout.actualMinutes} min · approximately {workout.calories} kcal · {workout.completedExerciseIds.length}/{plan.exercises.length} exercises</p><small>Calories are estimated unless a matching Apple Health workout supplies them.</small></div></div>}
             {finished && <div className={styles.rating}><strong>How did it feel?</strong>{(['easy', 'right', 'hard', 'pain'] as const).map((value) => <button className={workout.difficulty === value ? styles.selected : ''} key={value} type="button" onClick={() => void rate(value)}>{value === 'pain' ? 'Something hurt' : value === 'right' ? 'About right' : `Too ${value}`}</button>)}</div>}
-            {finished && !isPro && <div className={entitlementStyles.proFollowUp}><div><strong>Ready for your next workout?</strong><span>Pro uses this result and your feedback to shape the next session.</span></div><IonButton size="small" onClick={() => router.push(paywallPath, 'forward')}>Continue with Pro</IonButton></div>}
+            {finished && !isPro && <div className={entitlementStyles.proFollowUp}><div><strong>Your free workout is yours to repeat</strong><span>Restart this saved plan whenever you like. Pro is only needed for additional newly tailored workouts.</span></div><div className={entitlementStyles.followUpActions}><IonButton size="small" onClick={() => void restartWorkout()} disabled={saving}>Restart my free workout</IonButton><IonButton size="small" fill="outline" onClick={() => router.push(paywallPath, 'forward')}>See Pro options</IonButton></div></div>}
           </section>
           <aside className={styles.safety}><ShieldCheck size={20} /><p>Stop for sharp pain, chest pain, faintness or feeling unusually unwell. This is general fitness guidance, not rehabilitation or medical clearance.</p></aside>
         </>}

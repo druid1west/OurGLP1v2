@@ -37,6 +37,13 @@
   line-height: 1.4;
 }
 
+.upgradeActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .proFollowUp {
   display: flex;
   justify-content: space-between;
@@ -48,7 +55,18 @@
   background: #eef4ff;
 }
 
+.followUpActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 600px) {
   .upgradeGrid { grid-template-columns: 1fr; }
+  .upgradeActions { align-items: stretch; flex-direction: column; }
+  .upgradeActions ion-button { margin-inline: 0; }
   .proFollowUp { flex-direction: column; align-items: stretch; }
+  .followUpActions { align-items: stretch; flex-direction: column; }
+  .followUpActions ion-button { margin-inline: 0; }
 }

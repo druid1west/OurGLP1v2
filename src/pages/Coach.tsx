@@ -38,6 +38,7 @@ import {
 } from '@/db/CoachRepository';
 import { insertHealthLog } from '@/db/HealthRepository';
 import { getLatestEmailPasswordAccount, upsertLocalAccount } from '@/db/LocalAccountRepository';
+import { getLatestValidStrengthWorkout, type StrengthWorkout } from '@/db/StrengthWorkoutRepository';
 import {
   createProtocol,
   getPrimaryProtocol,
@@ -65,7 +66,11 @@ type ChatMessage = Readonly<{
   entry?: CoachEntry;
   reminder?: CoachReminderSuggestion;
   related?: readonly CoachEntry[];
-  strengthWorkoutAction?: boolean;
+  strengthWorkoutAction?: Readonly<{
+    workoutId: string | null;
+    label: string;
+    detail: string;
+  }>;
 }>;
 
 const starterQuestions = [
@@ -296,6 +301,65 @@ function createCoachMessage(entry: CoachEntry, related: readonly CoachEntry[] = 
   };
 }
 
+function isStrengthWorkoutRequest(question: string): boolean {
+  const strengthTopic = /\b(?:strength(?:[\s-]+training)?|resistance|weight(?:s)?)[\s-]+(?:work[\s-]*out|plan|session|routine)\b/i;
+  const savedWorkoutAction = /\b(?:start|continue|resume|restart|repeat|view|open)\s+(?:my|the)\s+(?:(?:free|saved|strength)[\s-]+)*work[\s-]*out\b/i;
+  return strengthTopic.test(question) || savedWorkoutAction.test(question);
+}
+
+function createStrengthWorkoutMessage(workout: StrengthWorkout | null): ChatMessage {
+  const id = `coach-strength-${Date.now()}`;
+  if (!workout) {
+    return {
+      id,
+      role: 'coach',
+      text: 'Absolutely. I’ll ask six short setup questions about your experience, goal, equipment, limitations, available time, and weekly frequency—then one quick readiness question for today. Your first complete tailored workout is free. Pro adds ongoing workouts, exercise swaps, scheduling, progression, and deeper summaries.',
+      strengthWorkoutAction: {
+        workoutId: null,
+        label: 'Build my workout',
+        detail: 'Answer the questions and review the plan before anything is saved.',
+      },
+    };
+  }
+
+  if (workout.status === 'planned') {
+    return {
+      id,
+      role: 'coach',
+      text: 'Your free tailored strength workout is saved and ready whenever you are.',
+      strengthWorkoutAction: {
+        workoutId: workout.id,
+        label: 'Start my free workout',
+        detail: 'Open your saved plan and start when you are ready.',
+      },
+    };
+  }
+
+  if (workout.status === 'in_progress') {
+    return {
+      id,
+      role: 'coach',
+      text: 'Your free strength workout is saved in progress, so you can continue where you left off.',
+      strengthWorkoutAction: {
+        workoutId: workout.id,
+        label: 'Continue my free workout',
+        detail: 'Return directly to your saved workout.',
+      },
+    };
+  }
+
+  return {
+    id,
+    role: 'coach',
+    text: 'Your free strength workout belongs to you and remains available to view or repeat whenever you like.',
+    strengthWorkoutAction: {
+      workoutId: workout.id,
+      label: 'View my free workout',
+      detail: 'Open the saved plan to review it or restart the same workout.',
+    },
+  };
+}
+
 function createLocalId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -356,6 +420,7 @@ const Coach: React.FC = () => {
   const [checkinSaving, setCheckinSaving] = useState(false);
   const [checkedInToday, setCheckedInToday] = useState(false);
   const [addingExtraCheckin, setAddingExtraCheckin] = useState(false);
+  const [strengthWorkout, setStrengthWorkout] = useState<StrengthWorkout | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const setupShellRef = useRef<HTMLElement | null>(null);
   const setupScrollRequestedRef = useRef(false);
@@ -472,6 +537,22 @@ const Coach: React.FC = () => {
     };
   }, []);
 
+  const refreshStrengthWorkout = useCallback((): void => {
+    if (!user?.id) {
+      setStrengthWorkout(null);
+      return;
+    }
+    void getLatestValidStrengthWorkout(user.id)
+      .then(setStrengthWorkout)
+      .catch(() => setStrengthWorkout(null));
+  }, [user?.id]);
+
+  useEffect(() => {
+    refreshStrengthWorkout();
+    window.addEventListener('strength-workout:changed', refreshStrengthWorkout);
+    return () => window.removeEventListener('strength-workout:changed', refreshStrengthWorkout);
+  }, [refreshStrengthWorkout]);
+
   useEffect(() => {
     let cancelled = false;
     if (!user?.id) {
@@ -578,15 +659,10 @@ const Coach: React.FC = () => {
       text: question,
     };
 
-    const wantsStrengthWorkout = /(?:build|create|design|make|give).*(?:strength|resistance|weight).*(?:workout|routine)|(?:strength|resistance).*(?:workout|routine)/i.test(question);
+    const wantsStrengthWorkout = isStrengthWorkoutRequest(question);
     const matches = findMatches(question);
     const coachMessage: ChatMessage = wantsStrengthWorkout
-      ? {
-          id: `coach-strength-${Date.now()}`,
-          role: 'coach',
-          text: 'Absolutely. I’ll ask six short setup questions about your experience, goal, equipment, limitations, available time, and weekly frequency—then one quick readiness question for today. Your first complete tailored workout is free. Pro adds ongoing workouts, exercise swaps, scheduling, progression, and deeper summaries.',
-          strengthWorkoutAction: true,
-        }
+      ? createStrengthWorkoutMessage(strengthWorkout)
       : matches[0]
         ? createCoachMessage(matches[0], matches.slice(1))
             : {
@@ -2237,12 +2313,17 @@ const Coach: React.FC = () => {
                     <button
                       type="button"
                       className={styles.reminderCard}
-                      onClick={() => router.push('/strength-workout', 'forward')}
+                      onClick={() => router.push(
+                        message.strengthWorkoutAction?.workoutId
+                          ? `/strength-workout?id=${encodeURIComponent(message.strengthWorkoutAction.workoutId)}`
+                          : '/strength-workout',
+                        'forward'
+                      )}
                     >
                       <Dumbbell size={18} />
                       <span>
-                        <strong>Build my workout</strong>
-                        Answer the questions and review the plan before anything is saved.
+                        <strong>{message.strengthWorkoutAction.label}</strong>
+                        {message.strengthWorkoutAction.detail}
                       </span>
                       <ChevronRight size={17} />
                     </button>
