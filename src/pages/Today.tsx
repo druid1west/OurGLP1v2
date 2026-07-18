@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IonButton, IonContent, IonPage } from '@ionic/react';
 import { useIonRouter } from '@ionic/react';
 import {
@@ -152,6 +152,12 @@ function localDayBounds(ymd: string): { start: string; end: string } {
 
 function ymdToLocalDate(ymd: string): Date {
   return new Date(`${ymd}T00:00:00`);
+}
+
+function previousLocalYmd(ymd: string): string {
+  const date = ymdToLocalDate(ymd);
+  date.setDate(date.getDate() - 1);
+  return localYmd(date);
 }
 
 function enumerateYmdRange(fromYmd: string, toYmd: string): string[] {
@@ -557,8 +563,13 @@ const Today: React.FC = () => {
   const [customFat, setCustomFat] = useState('');
   const [customCalories, setCustomCalories] = useState('');
   const [strengthWorkout, setStrengthWorkout] = useState<StrengthWorkout | null>(null);
+  const syncInFlightRef = useRef(false);
+  const authorizationRequestedRef = useRef(false);
 
-  const today = useMemo(() => localYmd(), []);
+  const [today, setToday] = useState(() => localYmd());
+  const activeProtocols = protocols.filter((protocol) => protocol.is_active);
+  const primaryProtocol = activeProtocols.find((protocol) => protocol.is_primary) ?? activeProtocols[0] ?? null;
+  const primaryIsDaily = primaryProtocol?.cadence_type === 'daily';
 
   const refreshMovementEstimate = useCallback((
     nextKind = movementKind,
@@ -589,7 +600,7 @@ const Today: React.FC = () => {
       ] = await Promise.all([
         listHealthLogsRange(start, end),
         listExercises(),
-        listSleepLogsRange(today, today),
+        listSleepLogsRange(previousLocalYmd(today), today),
         getHealthDailySummaryByDay(today),
         getLastInjectionLocal(),
         user?.id ? listProtocols(user.id) : Promise.resolve([]),
@@ -609,10 +620,9 @@ const Today: React.FC = () => {
         (sum, entry) => sum + exerciseCalories(entry),
         0
       );
-      const manualSleepMinutes = (sleepLogs as SleepLogRow[]).reduce(
-        (sum, entry) => sum + minutesBetween(entry.sleep_at, entry.wake_at),
-        0
-      );
+      const manualSleepMinutes = (sleepLogs as SleepLogRow[])
+        .filter((entry) => entry.wake_at && localYmd(new Date(entry.wake_at)) === today)
+        .reduce((sum, entry) => sum + minutesBetween(entry.sleep_at, entry.wake_at), 0);
 
       setAppleSummary(imported);
       setProtocols(protocolRows);
@@ -676,32 +686,45 @@ const Today: React.FC = () => {
     return () => window.removeEventListener('strength-workout:changed', loadStrength);
   }, [today, user?.id]);
 
-  const handleAppleHealthSync = async (): Promise<void> => {
-    setSyncMessage('');
+  const handleAppleHealthSync = useCallback(async (
+    options: { automatic?: boolean } = {}
+  ): Promise<void> => {
+    if (syncInFlightRef.current) return;
+    const automatic = options.automatic === true;
+    if (!automatic) setSyncMessage('');
 
     if (!isAppleHealthSupportedPlatform()) {
       setSyncState('unavailable');
-      setSyncMessage('Apple Health sync is available on iPhone builds.');
+      if (!automatic) setSyncMessage('Apple Health sync is available on iPhone builds.');
       return;
     }
 
+    syncInFlightRef.current = true;
     setSyncState('syncing');
     try {
       const availability = await AppleHealth.isAvailable();
       if (!availability.available) {
         setSyncState('unavailable');
-        setSyncMessage('Apple Health is not available on this device.');
+        if (!automatic) setSyncMessage('Apple Health is not available on this device.');
         return;
       }
 
-      await AppleHealth.requestAuthorization();
+      if (!authorizationRequestedRef.current) {
+        const healthPermission = await AppleHealth.requestAuthorization();
+        authorizationRequestedRef.current = true;
+        if (!healthPermission.granted) {
+          setSyncState('unavailable');
+          setSyncMessage('Connect Apple Health to show steps and sleep automatically.');
+          return;
+        }
+      }
 
       const settings = await getSettings();
       const syncAnchorDay = primaryIsDaily
         ? 'Monday'
         : normalizeWeekdayFull(primaryProtocol?.anchor_day ?? settings.injection_day);
       const weekStart = anchorWeekStartYmd(today, syncAnchorDay);
-      const syncDays = enumerateYmdRange(weekStart, today);
+      const syncDays = automatic ? [today] : enumerateYmdRange(weekStart, today);
       let insertedWorkouts = 0;
       let daysWithHealthData = 0;
 
@@ -739,22 +762,49 @@ const Today: React.FC = () => {
       }
 
       setSyncState('synced');
-      const syncRangeLabel = primaryIsDaily ? 'review week' : 'injection week';
-      const syncedRange = `${weekStart} to ${today}`;
-      setSyncMessage(
-        insertedWorkouts > 0
-          ? `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'}, found data on ${daysWithHealthData}, and added ${insertedWorkouts} workout${insertedWorkouts === 1 ? '' : 's'}.`
-          : `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'} and found data on ${daysWithHealthData}.`
-      );
+      if (!automatic) {
+        const syncRangeLabel = primaryIsDaily ? 'review week' : 'injection week';
+        const syncedRange = `${weekStart} to ${today}`;
+        setSyncMessage(
+          insertedWorkouts > 0
+            ? `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'}, found data on ${daysWithHealthData}, and added ${insertedWorkouts} workout${insertedWorkouts === 1 ? '' : 's'}.`
+            : `Apple Health is up to date for this ${syncRangeLabel} (${syncedRange}). Synced ${syncDays.length} day${syncDays.length === 1 ? '' : 's'} and found data on ${daysWithHealthData}.`
+        );
+      }
       await loadToday();
     } catch (error) {
       logger.warn('[Today] Apple Health sync failed', {
         msg: error instanceof Error ? error.message : String(error),
       });
       setSyncState('error');
-      setSyncMessage('Apple Health could not sync yet.');
+      if (!automatic) setSyncMessage('Apple Health could not sync yet. Check Health permissions and try again.');
+    } finally {
+      syncInFlightRef.current = false;
     }
-  };
+  }, [loadToday, primaryIsDaily, primaryProtocol?.anchor_day, today]);
+
+  useEffect(() => {
+    const refreshDateAndHealth = (): void => {
+      const currentDay = localYmd();
+      if (currentDay !== today) {
+        setToday(currentDay);
+        return;
+      }
+      if (document.visibilityState === 'visible') {
+        void handleAppleHealthSync({ automatic: true });
+      }
+    };
+
+    refreshDateAndHealth();
+    const interval = window.setInterval(refreshDateAndHealth, 120_000);
+    document.addEventListener('visibilitychange', refreshDateAndHealth);
+    window.addEventListener('focus', refreshDateAndHealth);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshDateAndHealth);
+      window.removeEventListener('focus', refreshDateAndHealth);
+    };
+  }, [handleAppleHealthSync, today]);
 
   const firstName = user?.first_name?.trim() || 'there';
   const importedSteps = appleSummary?.steps ?? 0;
@@ -766,9 +816,17 @@ const Today: React.FC = () => {
   const movementCaloriesOut = Math.max(importedEnergy, stats?.exerciseCalories ?? 0);
   const netCaloriesEstimate = Math.max(0, foodCalories - movementCaloriesOut);
   const sleepMinutes = Math.max(importedSleep, stats?.manualSleepMinutes ?? 0);
-  const activeProtocols = protocols.filter((protocol) => protocol.is_active);
-  const primaryProtocol = activeProtocols.find((protocol) => protocol.is_primary) ?? activeProtocols[0] ?? null;
-  const primaryIsDaily = primaryProtocol?.cadence_type === 'daily';
+  const healthIsChecking = loadState === 'loading' || syncState === 'syncing';
+  const stepsDisplay = importedSteps > 0
+    ? formatNumber(importedSteps)
+    : healthIsChecking
+      ? 'Checking…'
+      : 'No data yet';
+  const sleepDisplay = sleepMinutes > 0
+    ? formatMinutes(sleepMinutes)
+    : healthIsChecking
+      ? 'Checking…'
+      : 'No sleep yet';
   const primaryDoseLabel = primaryProtocol?.dose_time
     ? `${primaryProtocol.name} ${primaryProtocol.dose_time}`
     : primaryProtocol?.name ?? null;
@@ -1347,7 +1405,7 @@ const Today: React.FC = () => {
               <Activity size={21} />
               <div>
                 <span>Steps</span>
-                <strong>{formatNumber(importedSteps)}</strong>
+                <strong className={importedSteps > 0 ? undefined : styles.metricPending}>{stepsDisplay}</strong>
               </div>
               <div className={styles.progressTrack}>
                 <i style={{ width: `${percentage(importedSteps, STEPS_TARGET)}%` }} />
@@ -1358,7 +1416,7 @@ const Today: React.FC = () => {
               <Moon size={21} />
               <div>
                 <span>Sleep</span>
-                <strong>{formatMinutes(sleepMinutes)}</strong>
+                <strong className={sleepMinutes > 0 ? undefined : styles.metricPending}>{sleepDisplay}</strong>
               </div>
               <div className={styles.progressTrack}>
                 <i style={{ width: `${percentage(sleepMinutes, SLEEP_TARGET_MINUTES)}%` }} />
@@ -1626,8 +1684,8 @@ const Today: React.FC = () => {
               <div>
                 <h2>Apple HealthKit Sync</h2>
                 <p>
-                  Optional Apple Health data, with permission: steps, move energy, exercise,
-                  sleep, heart rate, and workouts. {syncLabel(syncState)}
+                  With permission, steps, move energy, exercise, sleep, heart rate, and workouts
+                  refresh automatically when you open or return to Today. {syncLabel(syncState)}
                 </p>
               </div>
               <IonButton

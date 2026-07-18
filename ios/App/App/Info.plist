@@ -23,7 +23,7 @@
 			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.557159382889-9m542ha3qgic0d9husjiq9f95uepg8nn</string>
+				<string>com.googleusercontent.apps.557159382889-2lrmm8v7d0ojvfd4dqvvl84j9uh0bmc4</string>
 			</array>
 		</dict>
 		<dict>
@@ -36,9 +36,9 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>6</string>
 	<key>GIDClientID</key>
-	<string>557159382889-9m542ha3qgic0d9husjiq9f95uepg8nn.apps.googleusercontent.com</string>
+	<string>557159382889-2lrmm8v7d0ojvfd4dqvvl84j9uh0bmc4.apps.googleusercontent.com</string>
 	<key>LSApplicationCategoryType</key>
 	<string></string>
 	<key>LSApplicationQueriesSchemes</key>
@@ -46,7 +46,7 @@
 		<string>google</string>
 		<string>com.google.chrome.ios</string>
 		<string>googlegmail</string>
-		<string>com.googleusercontent.apps.557159382889-9m542ha3qgic0d9husjiq9f95uepg8nn</string>
+		<string>com.googleusercontent.apps.557159382889-2lrmm8v7d0ojvfd4dqvvl84j9uh0bmc4</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app uses your camera to upload profile photos.</string>

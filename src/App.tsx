@@ -92,7 +92,9 @@ import { DiskSpace } from './plugins/diskSpace';
 
 setupIonicReact();
 
-const ENABLE_ANALYTICS = import.meta.env.DEV;
+const CUSTOM_ANALYTICS_ENDPOINT = import.meta.env.DEV
+  ? '/api/analytics/collect'
+  : undefined;
 
 // ============================
 // TEST ONLY: minimum free space required to initialize local DB (tune later)
@@ -439,15 +441,13 @@ const App: React.FC = () => {
         getUserId: () => uidRef.current,
       });
 
-      if (ENABLE_ANALYTICS) {
-        await initAnalytics({
-          endpoint: '/api/analytics/collect',
-          history,
-          getUserId: () => uidRef.current,
-          batchSize: 20,
-          flushIntervalMs: 10_000,
-        });
-      }
+      await initAnalytics({
+        endpoint: CUSTOM_ANALYTICS_ENDPOINT,
+        history,
+        getUserId: () => uidRef.current,
+        batchSize: 20,
+        flushIntervalMs: 10_000,
+      });
     })().catch((e) => {
       logger.warn('[App] telemetry init failed', {
         msg: e instanceof Error ? e.message : String(e),

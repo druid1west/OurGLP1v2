@@ -2,6 +2,7 @@
 import { App } from '@capacitor/app';
 import { Device } from '@capacitor/device';
 import { Capacitor } from '@capacitor/core';
+import { FirebaseAnalytics } from '@capacitor-firebase/analytics';
 import type { History } from 'history';
 import { logger } from '@/utils/logger';
 
@@ -94,6 +95,16 @@ let _flushHooksInstalled = false;
 
 const log = logger.child('analytics');
 const LS_KEY = 'analytics.queue.v1';
+
+// Only these deliberately generic, non-health events are sent explicitly to
+// Firebase/GA4. Firebase's native SDK separately collects its standard safe
+// lifecycle and commerce events (for example first_open, session_start and
+// in_app_purchase). Never add health, medication, route, notification-content,
+// or biometric details here.
+const FIREBASE_MARKETING_EVENTS = new Set<EventName>([
+  'login_success',
+  'profile_saved',
+]);
 
 async function sha256Hex(text: string): Promise<string> {
   try {
@@ -279,11 +290,21 @@ export async function setAnalyticsUser(rawUserId?: string): Promise<void> {
   if (!rawUserId) {
     _uidHashed = 'anon';
     _uidShort = 'anon';
+    if (Capacitor.isNativePlatform()) {
+      void FirebaseAnalytics.setUserId({ userId: null }).catch((err: unknown) => {
+        log.debug('Firebase setUserId clear failed', { msg: String(err) });
+      });
+    }
     return;
   }
   const h = await sha256Hex(rawUserId);
   _uidHashed = h;
   _uidShort = h.slice(0, 12);
+  if (Capacitor.isNativePlatform()) {
+    void FirebaseAnalytics.setUserId({ userId: _uidShort }).catch((err: unknown) => {
+      log.debug('Firebase setUserId failed', { msg: String(err) });
+    });
+  }
 }
 
 export function trackScreenView(screenOrRoute: ScreenName, meta?: EventProps['screen_view']): void {
@@ -311,6 +332,12 @@ export function trackPushTapped(props: EventProps['push_tapped'], route?: string
 function enqueue<N extends EventName>(name: N, props: EventProps[N], route?: string): void {
   const p = sanitizeProps(props as Record<string, unknown>) as EventProps[N];
   const safeRoute = sanitizeRoute(route);
+  sendMarketingEventToFirebase(name);
+
+  // The custom collector is a development-only diagnostic endpoint. Firebase
+  // Analytics above remains enabled in production native builds.
+  if (!_cfg?.endpoint) return;
+
   const ev = { ...(base(name, safeRoute)), screen: safeRoute, props: p } as Payload<N>;
   _queue.push(ev as Payload<EventName>);
 
@@ -326,10 +353,18 @@ function enqueue<N extends EventName>(name: N, props: EventProps[N], route?: str
   }
 }
 
+function sendMarketingEventToFirebase(name: EventName): void {
+  if (!Capacitor.isNativePlatform() || !FIREBASE_MARKETING_EVENTS.has(name)) return;
+
+  // Intentionally omit custom parameters. Even safe event names must not carry
+  // health fields, screen routes, notification content, or other sensitive data.
+  void FirebaseAnalytics.logEvent({ name }).catch((err: unknown) => {
+    log.debug('Firebase logEvent failed', { name, msg: String(err) });
+  });
+}
+
 /** convenience helper for push tokens */
 export async function hash12(s: string): Promise<string> {
   const h = await sha256Hex(s);
   return h.slice(0, 12);
 }
-
-

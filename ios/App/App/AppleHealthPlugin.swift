@@ -319,22 +319,56 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        // Attribute an overnight sleep to the day the user wakes. Querying only
+        // samples that start after midnight misses the normal previous-evening
+        // portion (and, with a strict-start predicate, can miss the whole sleep).
+        let calendar = Calendar.current
+        guard
+            let sleepWindowStart = calendar.date(byAdding: .hour, value: -12, to: start),
+            let sleepWindowEnd = calendar.date(byAdding: .hour, value: -12, to: end)
+        else {
+            completion(0)
+            return
+        }
+
         let query = HKSampleQuery(
             sampleType: type,
-            predicate: predicate(start: start, end: end),
+            predicate: HKQuery.predicateForSamples(
+                withStart: sleepWindowStart,
+                end: sleepWindowEnd,
+                options: []
+            ),
             limit: HKObjectQueryNoLimit,
             sortDescriptors: nil
         ) { _, samples, _ in
-            let minutes = (samples as? [HKCategorySample] ?? [])
+            let intervals = (samples as? [HKCategorySample] ?? [])
                 .filter { self.isAsleepSample($0) }
-                .reduce(0.0) { total, sample in
-                    let overlapStart = max(sample.startDate, start)
-                    let overlapEnd = min(sample.endDate, end)
-                    guard overlapEnd > overlapStart else {
-                        return total
-                    }
-                    return total + overlapEnd.timeIntervalSince(overlapStart) / 60
+                .compactMap { sample -> (Date, Date)? in
+                    let overlapStart = max(sample.startDate, sleepWindowStart)
+                    let overlapEnd = min(sample.endDate, sleepWindowEnd)
+                    return overlapEnd > overlapStart ? (overlapStart, overlapEnd) : nil
                 }
+                .sorted { $0.0 < $1.0 }
+
+            // Apple Health can contain both an aggregate asleep sample and its
+            // Core/Deep/REM stages. Merge overlaps so those minutes count once.
+            var merged: [(Date, Date)] = []
+            for interval in intervals {
+                guard let last = merged.last else {
+                    merged.append(interval)
+                    continue
+                }
+
+                if interval.0 <= last.1 {
+                    merged[merged.count - 1] = (last.0, max(last.1, interval.1))
+                } else {
+                    merged.append(interval)
+                }
+            }
+
+            let minutes = merged.reduce(0.0) { total, interval in
+                total + interval.1.timeIntervalSince(interval.0) / 60
+            }
 
             completion(minutes)
         }

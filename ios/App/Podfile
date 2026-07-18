@@ -11,6 +11,7 @@ def capacitor_pods
   pod 'CapacitorCommunityAppleSignIn', :path => '../../node_modules/@capacitor-community/apple-sign-in'
   pod 'CapacitorCommunityMedia', :path => '../../node_modules/@capacitor-community/media'
   pod 'CapacitorCommunitySqlite', :path => '../../node_modules/@capacitor-community/sqlite'
+  pod 'CapacitorFirebaseAnalytics', :path => '../../node_modules/@capacitor-firebase/analytics'
   pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication'
   pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
   pod 'CapacitorAppLauncher', :path => '../../node_modules/@capacitor/app-launcher'
@@ -33,8 +34,9 @@ end
 target 'OurGlp1' do
   capacitor_pods
 
-  # Firebase
-  pod 'Firebase/AnalyticsWithoutAdIdSupport'
+  # Firebase Analytics without IDFA collection. Keep this explicit subspec
+  # outside capacitor_pods so the plugin links its native Firebase modules.
+  pod 'CapacitorFirebaseAnalytics/AnalyticsWithoutAdIdSupport', :path => '../../node_modules/@capacitor-firebase/analytics'
   # Pin to satisfy capacitor-firebase/authentication
   pod 'FirebaseAuth',  '~> 11.7.0'
   pod 'FirebaseCore',  '~> 11.7.0'
@@ -56,5 +58,4 @@ post_install do |installer|
     end
   end
 end
-
 

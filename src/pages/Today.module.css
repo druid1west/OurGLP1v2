@@ -153,6 +153,11 @@
   line-height: 1;
 }
 
+.metricCard strong.metricPending {
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+
 .protein { --metric-color: #c05621; }
 .hydration { --metric-color: #1677a3; }
 .steps { --metric-color: #27835f; }
