@@ -369,6 +369,13 @@ input[type="datetime-local"],
   color: var(--text-heading);
 }
 
+.fieldHint {
+  margin: -0.45rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 /* --------------------------------------------------
    BUTTONS
 -------------------------------------------------- */

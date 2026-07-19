@@ -149,6 +149,16 @@ function isoFromDatetimeLocalForTz(dtLocal: string, tz: string): string | null {
   return tzLocalToUtc(y, m, d, hh, mm, tz).toISOString();
 }
 
+function localNowForTz(tz: string): { day: string; time: string } {
+  const parts = getTzParts(new Date(), tz);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const hour = parts.hour === 24 ? 0 : parts.hour;
+  return {
+    day: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`,
+    time: `${pad(hour)}:${pad(parts.minute)}`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Allowed health-log entry types
 // ---------------------------------------------------------------------------
@@ -492,16 +502,12 @@ const HealthTracker: React.FC = () => {
   const [showNutritionDetails, setShowNutritionDetails] = useState(false);
   const [savedNutritionFoods, setSavedNutritionFoods] = useState<SavedNutritionFood[]>([]);
   const [nutritionEstimateMessage, setNutritionEstimateMessage] = useState('');
-  const [proteinTime, setProteinTime] = useState(
-    dayjs().format('YYYY-MM-DDTHH:mm'),
-  );
+  const [proteinTime, setProteinTime] = useState(() => localNowForTz(userTz).time);
 
   // Hydration
   const [hydration, setHydration] = useState('');
   const [hydrationNote, setHydrationNote] = useState('');
-  const [hydrationTime, setHydrationTime] = useState(
-    dayjs().format('YYYY-MM-DDTHH:mm'),
-  );
+  const [hydrationTime, setHydrationTime] = useState(() => localNowForTz(userTz).time);
 
   const selectedNutritionFood =
     [...savedNutritionFoods, ...NUTRITION_OPTIONS].find((food) => food.id === selectedProteinSource) ?? null;
@@ -1244,24 +1250,26 @@ const HealthTracker: React.FC = () => {
             />
           </div>
 
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="protein-time">
-              When did you eat this?
-            </label>
-            <input
-              id="protein-time"
-              name="proteinTime"
-              type="datetime-local"
-              className={styles.inputField}
-              value={proteinTime}
-              onChange={(e) => setProteinTime(e.target.value)}
-              title="Food timestamp"
-              aria-label="Food timestamp"
-              placeholder="YYYY-MM-DDThh:mm"
-            />
-          </div>
         </div>
       )}
+
+      <div className={styles.formGroup}>
+        <label className={styles.label} htmlFor="protein-time">
+          Time eaten
+        </label>
+        <input
+          id="protein-time"
+          name="proteinTime"
+          type="time"
+          className={styles.inputField}
+          value={proteinTime}
+          max={localNowForTz(userTz).time}
+          onChange={(e) => setProteinTime(e.target.value)}
+          title="Time eaten today"
+          aria-label="Time eaten today"
+        />
+        <p className={styles.fieldHint}>Today’s date stays fixed. Choose when you actually ate.</p>
+      </div>
 
       <IonButton
         className="custom-button"
@@ -1907,19 +1915,20 @@ const HealthTracker: React.FC = () => {
 
   <div className={styles.formGroup}>
     <label className={styles.label} htmlFor="hydration-time">
-      Timestamp
+      Time drank
     </label>
     <input
       id="hydration-time"
       name="hydrationTime"
-      type="datetime-local"
+      type="time"
       className={styles.inputField}
       value={hydrationTime}
+      max={localNowForTz(userTz).time}
       onChange={(e) => setHydrationTime(e.target.value)}
-      title="Hydration timestamp"
-      aria-label="Hydration timestamp"
-      placeholder="YYYY-MM-DDThh:mm"
+      title="Time drank today"
+      aria-label="Time drank today"
     />
+    <p className={styles.fieldHint}>Today’s date stays fixed. Choose when you actually drank it.</p>
   </div>
 
   <IonButton
@@ -2067,7 +2076,16 @@ return;
 }
 
 try {
-const recordedIso = isoFromDatetimeLocalForTz(time, userTz) || dayjs(time).toISOString();
+const isFoodOrWater = entryType === 'protein' || entryType === 'hydration';
+const todayAtSelectedTime = isFoodOrWater && /^\d{2}:\d{2}$/.test(time)
+  ? `${localNowForTz(userTz).day}T${time}`
+  : time;
+const recordedIso = isoFromDatetimeLocalForTz(todayAtSelectedTime, userTz) || dayjs(todayAtSelectedTime).toISOString();
+
+if (isFoodOrWater && new Date(recordedIso).getTime() > Date.now() + 60_000) {
+  alert('Please choose a time that is not in the future.');
+  return;
+}
 
 logger.debug('[health-log] Normalized recordedIso', { recordedIso });
 
@@ -2214,6 +2232,8 @@ navigateToCelebration(poopCtx);
 // Common post-save stuff
 // ─────────────────────────────────────────────────────────────
 alert(`${entryType.replace('_', ' ')} entry saved!`);
+if (entryType === 'protein') setProteinTime(localNowForTz(userTz).time);
+if (entryType === 'hydration') setHydrationTime(localNowForTz(userTz).time);
 window.dispatchEvent(new Event('health:changed'));
 if (entryType === 'blood_sugar') {
 window.dispatchEvent(new Event('blood_sugar:changed'));

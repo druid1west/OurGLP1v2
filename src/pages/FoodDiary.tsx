@@ -14,6 +14,7 @@ import {
   type HealthLog,
 } from '../db/HealthRepository';
 import { nutritionFromLogData } from '../lib/nutritionLog';
+import { maxTimeForRecordedAt, recordedAtWithTime } from '../lib/healthLogTime';
 import { logger } from '../utils/logger';
 import styles from './FoodDiary.module.css';
 
@@ -81,11 +82,6 @@ function timeFromIso(iso: string): string {
   const hh = String(date.getHours()).padStart(2, '0');
   const mm = String(date.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
-}
-
-function isoForDayTime(ymd: string, hhmm: string): string {
-  const safeTime = /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '12:00';
-  return new Date(`${ymd}T${safeTime}:00`).toISOString();
 }
 
 function dataRecord(log: HealthLog): Record<string, unknown> {
@@ -243,7 +239,12 @@ const FoodDiary: React.FC = () => {
     if (!draft) return;
     const label = draft.label.trim() || (log.entry_type === 'hydration' ? 'Water' : 'Food');
     const data = dataRecord(log);
-    const recordedAt = isoForDayTime(selectedDay, draft.time);
+    const recordedAtResult = recordedAtWithTime(log.recorded_at, draft.time);
+    if (!recordedAtResult.ok) {
+      setMessage(recordedAtResult.message);
+      return;
+    }
+    const recordedAt = recordedAtResult.value;
     const entryType = log.entry_type;
     const nextData = entryType === 'hydration'
       ? {
@@ -404,7 +405,12 @@ const FoodDiary: React.FC = () => {
                         </label>
                         <label>
                           <span>Time</span>
-                          <input type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
+                          <input
+                            type="time"
+                            value={draft.time}
+                            max={maxTimeForRecordedAt(log.recorded_at)}
+                            onChange={(event) => setDraft({ ...draft, time: event.target.value })}
+                          />
                         </label>
                         {isHydration ? (
                           <label>

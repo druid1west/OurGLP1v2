@@ -36,6 +36,7 @@ import {
   // health logs
   listHealthLogs, // ()
   deleteHealthLogLocal, // (id)
+  updateHealthLogAndEmit,
   // exercises
   listExercises, // ()
   deleteExerciseById, // (id)
@@ -50,6 +51,7 @@ type Glp1GraphPoint,
 
 
 import Glp1TrendGraph from '../components/Glp1TrendGraph';
+import EditableLogTime from '../components/EditableLogTime';
 import { listStrengthWorkouts, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
 
 // Today label for the week overview
@@ -960,6 +962,20 @@ const PersonalPlan: React.FC = () => {
     }
   };
 
+  const updateLogTime = async (log: HealthLog, recordedAt: string): Promise<void> => {
+    try {
+      await updateHealthLogAndEmit(log.id, {
+        entry_type: log.entry_type,
+        recorded_at: recordedAt,
+        data_json: JSON.stringify(log.data),
+      });
+      await loadLogs();
+    } catch (err) {
+      logger.error('updateHealthLogTime failed', { id: log.id, err });
+      throw err;
+    }
+  };
+
   const deleteExercise = async (id: string | number): Promise<void> => {
     if (!window.confirm('Delete this exercise?')) return;
 
@@ -1109,8 +1125,14 @@ const PersonalPlan: React.FC = () => {
             {healthLogs
               .filter((log) => log.entry_type === 'hydration')
               .map((log) => (
-                <p key={log.id} className={personalStyles.lineRow}>
-                  {new Date(log.recorded_at).toLocaleString()}
+                <div key={log.id} className={personalStyles.lineRow}>
+                  <span>{new Date(log.recorded_at).toLocaleDateString()}</span>
+                  {' · '}
+                  <EditableLogTime
+                    recordedAt={log.recorded_at}
+                    entryLabel="Water"
+                    onSave={(recordedAt) => updateLogTime(log, recordedAt)}
+                  />
                   {formatHydrationLine(log) ? `: ${formatHydrationLine(log)}` : ''}
                   <button
                     type="button"
@@ -1121,7 +1143,7 @@ const PersonalPlan: React.FC = () => {
                   >
                     🗑️
                   </button>
-                </p>
+                </div>
               ))}
           </div>
 
@@ -1200,8 +1222,14 @@ const PersonalPlan: React.FC = () => {
             {healthLogs
               .filter((log) => log.entry_type === 'protein')
               .map((log) => (
-                <p key={log.id} className={personalStyles.lineRow}>
-                  {new Date(log.recorded_at).toLocaleString()}
+                <div key={log.id} className={personalStyles.lineRow}>
+                  <span>{new Date(log.recorded_at).toLocaleDateString()}</span>
+                  {' · '}
+                  <EditableLogTime
+                    recordedAt={log.recorded_at}
+                    entryLabel="Food"
+                    onSave={(recordedAt) => updateLogTime(log, recordedAt)}
+                  />
                   {formatProteinLine(log) ? `: ${formatProteinLine(log)}` : ''}
                   <button
                     type="button"
@@ -1212,7 +1240,7 @@ const PersonalPlan: React.FC = () => {
                   >
                     🗑️
                   </button>
-                </p>
+                </div>
               ))}
           </div>
 

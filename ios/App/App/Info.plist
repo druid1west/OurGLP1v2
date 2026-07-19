@@ -15,7 +15,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2.1</string>
+	<string>1.2.2</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -36,7 +36,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>1</string>
 	<key>GIDClientID</key>
 	<string>557159382889-2lrmm8v7d0ojvfd4dqvvl84j9uh0bmc4.apps.googleusercontent.com</string>
 	<key>LSApplicationCategoryType</key>

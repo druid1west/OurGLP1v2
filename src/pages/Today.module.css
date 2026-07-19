@@ -370,7 +370,7 @@
 
 .textToggleButton,
 .undoButton,
-.loggedItem button {
+.deleteLogButton {
   min-height: 36px;
   border: 1px solid rgba(37, 99, 235, 0.16);
   border-radius: 8px;
@@ -810,7 +810,7 @@
 
 .loggedItem {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) 38px;
   align-items: center;
   gap: 10px;
   min-height: 44px;
@@ -819,7 +819,7 @@
   background: #f3f7f5;
 }
 
-.loggedItem span {
+.loggedItem > span {
   color: #607470;
   font-size: 0.78rem;
   font-weight: 850;
@@ -833,7 +833,7 @@
   overflow-wrap: anywhere;
 }
 
-.loggedItem button {
+.deleteLogButton {
   width: 36px;
   min-height: 36px;
   display: inline-flex;
@@ -1084,7 +1084,7 @@
 :global([data-theme='dark']) .protocolPill strong,
 :global([data-theme='dark']) .insightCard span,
 :global([data-theme='dark']) .companionCopy p,
-:global([data-theme='dark']) .loggedItem span,
+:global([data-theme='dark']) .loggedItem > span,
 :global([data-theme='dark']) .loggedEmpty,
 :global(body[data-theme='dark']) .metricCard span,
 :global(body[data-theme='dark']) .energyGrid span,
@@ -1098,7 +1098,7 @@
 :global(body[data-theme='dark']) .protocolPill strong,
 :global(body[data-theme='dark']) .insightCard span,
 :global(body[data-theme='dark']) .companionCopy p,
-:global(body[data-theme='dark']) .loggedItem span,
+:global(body[data-theme='dark']) .loggedItem > span,
 :global(body[data-theme='dark']) .loggedEmpty {
   color: #9bb2ad;
 }

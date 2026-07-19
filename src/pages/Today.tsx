@@ -36,6 +36,7 @@ import {
   insertHealthLogAndEmit,
   listExercises,
   listHealthLogsRange,
+  updateHealthLogAndEmit,
   upsertHealthDailySummary,
   upsertDailyHydrationAndEmit,
   upsertDailyProteinAndEmit,
@@ -64,6 +65,7 @@ import { getSetupStatus } from '../lib/setupStatus';
 import { logger } from '../utils/logger';
 import { getCoachProfile } from '../db/CoachRepository';
 import { listStrengthWorkouts, type StrengthWorkout } from '../db/StrengthWorkoutRepository';
+import EditableLogTime from '../components/EditableLogTime';
 import styles from './Today.module.css';
 
 type TodayStats = {
@@ -1049,6 +1051,17 @@ const Today: React.FC = () => {
     }
   };
 
+  const handleUpdateLogTime = async (log: HealthLog, recordedAt: string, label: string): Promise<void> => {
+    const data = log.data && typeof log.data === 'object' ? log.data : {};
+    await updateHealthLogAndEmit(log.id, {
+      entry_type: log.entry_type,
+      recorded_at: recordedAt,
+      data_json: JSON.stringify(data),
+    });
+    setQuickActionMessage(`${label} time updated.`);
+    await loadToday();
+  };
+
   const handleUndoLastQuickLog = async (): Promise<void> => {
     if (!lastQuickLog) return;
     await handleDeleteLog(lastQuickLog.id, lastQuickLog.label);
@@ -1476,10 +1489,20 @@ const Today: React.FC = () => {
                 <div className={styles.loggedList}>
                   {visibleTodayLogs.map(({ log, label }) => (
                     <div key={log.id} className={styles.loggedItem}>
-                      <span>{loggedItemTime(log)}</span>
+                      {log.entry_type === 'protein' || log.entry_type === 'hydration' ? (
+                        <EditableLogTime
+                          recordedAt={log.recorded_at}
+                          entryLabel={label}
+                          disabled={quickActionState === 'saving'}
+                          onSave={(recordedAt) => handleUpdateLogTime(log, recordedAt, label)}
+                        />
+                      ) : (
+                        <span>{loggedItemTime(log)}</span>
+                      )}
                       <strong>{label}</strong>
                       <button
                         type="button"
+                        className={styles.deleteLogButton}
                         onClick={() => void handleDeleteLog(log.id, label)}
                         disabled={quickActionState === 'saving'}
                         aria-label={`Remove ${label}`}
